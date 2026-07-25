@@ -1,6 +1,81 @@
-import{PrismaClient,Role,AttendanceStatus,ClockEventType}from"@prisma/client";import bcrypt from"bcryptjs";import{createHash,randomBytes,randomUUID}from"crypto";
-const prisma=new PrismaClient();const hash=(v:string)=>createHash("sha256").update(v).digest("hex");
-const staffNames=["Amelia Hart","Ben Carter","Chloe Martin","Daniel Reed","Ella Brooks","Finley Ward","Grace Cooper","Harry Evans","Isla Turner","Jack Collins"];
-const studentNames=["Ava Wilson","Blake Taylor","Casey Moore","Daisy Lewis","Elliot King","Freya Walker","George Hall","Holly Allen","Isaac Young","Jasmine Wright","Kai Scott","Lily Green","Mason Baker","Nina Adams","Oscar Nelson","Poppy Hill","Quinn Campbell","Ruby Mitchell","Sam Roberts","Tia Phillips"];
-async function main(){for(const [email,name,role,password]of [["admin@pulse.test","Alex Admin",Role.ADMINISTRATOR,"ChangeMe!123"],["manager@pulse.test","Morgan Manager",Role.MANAGER,"ChangeMe!123"],["reception@pulse.test","Riley Reception",Role.RECEPTION,"ChangeMe!123"]]as const)await prisma.user.upsert({where:{email},update:{},create:{email,name,role,passwordHash:await bcrypt.hash(password,12)}});const devices=[];for(const name of["Reception Tablet","Activity Room Tablet"]){const token=randomBytes(24).toString("base64url");devices.push(await prisma.device.create({data:{name,tokenHash:hash(token),appVersion:"1.0.0"}}));console.log(`${name} setup token (shown once): ${token}`)}const staff=[];for(let i=0;i<staffNames.length;i++){const[firstName,lastName]=staffNames[i].split(" ");const s=await prisma.staffMember.create({data:{firstName,lastName,displayName:staffNames[i],email:`${firstName.toLowerCase()}.${lastName.toLowerCase()}@example.test`,jobRole:i<2?"Team Leader":"Support Worker",startDate:new Date("2024-01-08"),contractedWeeklyHours:35}});const pin=String(4101+i);await prisma.staffCredential.create({data:{staffId:s.id,kind:"PIN",valueHash:await bcrypt.hash(pin,12),lookupHash:hash(pin)}});staff.push(s)}const students=[];for(let i=0;i<studentNames.length;i++){const[firstName,lastName]=studentNames[i].split(" ");students.push(await prisma.student.create({data:{firstName,lastName,displayName:studentNames[i],expectedDays:[1,2,3,4,5],active:true,startDate:new Date("2024-09-02"),internalReference:`STU-${String(i+1).padStart(3,"0")}`,fundingCategory:i%2?"Local authority":"Direct payment",fundingOrganisation:"Example Council"}}))}const now=new Date();for(let i=0;i<6;i++)await prisma.clockEvent.create({data:{id:randomUUID(),staffId:staff[i].id,deviceId:devices[0].id,type:ClockEventType.CLOCK_IN,deviceTimestamp:new Date(now.getFullYear(),now.getMonth(),now.getDate(),8,30+i*4),photoStatus:"NOT_REQUIRED"}});const day=new Date(now.getFullYear(),now.getMonth(),now.getDate());for(let i=0;i<students.length;i++)await prisma.studentAttendance.create({data:{id:randomUUID(),studentId:students[i].id,deviceId:devices[0].id,date:day,status:i<14?AttendanceStatus.PRESENT:i<17?AttendanceStatus.ABSENT:AttendanceStatus.NOT_MARKED,arrivalTime:i<14?new Date(now.getFullYear(),now.getMonth(),now.getDate(),9,i):null,deviceTimestamp:now}});const roll=await prisma.emergencyRollCall.create({data:{id:randomUUID(),startedByDeviceId:devices[0].id,attendanceSnapshotAt:now,startedAt:now,status:"CLOSED",closedAt:new Date(now.getTime()+10*60_000)}});await prisma.emergencyRollCallEntry.create({data:{id:randomUUID(),rollCallId:roll.id,personType:"STAFF",personId:staff[0].id,displayName:staff[0].displayName,accountedFor:true,accountedAt:now,deviceTimestamp:now}});for(const[key,value]of Object.entries({cameraMode:"OPTIONAL",photoRetentionDays:30,auditRetentionDays:365,localHistoryDays:7,rollCallRetentionDays:730,duplicateEventSeconds:20,dailyEmailTime:"17:30",dailyEmailRecipients:[]}))await prisma.appSetting.upsert({where:{key},update:{value},create:{key,value}});console.log("Seed complete. Development PINs: 4101–4110. Change seeded passwords before production.")}
+import { PrismaClient, Role, AttendanceStatus, ClockEventType } from "@prisma/client";
+import bcrypt from "bcryptjs";
+import { createHash, randomUUID } from "crypto";
+
+const prisma = new PrismaClient();
+const hash = (value:string) => createHash("sha256").update(value).digest("hex");
+const staffNames = ["Amelia Hart","Ben Carter","Chloe Martin","Daniel Reed","Ella Brooks","Finley Ward","Grace Cooper","Harry Evans","Isla Turner","Jack Collins"];
+const studentNames = ["Ava Wilson","Blake Taylor","Casey Moore","Daisy Lewis","Elliot King","Freya Walker","George Hall","Holly Allen","Isaac Young","Jasmine Wright","Kai Scott","Lily Green","Mason Baker","Nina Adams","Oscar Nelson","Poppy Hill","Quinn Campbell","Ruby Mitchell","Sam Roberts","Tia Phillips"];
+
+async function main() {
+  for (const [email,name,role] of [
+    ["admin@starsconnect.test","Alex Admin",Role.ADMINISTRATOR],
+    ["manager@starsconnect.test","Morgan Manager",Role.MANAGER],
+    ["reception@starsconnect.test","Riley Reception",Role.RECEPTION],
+  ] as const) {
+    await prisma.user.upsert({
+      where:{email},
+      update:{name,role,active:true},
+      create:{email,name,role,passwordHash:await bcrypt.hash("ChangeMe!123",12)},
+    });
+  }
+
+  const devices = [];
+  for (const [index,name] of ["Reception Tablet","Activity Room Tablet"].entries()) {
+    const token = `development-tablet-token-${index + 1}-change-before-production`;
+    const existing = await prisma.device.findFirst({where:{name}});
+    devices.push(existing || await prisma.device.create({data:{name,tokenHash:hash(token),appVersion:"1.0.0",tokenRotatedAt:new Date()}}));
+    console.log(`${name} development token: ${token}`);
+  }
+
+  const staff = [];
+  for (let i=0;i<staffNames.length;i++) {
+    const [firstName,lastName] = staffNames[i].split(" ");
+    const email = `${firstName.toLowerCase()}.${lastName.toLowerCase()}@example.test`;
+    const member = await prisma.staffMember.upsert({
+      where:{email},
+      update:{displayName:staffNames[i],active:true,clockingEnabled:true},
+      create:{firstName,lastName,displayName:staffNames[i],email,jobRole:i<2?"Team Leader":"Support Worker",startDate:new Date("2024-01-08"),contractedWeeklyHours:35},
+    });
+    const pin = String(4101+i);
+    const lookupHash = hash(pin);
+    const credential = await prisma.staffCredential.findFirst({where:{staffId:member.id,kind:"PIN",lookupHash}});
+    if (!credential) await prisma.staffCredential.create({data:{staffId:member.id,kind:"PIN",valueHash:await bcrypt.hash(pin,12),lookupHash}});
+    staff.push(member);
+  }
+
+  const students = [];
+  for (let i=0;i<studentNames.length;i++) {
+    const [firstName,lastName] = studentNames[i].split(" ");
+    const internalReference = `STU-${String(i+1).padStart(3,"0")}`;
+    students.push(await prisma.student.upsert({
+      where:{internalReference},
+      update:{displayName:studentNames[i],active:true},
+      create:{firstName,lastName,displayName:studentNames[i],expectedDays:[1,2,3,4,5],active:true,startDate:new Date("2024-09-02"),internalReference,fundingCategory:i%2?"Local authority":"Direct payment",fundingOrganisation:"Example Council"},
+    }));
+  }
+
+  const now = new Date();
+  const day = new Date(Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),now.getUTCDate()));
+  for (let i=0;i<6;i++) {
+    const existing = await prisma.clockEvent.findFirst({where:{staffId:staff[i].id,deviceTimestamp:{gte:day}}});
+    if (!existing) await prisma.clockEvent.create({data:{id:randomUUID(),staffId:staff[i].id,deviceId:devices[0].id,type:ClockEventType.CLOCK_IN,deviceTimestamp:new Date(day.getTime()+(8*60+30+i*4)*60_000),photoStatus:"NOT_REQUIRED"}});
+  }
+  for (let i=0;i<students.length;i++) {
+    await prisma.studentAttendance.upsert({
+      where:{studentId_date:{studentId:students[i].id,date:day}},
+      update:{},
+      create:{id:randomUUID(),studentId:students[i].id,deviceId:devices[0].id,date:day,status:i<14?AttendanceStatus.PRESENT:i<17?AttendanceStatus.ABSENT:AttendanceStatus.NOT_MARKED,arrivalTime:i<14?new Date(day.getTime()+(9*60+i)*60_000):null,deviceTimestamp:now},
+    });
+  }
+
+  for (const [key,value] of Object.entries({
+    cameraMode:"OPTIONAL",photoRetentionDays:30,auditRetentionDays:365,localHistoryDays:7,
+    rollCallRetentionDays:730,duplicateEventSeconds:20,dailyEmailEnabled:false,
+    dailyEmailTime:"17:30",dailyEmailRecipients:[],
+  })) await prisma.appSetting.upsert({where:{key},update:{},create:{key,value}});
+
+  console.log("Seed complete. Fake logins use ChangeMe!123; development staff PINs are 4101–4110.");
+}
+
 main().finally(()=>prisma.$disconnect());

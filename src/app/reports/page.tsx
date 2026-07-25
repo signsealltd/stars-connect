@@ -1,3 +1,4 @@
-import{Header}from"@/components/header";
-export default function Reports(){return <main className="shell"><Header manager/><div className="content"><h1 className="page-title">Reports</h1><p className="muted">Operational attendance summaries and CSV exports.</p><div className="grid stat-grid"><Report title="Daily staff report" text="Clock times, hours, missing clock-outs and corrections"/><Report title="Weekly staff report" text="Daily breakdown, warnings and CSV export"/><Report title="Student attendance" text="Expected, present, absent, late and cancelled"/><Report title="Daily site report" text="Site totals, first arrival and last departure"/></div></div></main>}
-function Report({title,text}:{title:string;text:string}){return <section className="card" style={{padding:22}}><h2 style={{marginTop:0}}>{title}</h2><p className="muted">{text}</p><button className="btn secondary">Export CSV</button></section>}
+import Image from "next/image";
+import { Header } from "@/components/header";
+import { ReportsClient } from "@/components/reports-client";
+export default function Reports(){return <main className="shell"><Header manager/><div className="content"><div className="page-head"><div><Image src="/branding/stars-logo.svg" alt="STARS" width={92} height={68}/><h1 className="page-title">Operational reports</h1><p className="muted">Permission-protected attendance reports, CSV exports and print views.</p></div></div><ReportsClient/></div></main>}

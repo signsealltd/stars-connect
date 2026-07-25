@@ -1,0 +1,5 @@
+import { Header } from "@/components/header";
+import { prisma } from "@/lib/prisma";
+import { requireRole } from "@/lib/security";
+export const dynamic="force-dynamic";
+export default async function AuditPage(){await requireRole("ADMINISTRATOR");const rows=await prisma.auditLog.findMany({orderBy:{createdAt:"desc"},take:300});return <main className="shell"><Header manager/><div className="content"><div className="page-head"><div><h1 className="page-title">Audit log</h1><p className="muted">Recent privileged and operational events. Secrets are never recorded.</p></div></div><section className="card table-wrap"><table className="table"><thead><tr><th>Time</th><th>Action</th><th>Actor</th><th>Target</th><th>Device/IP</th></tr></thead><tbody>{rows.map(r=><tr key={r.id}><td>{r.createdAt.toLocaleString("en-GB",{timeZone:"Europe/London"})}</td><td><b>{r.action}</b></td><td>{r.actorType} {r.actorId||""}</td><td>{r.entityType||"—"} {r.entityId||""}</td><td>{r.deviceId||r.ipAddress||"—"}</td></tr>)}</tbody></table></section></div></main>}

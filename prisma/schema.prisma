@@ -1,9 +1,10 @@
 generator client {
   provider = "prisma-client-js"
 }
+
 datasource db {
   provider = "mysql"
-  url = env("DATABASE_URL")
+  url      = env("DATABASE_URL")
 }
 
 enum Role {
@@ -11,14 +12,17 @@ enum Role {
   MANAGER
   RECEPTION
 }
+
 enum CredentialKind {
   PIN
   NFC
 }
+
 enum ClockEventType {
   CLOCK_IN
   CLOCK_OUT
 }
+
 enum AttendanceStatus {
   NOT_MARKED
   PRESENT
@@ -26,35 +30,42 @@ enum AttendanceStatus {
   LATE
   CANCELLED
 }
+
 enum PhotoStatus {
   NOT_REQUIRED
   CAPTURED
   UNAVAILABLE
   PENDING_UPLOAD
 }
+
 enum CameraMode {
   DISABLED
   REQUIRED_ALL
   REQUIRED_SELECTED
   OPTIONAL
 }
+
 enum DeviceStatus {
   ACTIVE
   REVOKED
 }
+
 enum RollCallStatus {
   ACTIVE
   CLOSED
 }
+
 enum SyncOperation {
   CLOCK_EVENT
   ATTENDANCE
   ROLL_CALL_ENTRY
 }
+
 enum ConflictStatus {
   OPEN
   RESOLVED
 }
+
 enum EmailStatus {
   PENDING
   SENT
@@ -62,249 +73,269 @@ enum EmailStatus {
 }
 
 model User {
-  id String @id @default(uuid()) @db.Char(36)
-  email String @unique @db.VarChar(191)
-  name String @db.VarChar(120)
+  id           String            @id @default(uuid()) @db.Char(36)
+  email        String            @unique @db.VarChar(191)
+  name         String            @db.VarChar(120)
   passwordHash String
-  role Role
-  active Boolean @default(true)
-  sessions Session[]
-  corrections ClockCorrection[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  role         Role
+  active       Boolean           @default(true)
+  sessions     Session[]
+  corrections  ClockCorrection[]
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
 }
 
 model Session {
-  id String @id @default(uuid()) @db.Char(36)
-  tokenHash String @unique @db.Char(64)
-  userId String @db.Char(36)
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        String   @id @default(uuid()) @db.Char(36)
+  tokenHash String   @unique @db.Char(64)
+  userId    String   @db.Char(36)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   expiresAt DateTime
   createdAt DateTime @default(now())
+
   @@index([userId])
 }
 
 model StaffMember {
-  id String @id @default(uuid()) @db.Char(36)
-  firstName String @db.VarChar(80)
-  lastName String @db.VarChar(80)
-  displayName String @db.VarChar(120)
-  email String @unique @db.VarChar(191)
-  phone String? @db.VarChar(40)
-  jobRole String @db.VarChar(100)
-  profilePhotoUrl String? @db.VarChar(500)
-  contractedWeeklyHours Decimal? @db.Decimal(5,2)
-  active Boolean @default(true)
-  cameraRequired Boolean @default(false)
-  startDate DateTime @db.Date
-  endDate DateTime? @db.Date
-  notes String? @db.Text
-  credentials StaffCredential[]
-  clockEvents ClockEvent[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  archivedAt DateTime?
+  id                    String            @id @default(uuid()) @db.Char(36)
+  firstName             String            @db.VarChar(80)
+  lastName              String            @db.VarChar(80)
+  displayName           String            @db.VarChar(120)
+  email                 String            @unique @db.VarChar(191)
+  phone                 String?           @db.VarChar(40)
+  jobRole               String            @db.VarChar(100)
+  profilePhotoUrl       String?           @db.VarChar(500)
+  contractedWeeklyHours Decimal?          @db.Decimal(5, 2)
+  active                Boolean           @default(true)
+  clockingEnabled       Boolean           @default(true)
+  sortOrder             Int               @default(0)
+  cameraRequired        Boolean           @default(false)
+  startDate             DateTime          @db.Date
+  endDate               DateTime?         @db.Date
+  notes                 String?           @db.Text
+  credentials           StaffCredential[]
+  clockEvents           ClockEvent[]
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+  archivedAt            DateTime?
+
   @@index([active, displayName])
 }
 
 model StaffCredential {
-  id String @id @default(uuid()) @db.Char(36)
-  staffId String @db.Char(36)
-  staff StaffMember @relation(fields: [staffId], references: [id], onDelete: Cascade)
-  kind CredentialKind
-  valueHash String
-  lookupHash String? @db.Char(64)
-  active Boolean @default(true)
-  createdAt DateTime @default(now())
-  revokedAt DateTime?
+  id         String         @id @default(uuid()) @db.Char(36)
+  staffId    String         @db.Char(36)
+  staff      StaffMember    @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  kind       CredentialKind
+  valueHash  String
+  lookupHash String?        @db.Char(64)
+  active     Boolean        @default(true)
+  createdAt  DateTime       @default(now())
+  revokedAt  DateTime?
+
   @@unique([kind, lookupHash])
   @@index([staffId, active])
 }
 
 model Student {
-  id String @id @default(uuid()) @db.Char(36)
-  firstName String @db.VarChar(80)
-  lastName String @db.VarChar(80)
-  displayName String @db.VarChar(120)
-  profilePhotoUrl String? @db.VarChar(500)
-  expectedDays Json
-  active Boolean @default(true)
-  startDate DateTime @db.Date
-  endDate DateTime? @db.Date
-  fundingCategory String? @db.VarChar(100)
-  fundingOrganisation String? @db.VarChar(191)
-  internalReference String? @unique @db.VarChar(100)
-  notes String? @db.Text
-  attendance StudentAttendance[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  archivedAt DateTime?
+  id                  String              @id @default(uuid()) @db.Char(36)
+  firstName           String              @db.VarChar(80)
+  lastName            String              @db.VarChar(80)
+  displayName         String              @db.VarChar(120)
+  profilePhotoUrl     String?             @db.VarChar(500)
+  expectedDays        Json
+  active              Boolean             @default(true)
+  sortOrder           Int                 @default(0)
+  startDate           DateTime            @db.Date
+  endDate             DateTime?           @db.Date
+  fundingCategory     String?             @db.VarChar(100)
+  fundingOrganisation String?             @db.VarChar(191)
+  internalReference   String?             @unique @db.VarChar(100)
+  notes               String?             @db.Text
+  attendance          StudentAttendance[]
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  archivedAt          DateTime?
+
   @@index([active, displayName])
 }
 
 model Device {
-  id String @id @default(uuid()) @db.Char(36)
-  name String @db.VarChar(120)
-  tokenHash String @unique @db.Char(64)
-  status DeviceStatus @default(ACTIVE)
-  appVersion String? @db.VarChar(40)
-  lastSeenAt DateTime?
-  lastSyncAt DateTime?
-  pendingEventCount Int @default(0)
-  clockEvents ClockEvent[]
-  attendances StudentAttendance[]
-  syncEvents SyncEvent[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                String              @id @default(uuid()) @db.Char(36)
+  name              String              @db.VarChar(120)
+  tokenHash         String              @unique @db.Char(64)
+  status            DeviceStatus        @default(ACTIVE)
+  appVersion        String?             @db.VarChar(40)
+  lastSeenAt        DateTime?
+  lastSyncAt        DateTime?
+  pendingEventCount Int                 @default(0)
+  currentCursor     BigInt              @default(0)
+  tokenRotatedAt    DateTime?
+  revokedAt         DateTime?
+  clockEvents       ClockEvent[]
+  attendances       StudentAttendance[]
+  syncEvents        SyncEvent[]
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
 }
 
 model ClockEvent {
-  id String @id @db.Char(36)
-  staffId String @db.Char(36)
-  staff StaffMember @relation(fields: [staffId], references: [id])
-  deviceId String @db.Char(36)
-  device Device @relation(fields: [deviceId], references: [id])
-  type ClockEventType
-  deviceTimestamp DateTime
-  serverReceivedAt DateTime @default(now())
-  offlineRecorded Boolean @default(false)
-  photoStatus PhotoStatus @default(NOT_REQUIRED)
-  reviewRequired Boolean @default(false)
-  photos AttendancePhoto[]
-  corrections ClockCorrection[]
-  createdAt DateTime @default(now())
+  id               String            @id @db.Char(36)
+  staffId          String            @db.Char(36)
+  staff            StaffMember       @relation(fields: [staffId], references: [id])
+  deviceId         String            @db.Char(36)
+  device           Device            @relation(fields: [deviceId], references: [id])
+  type             ClockEventType
+  deviceTimestamp  DateTime
+  serverReceivedAt DateTime          @default(now())
+  offlineRecorded  Boolean           @default(false)
+  photoStatus      PhotoStatus       @default(NOT_REQUIRED)
+  reviewRequired   Boolean           @default(false)
+  photos           AttendancePhoto[]
+  corrections      ClockCorrection[]
+  createdAt        DateTime          @default(now())
+
   @@index([staffId, deviceTimestamp])
   @@index([serverReceivedAt])
 }
 
 model ClockCorrection {
-  id String @id @default(uuid()) @db.Char(36)
-  clockEventId String @db.Char(36)
-  clockEvent ClockEvent @relation(fields: [clockEventId], references: [id])
-  managerId String @db.Char(36)
-  manager User @relation(fields: [managerId], references: [id])
-  reason String @db.Text
+  id            String     @id @default(uuid()) @db.Char(36)
+  clockEventId  String     @db.Char(36)
+  clockEvent    ClockEvent @relation(fields: [clockEventId], references: [id])
+  managerId     String     @db.Char(36)
+  manager       User       @relation(fields: [managerId], references: [id])
+  reason        String     @db.Text
   originalValue Json
-  newValue Json
-  createdAt DateTime @default(now())
+  newValue      Json
+  createdAt     DateTime   @default(now())
 }
 
 model AttendancePhoto {
-  id String @id @default(uuid()) @db.Char(36)
-  clockEventId String @db.Char(36)
-  clockEvent ClockEvent @relation(fields: [clockEventId], references: [id], onDelete: Cascade)
-  storagePath String @db.VarChar(500)
-  mimeType String @db.VarChar(80)
-  sizeBytes Int
-  expiresAt DateTime
-  createdAt DateTime @default(now())
-  deletedAt DateTime?
+  id           String     @id @default(uuid()) @db.Char(36)
+  clockEventId String     @db.Char(36)
+  clockEvent   ClockEvent @relation(fields: [clockEventId], references: [id], onDelete: Cascade)
+  storagePath  String     @db.VarChar(500)
+  mimeType     String     @db.VarChar(80)
+  sizeBytes    Int
+  expiresAt    DateTime
+  createdAt    DateTime   @default(now())
+  deletedAt    DateTime?
+
   @@index([expiresAt, deletedAt])
 }
 
 model StudentAttendance {
-  id String @id @db.Char(36)
-  studentId String @db.Char(36)
-  student Student @relation(fields: [studentId], references: [id])
-  deviceId String @db.Char(36)
-  device Device @relation(fields: [deviceId], references: [id])
-  date DateTime @db.Date
-  status AttendanceStatus @default(NOT_MARKED)
-  arrivalTime DateTime?
-  departureTime DateTime?
-  note String? @db.Text
-  version Int @default(1)
-  deviceTimestamp DateTime
-  serverReceivedAt DateTime @default(now())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id               String           @id @db.Char(36)
+  studentId        String           @db.Char(36)
+  student          Student          @relation(fields: [studentId], references: [id])
+  deviceId         String           @db.Char(36)
+  device           Device           @relation(fields: [deviceId], references: [id])
+  date             DateTime         @db.Date
+  status           AttendanceStatus @default(NOT_MARKED)
+  arrivalTime      DateTime?
+  departureTime    DateTime?
+  note             String?          @db.Text
+  version          Int              @default(1)
+  deviceTimestamp  DateTime
+  serverReceivedAt DateTime         @default(now())
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
   @@unique([studentId, date])
   @@index([date, status])
 }
 
 model EmergencyRollCall {
-  id String @id @db.Char(36)
-  status RollCallStatus @default(ACTIVE)
-  startedByDeviceId String @db.Char(36)
+  id                   String                   @id @db.Char(36)
+  status               RollCallStatus           @default(ACTIVE)
+  startedByDeviceId    String                   @db.Char(36)
   attendanceSnapshotAt DateTime
-  startedAt DateTime
-  closedAt DateTime?
-  closedByUserId String? @db.Char(36)
-  entries EmergencyRollCallEntry[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  startedAt            DateTime
+  closedAt             DateTime?
+  closedByUserId       String?                  @db.Char(36)
+  entries              EmergencyRollCallEntry[]
+  createdAt            DateTime                 @default(now())
+  updatedAt            DateTime                 @updatedAt
 }
 
 model EmergencyRollCallEntry {
-  id String @id @db.Char(36)
-  rollCallId String @db.Char(36)
-  rollCall EmergencyRollCall @relation(fields: [rollCallId], references: [id], onDelete: Cascade)
-  personType String @db.VarChar(20)
-  personId String @db.Char(36)
-  displayName String @db.VarChar(120)
-  accountedFor Boolean @default(false)
-  accountedAt DateTime?
+  id              String            @id @db.Char(36)
+  rollCallId      String            @db.Char(36)
+  rollCall        EmergencyRollCall @relation(fields: [rollCallId], references: [id], onDelete: Cascade)
+  personType      String            @db.VarChar(20)
+  personId        String            @db.Char(36)
+  displayName     String            @db.VarChar(120)
+  accountedFor    Boolean           @default(false)
+  accountedAt     DateTime?
   deviceTimestamp DateTime
-  updatedAt DateTime @updatedAt
+  updatedAt       DateTime          @updatedAt
+
   @@unique([rollCallId, personType, personId])
 }
 
 model SyncEvent {
-  sequence BigInt @id @default(autoincrement())
-  eventId String @unique @db.Char(36)
-  deviceId String @db.Char(36)
-  device Device @relation(fields: [deviceId], references: [id])
+  sequence  BigInt        @id @default(autoincrement())
+  eventId   String        @unique @db.Char(36)
+  deviceId  String        @db.Char(36)
+  device    Device        @relation(fields: [deviceId], references: [id])
   operation SyncOperation
-  payload Json
-  createdAt DateTime @default(now())
+  payload   Json
+  createdAt DateTime      @default(now())
+
   @@index([deviceId, sequence])
 }
 
 model SyncConflict {
-  id String @id @default(uuid()) @db.Char(36)
-  entityType String @db.VarChar(50)
-  entityId String @db.Char(36)
-  deviceId String @db.Char(36)
-  serverValue Json
+  id            String         @id @default(uuid()) @db.Char(36)
+  entityType    String         @db.VarChar(50)
+  entityId      String         @db.Char(36)
+  deviceId      String         @db.Char(36)
+  serverValue   Json
   incomingValue Json
-  status ConflictStatus @default(OPEN)
-  resolvedAt DateTime?
-  createdAt DateTime @default(now())
+  status        ConflictStatus @default(OPEN)
+  resolvedAt    DateTime?
+  createdAt     DateTime       @default(now())
 }
 
 model DailySummaryEmail {
-  id String @id @default(uuid()) @db.Char(36)
-  date DateTime @db.Date
-  status EmailStatus @default(PENDING)
-  recipients Json
-  sentAt DateTime?
-  failureReason String? @db.Text
-  retryCount Int @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                String      @id @default(uuid()) @db.Char(36)
+  date              DateTime    @db.Date
+  status            EmailStatus @default(PENDING)
+  recipients        Json
+  sentAt            DateTime?
+  failureReason     String?     @db.Text
+  retryCount        Int         @default(0)
+  triggeredBy       String?     @db.VarChar(40)
+  triggeredByUserId String?     @db.Char(36)
+  attemptedAt       DateTime    @default(now())
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
   @@index([date, status])
 }
 
 model AuditLog {
-  id String @id @default(uuid()) @db.Char(36)
-  action String @db.VarChar(100)
-  actorType String @db.VarChar(30)
-  actorId String? @db.Char(36)
-  entityType String? @db.VarChar(50)
-  entityId String? @db.Char(36)
+  id          String   @id @default(uuid()) @db.Char(36)
+  action      String   @db.VarChar(100)
+  actorType   String   @db.VarChar(30)
+  actorId     String?  @db.Char(36)
+  entityType  String?  @db.VarChar(50)
+  entityId    String?  @db.Char(36)
   beforeValue Json?
-  afterValue Json?
-  ipAddress String? @db.VarChar(64)
-  deviceId String? @db.Char(36)
-  createdAt DateTime @default(now())
+  afterValue  Json?
+  ipAddress   String?  @db.VarChar(64)
+  userAgent   String?  @db.VarChar(500)
+  deviceId    String?  @db.Char(36)
+  createdAt   DateTime @default(now())
+
   @@index([createdAt])
   @@index([action, entityType])
 }
 
 model AppSetting {
-  key String @id @db.VarChar(100)
-  value Json
-  updatedBy String? @db.Char(36)
+  key       String   @id @db.VarChar(100)
+  value     Json
+  updatedBy String?  @db.Char(36)
   updatedAt DateTime @updatedAt
 }
-

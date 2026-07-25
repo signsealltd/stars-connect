@@ -1,0 +1,18 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { Copy, Plus, RefreshCw, RotateCcw, ShieldOff } from "lucide-react";
+
+type Device = { id:string;name:string;status:"ACTIVE"|"REVOKED";appVersion?:string;lastSeenAt?:string;lastSyncAt?:string;pendingEventCount:number;currentCursor:string;tokenRotatedAt?:string;createdAt:string };
+
+export function DeviceManager(){
+  const[rows,setRows]=useState<Device[]>([]),[loading,setLoading]=useState(true),[name,setName]=useState(""),[setupCode,setSetupCode]=useState("");
+  const load=useCallback(async()=>{setLoading(true);const r=await fetch("/api/devices");if(r.status===403){location.href="/dashboard";return}setRows(r.ok?await r.json():[]);setLoading(false)},[]);
+  useEffect(()=>{load()},[load]);
+  async function create(){if(name.trim().length<2)return;const r=await fetch("/api/devices",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({name})});if(r.ok){const d=await r.json();setSetupCode(d.setupCode);setName("");await load()}}
+  async function action(device:Device,type:"revoke"|"restore"|"rotate"){if(!confirm(type==="rotate"?`Rotate the token for ${device.name}? The current tablet credential will stop working.`:`${type==="revoke"?"Revoke":"Restore"} ${device.name}?`))return;const r=await fetch(`/api/devices/${device.id}`,{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({action:type})});if(r.ok){const d=await r.json();if(d.setupCode)setSetupCode(d.setupCode);await load()}}
+  return <><div className="toolbar"><input className="field" placeholder="New device name" value={name} onChange={e=>setName(e.target.value)}/><button className="btn primary" onClick={create}><Plus size={18}/> Provision device</button></div>
+  <div className="alert alert-warning" style={{marginBottom:18}}>Provisioning codes are shown once. Store them only on the intended tablet and never in Git or audit notes.</div>
+  <section className="card table-wrap">{loading?<div className="empty">Loading devices…</div>:rows.length?<table className="table"><thead><tr><th>Device</th><th>Status</th><th>Last seen</th><th>Last sync</th><th>Cursor</th><th>Actions</th></tr></thead><tbody>{rows.map(d=><tr key={d.id}><td><b>{d.name}</b><div className="muted">{d.appVersion||"Version unknown"}</div></td><td><span className={`badge ${d.status==="ACTIVE"?"badge-success":"badge-danger"}`}>{d.status==="ACTIVE"?"Active":"Revoked"}</span></td><td>{d.lastSeenAt?new Date(d.lastSeenAt).toLocaleString("en-GB"):"Never"}</td><td>{d.lastSyncAt?new Date(d.lastSyncAt).toLocaleString("en-GB"):"Never"}</td><td>{d.currentCursor}</td><td><div style={{display:"flex",gap:7}}><button className="btn ghost" onClick={()=>action(d,"rotate")} title="Rotate token"><RefreshCw size={17}/></button><button className={`btn ${d.status==="ACTIVE"?"danger":"secondary"}`} onClick={()=>action(d,d.status==="ACTIVE"?"revoke":"restore")}>{d.status==="ACTIVE"?<ShieldOff size={17}/>:<RotateCcw size={17}/>}</button></div></td></tr>)}</tbody></table>:<div className="empty">No devices have been provisioned.</div>}</section>
+  {setupCode&&<div className="modal-backdrop"><div className="modal"><h2>One-time tablet setup code</h2><div className="alert alert-warning">This code will not be displayed again. Enter it on the intended tablet now.</div><textarea className="field" readOnly value={setupCode} style={{marginTop:16,fontFamily:"monospace"}}/><div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:16}}><button className="btn secondary" onClick={()=>navigator.clipboard.writeText(setupCode)}><Copy size={17}/> Copy code</button><button className="btn primary" onClick={()=>setSetupCode("")}>I have saved it</button></div></div></div>}</>;
+}

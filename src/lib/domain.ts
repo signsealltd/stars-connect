@@ -1,0 +1,6 @@
+import type{ClockEventType}from"@prisma/client";
+export type TimedEvent={type:ClockEventType;deviceTimestamp:Date};
+export function nextClockAction(events:TimedEvent[]):ClockEventType{return[...events].sort((a,b)=>b.deviceTimestamp.getTime()-a.deviceTimestamp.getTime())[0]?.type==="CLOCK_IN"?"CLOCK_OUT":"CLOCK_IN"}
+export function isDuplicateEvent(events:TimedEvent[],candidate:TimedEvent,windowSeconds=20){return events.some(e=>e.type===candidate.type&&Math.abs(e.deviceTimestamp.getTime()-candidate.deviceTimestamp.getTime())<=windowSeconds*1000)}
+export function calculateWorkedMinutes(events:TimedEvent[]){const sorted=[...events].sort((a,b)=>a.deviceTimestamp.getTime()-b.deviceTimestamp.getTime());let start:Date|undefined,total=0;for(const e of sorted){if(e.type==="CLOCK_IN")start=e.deviceTimestamp;else if(start){total+=Math.max(0,e.deviceTimestamp.getTime()-start.getTime());start=undefined}}return{minutes:Math.floor(total/60000),missingClockOut:Boolean(start)}}
+export function canAccess(role:"ADMINISTRATOR"|"MANAGER"|"RECEPTION",area:string){const permissions={ADMINISTRATOR:["*"],MANAGER:["dashboard","register","live","timesheets","reports","emergency","photos"],RECEPTION:["register","live","emergency"]};return permissions[role].includes("*")||permissions[role].includes(area)}

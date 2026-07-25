@@ -1,0 +1,3 @@
+import Link from "next/link";
+import { Activity } from "lucide-react";
+export function Header({manager=false}:{manager?:boolean}){return <header className="topbar"><Link href="/" className="brand" style={{color:"white",textDecoration:"none"}}><span className="mark"><Activity/></span><span>Pulse</span></Link>{manager&&<nav className="nav"><Link href="/dashboard">Dashboard</Link><Link href="/register">Student Register</Link><Link href="/live">Live Register</Link><Link href="/timesheets">Timesheets</Link><Link href="/reports">Reports</Link><Link href="/emergency">Emergency</Link><Link href="/settings">Settings</Link></nav>}<span style={{fontSize:13,color:"#b9c9c3"}}>STARS Day Service</span></header>}

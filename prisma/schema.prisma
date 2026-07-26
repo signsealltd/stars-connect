@@ -262,7 +262,7 @@ model VisitorVisit {
   signOutDeviceId         String?                @db.Char(36)
   signOutDevice           Device?                @relation("VisitorSignOutDevice", fields: [signOutDeviceId], references: [id])
   signedOutByUserId       String?                @db.Char(36)
-  signedOutByUser         User?                  @relation("VisitorSignedOutBy", fields: [signedOutByUserId], references: [id])
+  signedOutByUser         User?                  @relation("VisitorSignedOutBy", fields: [signedOutByUserId], references: [id], onDelete: SetNull)
   signOutCorrectionReason String?                @db.Text
   emergencyIncluded       Boolean                @default(true)
   acceptance              VisitorRuleAcceptance?
@@ -329,8 +329,8 @@ model ClockCorrection {
   id            String     @id @default(uuid()) @db.Char(36)
   clockEventId  String     @db.Char(36)
   clockEvent    ClockEvent @relation(fields: [clockEventId], references: [id])
-  managerId     String     @db.Char(36)
-  manager       User       @relation(fields: [managerId], references: [id])
+  managerId     String?    @db.Char(36)
+  manager       User?      @relation(fields: [managerId], references: [id], onDelete: SetNull)
   reason        String     @db.Text
   originalValue Json
   newValue      Json

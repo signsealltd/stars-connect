@@ -13,8 +13,10 @@ describe("administrator user management",()=>{
   it("protects self access, the final administrator and invalidates sessions",()=>{
     const route=source("src/app/api/users/[id]/route.ts");
     expect(route).toContain("You cannot remove your own administrator access");
+    expect(route).toContain("You cannot delete your own account");
     expect(route).toContain("At least one active administrator must remain");
     expect(route).toContain("session.deleteMany");
+    expect(route).toContain('action: "USER_DELETED"');
   });
 });
 describe("secure SMTP administration",()=>{

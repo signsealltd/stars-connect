@@ -43,3 +43,29 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json(user);
   });
 }
+
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  return withRole(req, "ADMINISTRATOR", async (actor) => {
+    const { id } = await params;
+    if (id === actor.id) return jsonError("You cannot delete your own account.", 409);
+    const before = await prisma.user.findUnique({ where: { id } });
+    if (!before) return jsonError("Account not found.", 404);
+    if (before.role === "ADMINISTRATOR" && before.active &&
+      await prisma.user.count({ where: { role: "ADMINISTRATOR", active: true } }) <= 1) {
+      return jsonError("At least one active administrator must remain.", 409);
+    }
+    const context = requestContext(req);
+    await prisma.$transaction(async (tx) => {
+      await tx.user.delete({ where: { id } });
+      await tx.auditLog.create({
+        data: {
+          action: "USER_DELETED", actorType: "USER", actorId: actor.id,
+          entityType: "User", entityId: id,
+          beforeValue: { name: before.name, email: before.email, role: before.role, active: before.active },
+          ...context,
+        },
+      });
+    });
+    return NextResponse.json({ ok: true });
+  });
+}

@@ -1,26 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { withRole, jsonError, requestContext } from "@/lib/api";
 import { audit } from "@/lib/audit";
 import { sha256 } from "@/lib/security";
-
-const updateSchema = z.object({
-  firstName: z.string().trim().min(1).max(80).optional(),
-  lastName: z.string().trim().min(1).max(80).optional(),
-  displayName: z.string().trim().min(1).max(120).optional(),
-  email: z.email().max(191).optional(),
-  phone: z.string().trim().max(40).nullable().optional(),
-  jobRole: z.string().trim().min(1).max(100).optional(),
-  startDate: z.string().date().optional(),
-  endDate: z.string().date().nullable().optional(),
-  notes: z.string().trim().max(5000).nullable().optional(),
-  contractedWeeklyHours: z.number().min(0).max(168).nullable().optional(),
-  clockingEnabled: z.boolean().optional(),
-  active: z.boolean().optional(),
-  pin: z.string().regex(/^\d{4,8}$/).optional(),
-});
+import { staffUpdateSchema } from "@/lib/staff-input";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -44,7 +28,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     const { id } = await params;
     const before = await prisma.staffMember.findUnique({ where: { id } });
     if (!before) return jsonError("Staff member not found.", 404);
-    const parsed = updateSchema.safeParse(await req.json().catch(() => null));
+    const parsed = staffUpdateSchema.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return jsonError("Please check the staff details.", 422);
     const { pin, ...incoming } = parsed.data;
     if (pin) {

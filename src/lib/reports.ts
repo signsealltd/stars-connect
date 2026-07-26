@@ -56,14 +56,29 @@ export async function studentAttendanceReport(from: string, to: string) {
   }));
 }
 
+
+export async function visitorReport(from: string, to: string) {
+  const records = await prisma.visitorVisit.findMany({
+    where: { signedInAt: { gte: localDayBounds(from).start, lte: localDayBounds(to).end } },
+    include: { visitor: true, signInDevice: { select: { name: true } }, signedOutByUser: { select: { name: true } } },
+    orderBy: { signedInAt: "asc" },
+  });
+  return records.map((visit) => ({
+    id: visit.id, reference: visit.referenceCode, visitor: visit.visitor.fullName, company: visit.visitor.company || "",
+    host: visit.host, reason: visit.otherReason ? `${visit.reasonLabel}: ${visit.otherReason}` : visit.reasonLabel,
+    arrival: visit.signedInAt, departure: visit.signedOutAt, durationMinutes: visit.signedOutAt ? Math.max(0, Math.round((visit.signedOutAt.getTime() - visit.signedInAt.getTime()) / 60000)) : null,
+    status: visit.signedOutAt ? "SIGNED_OUT" : "ON_SITE", device: visit.signInDevice.name, assistedBy: visit.signedOutByUser?.name || "",
+  }));
+}
 export async function siteSummary(date: string) {
   const staff = await dailyStaffReport(date);
   const students = await studentAttendanceReport(date, date);
   const { start, end } = localDayBounds(date);
-  const [conflicts, emergencyActivity, devices] = await Promise.all([
+  const [conflicts, emergencyActivity, devices, visitors] = await Promise.all([
     prisma.syncConflict.count({ where: { status: "OPEN", createdAt: { lte: end } } }),
     prisma.emergencyRollCall.count({ where: { startedAt: { gte: start, lte: end } } }),
     prisma.device.count({ where: { OR: [{ status: "REVOKED" }, { lastSeenAt: { lt: new Date(Date.now() - 15 * 60_000) } }] } }),
+    prisma.visitorVisit.findMany({ where: { signedInAt: { gte: start, lte: end } }, include: { visitor: true }, orderBy: { signedInAt: "asc" } }),
   ]);
   return {
     date,
@@ -76,6 +91,9 @@ export async function siteSummary(date: string) {
     conflicts,
     emergencyActivity,
     staleOrRevokedDevices: devices,
+    visitorCount: visitors.length,
+    visitorsStillIn: visitors.filter((visit) => !visit.signedOutAt).length,
+    visitors: visitors.map((visit) => ({ name: visit.visitor.fullName, company: visit.visitor.company || "", host: visit.host, arrival: visit.signedInAt, signedOutAt: visit.signedOutAt })),
     staff,
     students,
   };

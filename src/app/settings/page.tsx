@@ -1,3 +1,4 @@
 import { Header } from "@/components/header";
 import { SettingsClient } from "@/components/settings-client";
-export default function Settings(){return <main className="shell"><Header manager/><div className="content"><div className="page-head"><div><h1 className="page-title">Settings</h1><p className="muted">Administrator-only operational, retention and email configuration.</p></div></div><SettingsClient/></div></main>}
+import { VisitorConfiguration } from "@/components/visitor-configuration";
+export default function Settings(){return <main className="shell"><Header manager/><div className="content"><div className="page-head"><div><h1 className="page-title">Settings</h1><p className="muted">Administrator-only operational, retention and email configuration.</p></div></div><SettingsClient/><VisitorConfiguration/></div></main>}

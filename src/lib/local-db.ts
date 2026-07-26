@@ -1,10 +1,11 @@
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
-import type { LocalAttendance, LocalClockEvent, LocalStudent, PendingChange } from "./types";
+import type { LocalAttendance, LocalClockEvent, LocalStudent, LocalVisitorVisit, PendingChange } from "./types";
+import { normalizeVisitorName } from "./visitors";
 
 type LocalStaff = { id: string; displayName: string; currentState: "IN" | "OUT" };
 type RollCall = { id: string; startedAt: string; entries: Array<{ id:string;personType:string;personId:string;displayName:string;accountedFor:boolean }> };
 type Conflict = { id:string;eventId:string;operation:string;reason:string;payload:unknown;createdAt:string };
-type PulledEvent = { sequence:string;eventId:string;operation:"CLOCK_EVENT"|"ATTENDANCE"|"ROLL_CALL_ENTRY";payload:Record<string,unknown>;createdAt:string };
+type PulledEvent = { sequence:string;eventId:string;operation:"CLOCK_EVENT"|"ATTENDANCE"|"ROLL_CALL_ENTRY"|"VISITOR_SIGN_IN"|"VISITOR_SIGN_OUT";payload:Record<string,unknown>;createdAt:string };
 
 interface StarsConnectDB extends DBSchema {
   staff:{key:string;value:LocalStaff};
@@ -16,10 +17,11 @@ interface StarsConnectDB extends DBSchema {
   rollCalls:{key:string;value:RollCall};
   appliedEvents:{key:string;value:{eventId:string;sequence:string;appliedAt:string}};
   conflicts:{key:string;value:Conflict};
+  visitorVisits:{key:string;value:LocalVisitorVisit};
 }
 
 // Keep the original database name for deployed alpha-tablet compatibility.
-export const db = () => openDB<StarsConnectDB>("pulse-tablet", 2, {
+export const db = () => openDB<StarsConnectDB>("pulse-tablet", 3, {
   upgrade(database, oldVersion) {
     if (oldVersion < 1) {
       database.createObjectStore("staff", { keyPath: "id" });
@@ -36,6 +38,7 @@ export const db = () => openDB<StarsConnectDB>("pulse-tablet", 2, {
       database.createObjectStore("appliedEvents", { keyPath: "eventId" });
       database.createObjectStore("conflicts", { keyPath: "id" });
     }
+    if (oldVersion < 3) database.createObjectStore("visitorVisits", { keyPath: "id" });
   },
 });
 
@@ -60,6 +63,30 @@ export async function saveAttendance(value: LocalAttendance) {
   await queueChange({ id: value.id, operation: "ATTENDANCE", payload: value, createdAt: new Date().toISOString(), attempts: 0 });
 }
 
+
+export async function saveVisitorSignIn(visit: LocalVisitorVisit, syncPayload: unknown) {
+  const database = await db();
+  await database.put("visitorVisits", visit);
+  await queueChange({ id: visit.id, operation: "VISITOR_SIGN_IN", payload: syncPayload, createdAt: new Date().toISOString(), attempts: 0 });
+}
+
+export async function saveVisitorSignOut(visitId: string, signedOutAt: string, correctionReason?: string) {
+  const database = await db();
+  const visit = await database.get("visitorVisits", visitId);
+  if (!visit) throw new Error("Visit not found on this tablet");
+  await database.put("visitorVisits", { ...visit, signedOutAt });
+  const eventId = crypto.randomUUID();
+  await queueChange({ id: eventId, operation: "VISITOR_SIGN_OUT", payload: { visitId, signedOutAt, correctionReason }, createdAt: new Date().toISOString(), attempts: 0 });
+}
+
+export async function activeLocalVisitors() {
+  return (await db()).getAll("visitorVisits").then((rows) => rows.filter((visit) => !visit.signedOutAt));
+}
+
+export async function findActiveVisitor(fullName: string, referenceCode: string) {
+  const normalized = normalizeVisitorName(fullName);
+  return (await activeLocalVisitors()).find((visit) => normalizeVisitorName(visit.fullName) === normalized && visit.referenceCode === referenceCode.trim().toUpperCase());
+}
 async function recordLocalConflict(database: IDBPDatabase<StarsConnectDB>, event: PulledEvent, reason: string) {
   await database.put("conflicts", {
     id: crypto.randomUUID(), eventId: event.eventId, operation: event.operation,
@@ -108,6 +135,22 @@ export async function applyPulledEvent(database: IDBPDatabase<StarsConnectDB>, e
       };
       await database.put("attendance", attendance);
     }
+  } else if (event.operation === "VISITOR_SIGN_IN") {
+    const visitId = String(payload.id || event.eventId);
+    if (!visitId || !payload.fullName || !payload.referenceCode) throw new Error("Malformed visitor sign-in");
+    const existing = await database.get("visitorVisits", visitId);
+    await database.put("visitorVisits", {
+      id: visitId, visitorId: String(payload.visitorId || ""), referenceCode: String(payload.referenceCode),
+      fullName: String(payload.fullName), company: payload.company ? String(payload.company) : undefined, host: String(payload.host || ""),
+      reasonLabel: String(payload.reasonLabel || "Other"), otherReason: payload.otherReason ? String(payload.otherReason) : undefined,
+      vehicleRegistration: payload.vehicleRegistration ? String(payload.vehicleRegistration) : undefined,
+      expectedDurationMinutes: payload.expectedDurationMinutes ? Number(payload.expectedDurationMinutes) : undefined,
+      signedInAt: String(payload.signedInAt), signedOutAt: existing?.signedOutAt, emergencyIncluded: payload.emergencyIncluded !== false,
+    });
+  } else if (event.operation === "VISITOR_SIGN_OUT") {
+    const visitId = String(payload.visitId || "");
+    const visit = await database.get("visitorVisits", visitId);
+    if (visit) await database.put("visitorVisits", { ...visit, signedOutAt: String(payload.signedOutAt) });
   } else if (event.operation === "ROLL_CALL_ENTRY") {
     const rollCallId = String(payload.rollCallId || "");
     const entryId = String(payload.id || "");

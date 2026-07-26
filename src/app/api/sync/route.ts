@@ -4,10 +4,12 @@ import { Prisma, type AttendanceStatus, type ClockEventType, type PhotoStatus } 
 import { prisma } from "@/lib/prisma";
 import { sha256 } from "@/lib/security";
 import { audit } from "@/lib/audit";
+import { rateLimit } from "@/lib/rate-limit";
+import { applyVisitorSignIn, applyVisitorSignOut, publicVisitorPayload } from "@/lib/visitor-service";
 
 const eventSchema = z.object({
   id: z.uuid(),
-  operation: z.enum(["CLOCK_EVENT", "ATTENDANCE", "ROLL_CALL_ENTRY"]),
+  operation: z.enum(["CLOCK_EVENT", "ATTENDANCE", "ROLL_CALL_ENTRY", "VISITOR_SIGN_IN", "VISITOR_SIGN_OUT"]),
   payload: z.record(z.string(), z.unknown()),
   createdAt: z.string(),
   attempts: z.number(),
@@ -30,6 +32,8 @@ export async function POST(req: NextRequest) {
   if (!device) return NextResponse.json({ error: "This tablet is not authorised. Ask an administrator to check Devices." }, { status: 401 });
   const parsed = bodySchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "The synchronisation data was not valid." }, { status: 400 });
+  const visitorEvents = parsed.data.events.filter((event) => event.operation.startsWith("VISITOR_"));
+  if (visitorEvents.length) { const limit = rateLimit(`visitor-submit:${device.id}`, 20, 60_000); if (!limit.allowed) return NextResponse.json({ error: "Too many visitor submissions. Please wait and retry." }, { status: 429 }); }
   const acknowledged: string[] = [];
 
   for (const item of parsed.data.events) {
@@ -95,6 +99,10 @@ export async function POST(req: NextRequest) {
               },
             });
           }
+        } else if (item.operation === "VISITOR_SIGN_IN") {
+          await applyVisitorSignIn(tx, p, device.id);
+        } else if (item.operation === "VISITOR_SIGN_OUT") {
+          await applyVisitorSignOut(tx, p, device.id);
         } else if (item.operation === "ROLL_CALL_ENTRY") {
           const rollCallId = String(p.rollCallId);
           const eventTime = new Date(String(p.deviceTimestamp));
@@ -116,13 +124,19 @@ export async function POST(req: NextRequest) {
           });
         }
         await tx.syncEvent.create({
-          data: { eventId: item.id, deviceId: device.id, operation: item.operation, payload: p as Prisma.InputJsonValue },
+          data: { eventId: item.id, deviceId: device.id, operation: item.operation, payload: item.operation.startsWith("VISITOR_") ? publicVisitorPayload(p) : p as Prisma.InputJsonValue },
         });
       });
       acknowledged.push(item.id);
       await audit("SYNC_EVENT_ACCEPTED", { actorType: "DEVICE", deviceId: device.id, entityType: item.operation, entityId: item.id });
+      if (item.operation === "VISITOR_SIGN_IN" || item.operation === "VISITOR_SIGN_OUT") await audit(item.operation === "VISITOR_SIGN_IN" ? "VISITOR_SIGNED_IN" : "VISITOR_SIGNED_OUT", { actorType:"DEVICE",deviceId:device.id,entityType:"VisitorVisit",entityId:String((item.payload as Record<string,unknown>).visitId || item.id) });
     } catch (error) {
-      console.error("Sync event failed", item.id, error);
+      const message = error instanceof Error ? error.message : "SYNC_FAILED";
+      if (item.operation.startsWith("VISITOR_") && ["INVALID_VISITOR_SIGN_IN","RULE_VERSION_MISMATCH","VISITOR_REASON_MISMATCH","DUPLICATE_ACTIVE_VISITOR","INVALID_VISITOR_SIGN_OUT","VISITOR_NOT_FOUND","INVALID_DEPARTURE_TIME"].includes(message)) {
+        await prisma.syncConflict.create({ data: { entityType:"VisitorVisit",entityId:String((item.payload as Record<string,unknown>).visitId || item.id),deviceId:device.id,serverValue:{error:message},incomingValue:publicVisitorPayload(item.payload) } });
+        acknowledged.push(item.id);
+        await audit("VISITOR_SYNC_CONFLICT",{actorType:"DEVICE",deviceId:device.id,entityType:"VisitorVisit",entityId:item.id,afterValue:{reason:message}});
+      } else console.error("Sync event failed", item.id, error);
     }
   }
 

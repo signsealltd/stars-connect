@@ -59,6 +59,8 @@ enum SyncOperation {
   CLOCK_EVENT
   ATTENDANCE
   ROLL_CALL_ENTRY
+  VISITOR_SIGN_IN
+  VISITOR_SIGN_OUT
 }
 
 enum ConflictStatus {
@@ -73,16 +75,17 @@ enum EmailStatus {
 }
 
 model User {
-  id           String            @id @default(uuid()) @db.Char(36)
-  email        String            @unique @db.VarChar(191)
-  name         String            @db.VarChar(120)
-  passwordHash String
-  role         Role
-  active       Boolean           @default(true)
-  sessions     Session[]
-  corrections  ClockCorrection[]
-  createdAt    DateTime          @default(now())
-  updatedAt    DateTime          @updatedAt
+  id              String            @id @default(uuid()) @db.Char(36)
+  email           String            @unique @db.VarChar(191)
+  name            String            @db.VarChar(120)
+  passwordHash    String
+  role            Role
+  active          Boolean           @default(true)
+  sessions        Session[]
+  corrections     ClockCorrection[]
+  visitorSignOuts VisitorVisit[]    @relation("VisitorSignedOutBy")
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
 }
 
 model Session {
@@ -175,8 +178,112 @@ model Device {
   clockEvents       ClockEvent[]
   attendances       StudentAttendance[]
   syncEvents        SyncEvent[]
+  visitorSignIns    VisitorVisit[]      @relation("VisitorSignInDevice")
+  visitorSignOuts   VisitorVisit[]      @relation("VisitorSignOutDevice")
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
+}
+
+model Visitor {
+  id             String         @id @default(uuid()) @db.Char(36)
+  fullName       String         @db.VarChar(120)
+  normalizedName String         @db.VarChar(120)
+  company        String?        @db.VarChar(191)
+  mobile         String?        @db.VarChar(40)
+  visits         VisitorVisit[]
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  anonymizedAt   DateTime?
+
+  @@index([normalizedName])
+  @@index([company])
+}
+
+model VisitorReason {
+  id        String         @id @default(uuid()) @db.Char(36)
+  label     String         @unique @db.VarChar(100)
+  sortOrder Int            @default(0)
+  active    Boolean        @default(true)
+  visits    VisitorVisit[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@index([active, sortOrder])
+}
+
+model VisitorRuleSet {
+  id          String                  @id @default(uuid()) @db.Char(36)
+  version     Int                     @unique
+  title       String                  @db.VarChar(150)
+  rulesText   String                  @db.Text
+  active      Boolean                 @default(true)
+  createdById String?                 @db.Char(36)
+  acceptances VisitorRuleAcceptance[]
+  createdAt   DateTime                @default(now())
+
+  @@index([active, version])
+}
+
+model VisitorVisit {
+  id                      String                 @id @db.Char(36)
+  visitorId               String                 @db.Char(36)
+  visitor                 Visitor                @relation(fields: [visitorId], references: [id])
+  referenceCode           String                 @unique @db.VarChar(12)
+  host                    String                 @db.VarChar(120)
+  reasonId                String?                @db.Char(36)
+  reason                  VisitorReason?         @relation(fields: [reasonId], references: [id], onDelete: SetNull)
+  reasonLabel             String                 @db.VarChar(100)
+  otherReason             String?                @db.VarChar(250)
+  vehicleRegistration     String?                @db.VarChar(20)
+  expectedDurationMinutes Int?
+  signedInAt              DateTime
+  signedOutAt             DateTime?
+  signInDeviceId          String                 @db.Char(36)
+  signInDevice            Device                 @relation("VisitorSignInDevice", fields: [signInDeviceId], references: [id])
+  signOutDeviceId         String?                @db.Char(36)
+  signOutDevice           Device?                @relation("VisitorSignOutDevice", fields: [signOutDeviceId], references: [id])
+  signedOutByUserId       String?                @db.Char(36)
+  signedOutByUser         User?                  @relation("VisitorSignedOutBy", fields: [signedOutByUserId], references: [id])
+  signOutCorrectionReason String?                @db.Text
+  emergencyIncluded       Boolean                @default(true)
+  acceptance              VisitorRuleAcceptance?
+  signature               VisitorSignature?
+  archivedAt              DateTime?
+  anonymizedAt            DateTime?
+  createdAt               DateTime               @default(now())
+  updatedAt               DateTime               @updatedAt
+
+  @@index([signedInAt])
+  @@index([signedOutAt])
+  @@index([host])
+  @@index([reasonId])
+}
+
+model VisitorRuleAcceptance {
+  id                String         @id @default(uuid()) @db.Char(36)
+  visitId           String         @unique @db.Char(36)
+  visit             VisitorVisit   @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  ruleSetId         String         @db.Char(36)
+  ruleSet           VisitorRuleSet @relation(fields: [ruleSetId], references: [id])
+  ruleVersion       Int
+  acceptedRulesText String         @db.Text
+  acceptedAt        DateTime
+  createdAt         DateTime       @default(now())
+
+  @@index([ruleSetId])
+}
+
+model VisitorSignature {
+  id         String       @id @default(uuid()) @db.Char(36)
+  visitId    String       @unique @db.Char(36)
+  visit      VisitorVisit @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  strokeData Json
+  pointCount Int
+  createdAt  DateTime     @default(now())
+  expiresAt  DateTime
+  deletedAt  DateTime?
+
+  @@index([expiresAt, deletedAt])
 }
 
 model ClockEvent {

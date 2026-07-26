@@ -18,7 +18,7 @@ const clockEvent = (sequence="1") => ({
 beforeEach(async()=>{
   storage.clear();
   const database=await db();
-  for(const store of ["staff","attendance","clockEvents","pending","metadata","rollCalls","appliedEvents","conflicts"] as const)await database.clear(store);
+  for(const store of ["staff","attendance","clockEvents","pending","metadata","rollCalls","appliedEvents","conflicts","visitorVisits"] as const)await database.clear(store);
 });
 
 describe("pulled event application",()=>{
@@ -48,4 +48,11 @@ describe("pulled event application",()=>{
     expect((await database.get("attendance","local"))?.status).toBe("PRESENT");
     expect(await database.count("conflicts")).toBe(1);
   });
+});
+
+describe("visitor offline synchronisation",()=>{
+  const signIn={sequence:"50",eventId:"55555555-5555-4555-8555-555555555555",operation:"VISITOR_SIGN_IN" as const,payload:{id:"55555555-5555-4555-8555-555555555555",visitorId:"66666666-6666-4666-8666-666666666666",referenceCode:"VIS12345",fullName:"Jamie Visitor",company:"Example Ltd",host:"Morgan Manager",reasonLabel:"Meeting",signedInAt:"2026-07-26T09:00:00Z",emergencyIncluded:true},createdAt:"2026-07-26T09:00:01Z"};
+  it("applies a Tablet A visitor sign-in to Tablet B exactly once",async()=>{const database=await db();expect(await applyPulledEvent(database,signIn)).toBe("applied");expect(await applyPulledEvent(database,signIn)).toBe("duplicate");expect((await database.get("visitorVisits",signIn.eventId))?.fullName).toBe("Jamie Visitor")});
+  it("applies a pulled visitor sign-out",async()=>{const database=await db();await applyPulledEvent(database,signIn);await applyPulledEvent(database,{sequence:"51",eventId:"77777777-7777-4777-8777-777777777777",operation:"VISITOR_SIGN_OUT",payload:{visitId:signIn.eventId,signedOutAt:"2026-07-26T10:00:00Z"},createdAt:"2026-07-26T10:00:01Z"});expect((await database.get("visitorVisits",signIn.eventId))?.signedOutAt).toBe("2026-07-26T10:00:00Z")});
+  it("keeps active visitors available for the offline emergency register",async()=>{const database=await db();await applyPulledEvent(database,signIn);const active=(await database.getAll("visitorVisits")).filter(v=>!v.signedOutAt&&v.emergencyIncluded);expect(active.map(v=>v.fullName)).toEqual(["Jamie Visitor"])});
 });

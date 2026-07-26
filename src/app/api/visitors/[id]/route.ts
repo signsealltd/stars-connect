@@ -1,0 +1,25 @@
+import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
+import { randomUUID } from "crypto";
+import { z } from "zod";
+import { prisma } from "@/lib/prisma";
+import { withRole, jsonError, requestContext } from "@/lib/api";
+import { audit } from "@/lib/audit";
+import { visitDurationMinutes } from "@/lib/visitors";
+
+type Params={params:Promise<{id:string}>};
+export async function GET(req:NextRequest,{params}:Params){return withRole(req,"MANAGER",async()=>{const{id}=await params;const visit=await prisma.visitorVisit.findUnique({where:{id},include:{visitor:true,reason:true,acceptance:true,signInDevice:{select:{name:true}},signOutDevice:{select:{name:true}},signedOutByUser:{select:{name:true}}}});if(!visit)return jsonError("Visitor record not found.",404);const auditHistory=await prisma.auditLog.findMany({where:{entityType:"VisitorVisit",entityId:id},orderBy:{createdAt:"desc"},take:100});return NextResponse.json({...visit,durationMinutes:visitDurationMinutes(visit.signedInAt,visit.signedOutAt),auditHistory});})}
+const patch=z.discriminatedUnion("action",[
+ z.object({action:z.literal("sign-out"),reason:z.string().trim().min(3).max(500),signedOutAt:z.string().datetime().optional()}),
+ z.object({action:z.literal("correct"),host:z.string().trim().min(2).max(120).optional(),reasonId:z.uuid().optional(),reasonLabel:z.string().trim().min(2).max(100).optional(),otherReason:z.string().trim().max(250).optional(),signedInAt:z.string().datetime().optional(),signedOutAt:z.string().datetime().nullable().optional(),correctionReason:z.string().trim().min(3).max(500)}),
+ z.object({action:z.literal("emergency"),included:z.boolean()}),
+ z.object({action:z.literal("archive")}),
+ z.object({action:z.literal("anonymise"),reason:z.string().trim().min(3).max(500)}),
+]);
+export async function PATCH(req:NextRequest,{params}:Params){return withRole(req,"RECEPTION",async user=>{const{id}=await params;const parsed=patch.safeParse(await req.json().catch(()=>null));if(!parsed.success)return jsonError("Invalid visitor update.",422);const existing=await prisma.visitorVisit.findUnique({where:{id},include:{visitor:true}});if(!existing)return jsonError("Visitor record not found.",404);const action=parsed.data;if(user.role==="RECEPTION"&&!['sign-out'].includes(action.action))return jsonError("You do not have permission to do that.",403);if(action.action==="correct"&&user.role==="RECEPTION")return jsonError("Manager access is required.",403);let updated;
+ if(action.action==="sign-out"){if(existing.signedOutAt)return jsonError("This visitor is already signed out.",409);const signedOutAt=action.signedOutAt?new Date(action.signedOutAt):new Date();updated=await prisma.$transaction(async tx=>{const row=await tx.visitorVisit.update({where:{id},data:{signedOutAt,signedOutByUserId:user.id,signOutCorrectionReason:action.reason}});await tx.syncEvent.create({data:{eventId:randomUUID(),deviceId:existing.signInDeviceId,operation:"VISITOR_SIGN_OUT",payload:{visitId:id,signedOutAt:signedOutAt.toISOString()}}});return row})}
+ else if(action.action==="correct"){const data:Prisma.VisitorVisitUpdateInput={};if(action.host)data.host=action.host;if(action.reasonId)data.reason={connect:{id:action.reasonId}};if(action.reasonLabel)data.reasonLabel=action.reasonLabel;if(action.otherReason!==undefined)data.otherReason=action.otherReason||null;if(action.signedInAt)data.signedInAt=new Date(action.signedInAt);if(action.signedOutAt!==undefined)data.signedOutAt=action.signedOutAt?new Date(action.signedOutAt):null;data.signOutCorrectionReason=action.correctionReason;updated=await prisma.visitorVisit.update({where:{id},data})}
+ else if(action.action==="emergency")updated=await prisma.visitorVisit.update({where:{id},data:{emergencyIncluded:action.included}})
+ else if(action.action==="archive")updated=await prisma.visitorVisit.update({where:{id},data:{archivedAt:new Date()}})
+ else {updated=await prisma.$transaction(async tx=>{await tx.visitorSignature.updateMany({where:{visitId:id,deletedAt:null},data:{deletedAt:new Date(),strokeData:[]}});await tx.visitor.update({where:{id:existing.visitorId},data:{fullName:"Anonymised visitor",normalizedName:`anonymised-${existing.visitorId}`,company:null,mobile:null,anonymizedAt:new Date()}});return tx.visitorVisit.update({where:{id},data:{vehicleRegistration:null,otherReason:null,anonymizedAt:new Date(),archivedAt:new Date()}})})}
+ await audit(`VISITOR_${action.action.toUpperCase().replace('-','_')}`,{actorType:"USER",actorId:user.id,entityType:"VisitorVisit",entityId:id,beforeValue:{signedInAt:existing.signedInAt,signedOutAt:existing.signedOutAt,host:existing.host,emergencyIncluded:existing.emergencyIncluded},afterValue:{action:action.action},...requestContext(req)});return NextResponse.json(updated);})}

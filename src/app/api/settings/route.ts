@@ -14,6 +14,13 @@ const schema = z.object({
   localHistoryDays: z.number().int().min(1).max(90),
   duplicateEventSeconds: z.number().int().min(5).max(300),
   cameraMode: z.enum(["DISABLED", "REQUIRED_ALL", "REQUIRED_SELECTED", "OPTIONAL"]),
+  visitorCompanyRequired: z.boolean(),
+  visitorMobileRequired: z.boolean(),
+  visitorVehicleRequired: z.boolean(),
+  visitorDurationRequired: z.boolean(),
+  visitorRecordRetentionDays: z.number().int().min(30).max(3650),
+  visitorSignatureRetentionDays: z.number().int().min(1).max(365),
+  visitorPhoneRetentionDays: z.number().int().min(1).max(365),
 });
 
 const defaults = {
@@ -25,6 +32,13 @@ const defaults = {
   localHistoryDays: 7,
   duplicateEventSeconds: 20,
   cameraMode: "OPTIONAL",
+  visitorCompanyRequired: false,
+  visitorMobileRequired: false,
+  visitorVehicleRequired: false,
+  visitorDurationRequired: false,
+  visitorRecordRetentionDays: 730,
+  visitorSignatureRetentionDays: 30,
+  visitorPhoneRetentionDays: 30,
 };
 
 export async function GET(req: NextRequest) {

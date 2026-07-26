@@ -1,0 +1,8 @@
+import { NextRequest,NextResponse } from "next/server";
+import { z } from "zod";
+import { prisma } from "@/lib/prisma";
+import { withRole,jsonError,requestContext } from "@/lib/api";
+import { audit } from "@/lib/audit";
+const item=z.object({id:z.uuid().optional(),label:z.string().trim().min(2).max(100).refine(v=>!/[<>]/.test(v)),sortOrder:z.number().int().min(0).max(999),active:z.boolean()});
+export async function GET(req:NextRequest){return withRole(req,"ADMINISTRATOR",async()=>NextResponse.json(await prisma.visitorReason.findMany({orderBy:[{sortOrder:"asc"},{label:"asc"}]})))}
+export async function PUT(req:NextRequest){return withRole(req,"ADMINISTRATOR",async user=>{const parsed=z.array(item).min(1).max(50).safeParse(await req.json().catch(()=>null));if(!parsed.success)return jsonError("Check the visitor reasons.",422);const labels=parsed.data.map(x=>x.label.toLowerCase());if(new Set(labels).size!==labels.length)return jsonError("Visitor reason labels must be unique.",422);const rows=await prisma.$transaction(parsed.data.map(x=>x.id?prisma.visitorReason.update({where:{id:x.id},data:{label:x.label,sortOrder:x.sortOrder,active:x.active}}):prisma.visitorReason.create({data:{label:x.label,sortOrder:x.sortOrder,active:x.active}})));await audit("VISITOR_REASONS_CHANGED",{actorType:"USER",actorId:user.id,entityType:"VisitorReason",afterValue:{count:rows.length},...requestContext(req)});return NextResponse.json(rows);})}

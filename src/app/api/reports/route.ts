@@ -4,11 +4,11 @@ import { z } from "zod";
 import { withRole, jsonError, requestContext } from "@/lib/api";
 import { audit } from "@/lib/audit";
 import { createCsv } from "@/lib/csv";
-import { dailyStaffReport, displayMinutes, displayTime, siteSummary, studentAttendanceReport } from "@/lib/reports";
+import { dailyStaffReport, displayMinutes, displayTime, siteSummary, studentAttendanceReport, visitorReport } from "@/lib/reports";
 import { localDateKey } from "@/lib/dates";
 
 const querySchema = z.object({
-  type: z.enum(["daily-staff", "weekly-staff", "students", "site"]),
+  type: z.enum(["daily-staff", "weekly-staff", "students", "site", "visitors"]),
   from: z.string().date(),
   to: z.string().date(),
   format: z.enum(["json", "csv"]).default("json"),
@@ -38,11 +38,16 @@ export async function GET(req: NextRequest) {
       data = entries;
       headers = ["Date","Student","Status","Expected","Arrival","Departure","Notes","Source device"];
       rows = entries.map((r) => [r.date,r.student,r.status,r.expected?"Yes":"No",displayTime(r.arrivalTime || undefined),displayTime(r.departureTime || undefined),r.note || "",r.device]);
+    } else if (type === "visitors") {
+      const entries = await visitorReport(from, to);
+      data = entries;
+      headers = ["Reference","Visitor","Company","Host","Reason","Arrival","Departure","Duration minutes","Status","Sign-in device","Assisted sign-out by"];
+      rows = entries.map((r) => [r.reference,r.visitor,r.company,r.host,r.reason,displayTime(r.arrival),displayTime(r.departure || undefined),r.durationMinutes ?? "",r.status,r.device,r.assistedBy]);
     } else {
       const report = await siteSummary(from);
       data = report;
-      headers = ["Date","Staff attended","Staff still in","Students present","Students absent","Students late","Students unconfirmed","Open conflicts","Emergency activity","Stale/revoked devices"];
-      rows = [[report.date,report.staffAttended,report.staffStillIn,report.studentsPresent,report.studentsAbsent,report.studentsLate,report.studentsUnconfirmed,report.conflicts,report.emergencyActivity,report.staleOrRevokedDevices]];
+      headers = ["Date","Staff attended","Staff still in","Students present","Students absent","Students late","Students unconfirmed","Open conflicts","Emergency activity","Stale/revoked devices","Visitor count","Visitors still in"];
+      rows = [[report.date,report.staffAttended,report.staffStillIn,report.studentsPresent,report.studentsAbsent,report.studentsLate,report.studentsUnconfirmed,report.conflicts,report.emergencyActivity,report.staleOrRevokedDevices,report.visitorCount,report.visitorsStillIn]];
     }
     if (format === "csv") {
       await audit("REPORT_EXPORTED", { actorType:"USER",actorId:user.id,entityType:"Report",afterValue:{type,from,to},...requestContext(req) });

@@ -12,15 +12,19 @@ It uses Next.js App Router, React, TypeScript, Prisma, MariaDB, IndexedDB and a 
 
 - Staff PIN clock-in/out with hashed credentials and generic failures
 - Touch-first student register
-- Live staff/student register
-- Offline emergency roll call
+- Local-first visitor sign-in/out with private visit references and touch signatures
+- Immutable, versioned visitor site-rule acceptance
+- Reception-assisted visitor sign-out and manager visitor history
+- Administrator-managed visitor reasons, required fields and retention
+- Live staff/student/visitor register
+- Offline emergency roll call with separate Staff, Students and Visitors sections
 - Persistent IndexedDB queue
 - Authenticated idempotent cross-tablet push/pull sync
 - Local application of pulled clock, attendance and roll-call changes
 - Staff and student create/edit/archive/restore management
 - One-time tablet provisioning, rotation and revocation
 - Operational dashboard
-- Staff, student and site reports with protected CSV exports
+- Staff, student, visitor and site reports with protected CSV exports
 - Administrator settings and SMTP test summaries
 - Authenticated daily-summary cron endpoint
 - Audit records for privileged operations
@@ -117,6 +121,16 @@ Managers and administrators can view attendance reports and request server-gener
 
 Navigation visibility is not relied on as security; management APIs perform server-side role checks.
 
+
+## Visitor management
+
+The kiosk home links to `/visitors`. Visitors can sign in without seeing any other visitor identity. Sign-out requires the visitor's full name plus the private eight-character reference shown at sign-in; reception can assist from `/dashboard/visitors`.
+
+Administrators configure visitor reasons, required fields, immutable site-rule versions and retention periods in **Settings**. Publishing rules creates a new version; it never edits historic acceptance text. Managers can open `/dashboard/visitors/[id]` to inspect the accepted version. Signature access is a separate manager-only API and every successful view is audited.
+
+Visitor sign-in/out uses the tablet UUID queue. Signature strokes, mobile numbers and accepted rule text are processed by the receiving server but are deliberately removed from replicated `SyncEvent` payloads. Other tablets receive only the operational details required for live and emergency registers.
+
+Run the protected visitor-retention endpoint daily. It clears expired signature stroke data, removes expired phone numbers and anonymises fully elapsed visitor histories according to Settings. Take a database backup before changing retention values or manually anonymising records.
 ## SMTP and daily summaries
 
 Configure the SMTP variables in `.env`, then use **Settings** to:
@@ -126,12 +140,13 @@ Configure the SMTP variables in `.env`, then use **Settings** to:
 - configure recipients
 - send a test summary
 
-Emails contain HTML and plain text, use STARS branding and never include attendance photographs.
+Emails contain HTML and plain text, include visitor counts and visitors still signed in, and never include visitor signatures, mobile numbers or attendance photographs.
 
 The app does not use an in-process timer. Run the protected endpoint every five minutes; it checks the configured Europe/London time and prevents duplicate successful sends:
 
 ```cron
 */5 * * * * curl -fsS -H "Authorization: Bearer $CRON_SECRET" https://app.starsconnect.co.uk/api/cron/daily-summary >/dev/null
+15 2 * * * curl -fsS -X POST -H "Authorization: Bearer $CRON_SECRET" https://app.starsconnect.co.uk/api/cron/visitor-retention >/dev/null
 ```
 
 Store `CRON_SECRET` in the cron user’s protected environment; do not write the actual value into the crontab command if process visibility is a concern. A root-owned wrapper or protected environment file is preferable.
@@ -152,6 +167,7 @@ git pull --ff-only
 npm ci
 npx prisma generate
 npx prisma db push
+npm run db:bootstrap-visitors
 npm run build
 pm2 restart stars-connect --update-env
 pm2 save
@@ -191,7 +207,13 @@ npm run build
 - [ ] Install from HTTPS and confirm STARS Connect name/icon
 - [ ] Provision each tablet with a different credential
 - [ ] Confirm valid/invalid PIN behavior
-- [ ] Confirm clock and register changes survive refresh
+- [ ] Confirm clock, register and visitor changes survive refresh
+- [ ] Sign a visitor in offline and confirm it queues and survives restart
+- [ ] Confirm visitor changes propagate from Tablet A to Tablet B
+- [ ] Confirm kiosk sign-out requires name plus private reference
+- [ ] Confirm visitor signature viewing is manager-only and audited
+- [ ] Confirm staff, students and visitors appear in separate emergency sections
+- [ ] Run visitor retention against fake expired records
 - [ ] Create offline changes and reconnect
 - [ ] Confirm Tablet A changes appear on Tablet B
 - [ ] Confirm duplicate UUIDs are applied once
@@ -207,4 +229,4 @@ npm run build
 
 ## Deliberately excluded from V1
 
-Student invoicing, payroll-provider integration, facial recognition, biometric verification, door access, visitor management, staff rotas, holiday requests and direct tablet-to-tablet networking.
+Student invoicing, payroll-provider integration, facial recognition, biometric verification, door access, staff rotas, holiday requests and direct tablet-to-tablet networking.

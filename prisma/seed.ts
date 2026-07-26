@@ -69,10 +69,16 @@ async function main() {
     });
   }
 
+  const visitorReasons = ["Electrical","Fire safety","Plumbing","Maintenance","Delivery","Contractor","Professional visit","Personal visit","Meeting","Other"];
+  for (const [sortOrder,label] of visitorReasons.entries()) await prisma.visitorReason.upsert({where:{label},update:{sortOrder,active:true},create:{label,sortOrder,active:true}});
+  const activeRules = await prisma.visitorRuleSet.findFirst({where:{active:true}});
+  if (!activeRules) await prisma.visitorRuleSet.create({data:{version:1,title:"Visitor site rules",rulesText:"Please remain with your host unless instructed otherwise. Follow all fire, emergency and safeguarding instructions. Do not photograph or record people on site. Report hazards immediately and wear any required protective equipment. Sign out before leaving the site.",active:true}});
   for (const [key,value] of Object.entries({
     cameraMode:"OPTIONAL",photoRetentionDays:30,auditRetentionDays:365,localHistoryDays:7,
     rollCallRetentionDays:730,duplicateEventSeconds:20,dailyEmailEnabled:false,
     dailyEmailTime:"17:30",dailyEmailRecipients:[],
+    visitorCompanyRequired:false,visitorMobileRequired:false,visitorVehicleRequired:false,visitorDurationRequired:false,
+    visitorRecordRetentionDays:730,visitorSignatureRetentionDays:30,visitorPhoneRetentionDays:30,
   })) await prisma.appSetting.upsert({where:{key},update:{},create:{key,value}});
 
   console.log("Seed complete. Fake logins use ChangeMe!123; development staff PINs are 4101–4110.");

@@ -1,0 +1,3 @@
+import { Header } from "@/components/header";
+import { VisitorManager } from "@/components/visitor-manager";
+export default function VisitorsDashboard(){return <main className="shell"><Header manager/><div className="content"><div className="page-head"><div><h1 className="page-title">Visitors</h1><p className="muted">Current visitors, visit history and reception-assisted sign-out.</p></div></div><VisitorManager/></div></main>}

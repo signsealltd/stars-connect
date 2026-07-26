@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { staffDashboardMetrics, studentDashboardMetrics } from "./dashboard-metrics";
 
@@ -20,6 +22,10 @@ describe("dashboard metrics", () => {
     });
   });
 
+  it("does not let seeded demonstration activity inflate operational totals", () => {
+    const route = readFileSync(join(process.cwd(), "src/app/api/dashboard/route.ts"), "utf8");
+    expect(route.match(/device:\{isSeedData:false\}/g)).toHaveLength(3);
+  });
   it("counts only expected unmarked students as not marked", () => {
     const metrics = studentDashboardMetrics(
       [

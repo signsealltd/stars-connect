@@ -8,9 +8,9 @@ export async function GET(req:NextRequest){
  return withRole(req,"RECEPTION",async user=>{
   const date=localDateKey(),dbDate=localDateAsDatabaseDate(date),{start,end}=localDayBounds(date);
   const[events,latestStaffEvents,attendance,students,devices,conflicts,corrections,rollCall,email,activeVisitors,payrollAwaiting,billingAwaiting,dailyReport]=await Promise.all([
-   prisma.clockEvent.findMany({where:{deviceTimestamp:{gte:start,lte:end}},include:{staff:true},orderBy:{deviceTimestamp:"desc"}}),
-   prisma.staffMember.findMany({where:{active:true,clockingEnabled:true},select:{clockEvents:{orderBy:{deviceTimestamp:"desc"},take:1,select:{type:true,deviceTimestamp:true}}}}),
-   prisma.studentAttendance.findMany({where:{date:dbDate},include:{student:true},orderBy:{updatedAt:"desc"}}),
+   prisma.clockEvent.findMany({where:{deviceTimestamp:{gte:start,lte:end},device:{isSeedData:false}},include:{staff:true},orderBy:{deviceTimestamp:"desc"}}),
+   prisma.staffMember.findMany({where:{active:true,clockingEnabled:true},select:{clockEvents:{where:{device:{isSeedData:false}},orderBy:{deviceTimestamp:"desc"},take:1,select:{type:true,deviceTimestamp:true}}}}),
+   prisma.studentAttendance.findMany({where:{date:dbDate,device:{isSeedData:false}},include:{student:true},orderBy:{updatedAt:"desc"}}),
    prisma.student.findMany({where:{active:true},select:{id:true,expectedDays:true}}),
    prisma.device.findMany({select:{id:true,name:true,lastSyncAt:true,lastSeenAt:true,status:true,pendingEventCount:true,currentCursor:true}}),
    prisma.syncConflict.count({where:{status:"OPEN"}}),

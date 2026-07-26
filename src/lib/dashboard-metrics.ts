@@ -3,7 +3,7 @@ import { isExpectedDay } from "./dates";
 type Student = { id: string; expectedDays: unknown };
 type Attendance = {
   studentId: string;
-  status: "NOT_MARKED" | "PRESENT" | "ABSENT" | "LATE" | "CANCELLED";
+  status: "NOT_MARKED" | "PRESENT" | "ABSENT" | "OFFSITE" | "LATE" | "CANCELLED";
 };
 type LatestClockEvent = {
   type: "CLOCK_IN" | "CLOCK_OUT";
@@ -33,6 +33,7 @@ export function studentDashboardMetrics(
       (row) => row.status === "PRESENT" || row.status === "LATE",
     ).length,
     absent: activeAttendance.filter((row) => row.status === "ABSENT").length,
+    offsite: activeAttendance.filter((row) => row.status === "OFFSITE").length,
     late: activeAttendance.filter((row) => row.status === "LATE").length,
     expected: expectedIds.size,
     notMarked: [...expectedIds].filter((id) => !markedExpectedIds.has(id)).length,

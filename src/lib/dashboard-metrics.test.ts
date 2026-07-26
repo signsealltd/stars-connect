@@ -6,9 +6,10 @@ import { staffDashboardMetrics, studentDashboardMetrics } from "./dashboard-metr
 describe("dashboard metrics", () => {
   it("uses active students consistently across attendance tiles", () => {
     const metrics = studentDashboardMetrics(
-      [{ id: "active", expectedDays: [1] }],
+      [{ id: "active", expectedDays: [1] }, { id: "offsite", expectedDays: [1] }],
       [
         { studentId: "active", status: "PRESENT" },
+        { studentId: "offsite", status: "OFFSITE" },
         { studentId: "archived", status: "PRESENT" },
       ],
       "2026-07-27",
@@ -16,8 +17,9 @@ describe("dashboard metrics", () => {
     expect(metrics).toEqual({
       present: 1,
       absent: 0,
+      offsite: 1,
       late: 0,
-      expected: 1,
+      expected: 2,
       notMarked: 0,
     });
   });

@@ -28,6 +28,7 @@ enum AttendanceStatus {
   NOT_MARKED
   PRESENT
   ABSENT
+  OFFSITE
   LATE
   CANCELLED
 }

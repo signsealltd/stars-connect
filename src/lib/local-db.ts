@@ -62,7 +62,7 @@ export async function pendingCount() {
 export async function saveAttendance(value: LocalAttendance) {
   const database = await db();
   await database.put("attendance", value);
-  await queueChange({ id: value.id, operation: "ATTENDANCE", payload: value, createdAt: new Date().toISOString(), attempts: 0 });
+  await queueChange({ id: crypto.randomUUID(), operation: "ATTENDANCE", payload: value, createdAt: new Date().toISOString(), attempts: 0 });
 }
 
 

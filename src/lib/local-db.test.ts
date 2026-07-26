@@ -1,6 +1,6 @@
 import "fake-indexeddb/auto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { applyPulledBatch, applyPulledEvent, clearUnprovisionedQueue, db, inspectUnprovisionedQueue, queueChange, syncNow } from "./local-db";
+import { applyPulledBatch, applyPulledEvent, clearUnprovisionedQueue, db, inspectUnprovisionedQueue, queueChange, saveAttendance, syncNow } from "./local-db";
 
 const storage = new Map<string,string>();
 Object.defineProperty(globalThis, "localStorage", { value: {
@@ -72,6 +72,17 @@ describe("unprovisioned desktop queue safety",()=>{
   });
 });
 describe("register synchronisation",()=>{
+  it("queues every edit as a distinct sync event while retaining the attendance record identity",async()=>{
+    localStorage.setItem("pulse-device-id","tablet-1");
+    localStorage.setItem("pulse-device-token","secret");
+    const base={id:"daily-attendance-1",studentId:"student-1",date:"2026-07-26",arrivalTime:"2026-07-26T08:30:00Z",deviceTimestamp:"2026-07-26T08:30:00Z"};
+    await saveAttendance({...base,status:"PRESENT" as const,version:1});
+    await saveAttendance({...base,status:"OFFSITE" as const,departureTime:"2026-07-26T12:00:00Z",deviceTimestamp:"2026-07-26T12:00:00Z",version:2});
+    const pending=await (await db()).getAll("pending");
+    expect(pending).toHaveLength(2);
+    expect(new Set(pending.map(event=>event.id)).size).toBe(2);
+    expect(pending.every(event=>(event.payload as {id:string}).id===base.id)).toBe(true);
+  });
   it("runs another upload when attendance is queued during an active sync",async()=>{
     localStorage.setItem("pulse-device-id","tablet-1");
     localStorage.setItem("pulse-device-token","secret");

@@ -1,1 +1,14 @@
-import{Header}from"@/components/header";import{FinanceConsole}from"@/components/finance-console";import{requireCapability,CAPABILITIES}from"@/lib/permissions";export const dynamic="force-dynamic";export default async function Page(){await requireCapability(CAPABILITIES.PAYROLL_REVIEW);return <main className="shell"><Header manager/><div className="content"><h1 className="page-title">Payroll periods</h1><p className="muted">Review recorded hours, resolve exceptions, approve and lock periods, then generate accountant-ready documents.</p><FinanceConsole mode="payroll"/></div></main>}
+import { Header } from "@/components/header";
+import { SimpleFinanceConsole } from "@/components/simple-finance-console";
+import { requireCapability, CAPABILITIES } from "@/lib/permissions";
+
+export const dynamic = "force-dynamic";
+
+export default async function Page() {
+  await requireCapability(CAPABILITIES.PAYROLL_REVIEW);
+  return <main className="shell"><Header manager/><div className="content">
+    <h1 className="page-title">Payroll</h1>
+    <p className="muted">Choose a period, check any warnings, then approve and download the accountant-ready files.</p>
+    <SimpleFinanceConsole mode="payroll"/>
+  </div></main>;
+}

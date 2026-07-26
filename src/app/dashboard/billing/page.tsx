@@ -1,1 +1,14 @@
-import{Header}from"@/components/header";import{FinanceConsole}from"@/components/finance-console";import{requireCapability,CAPABILITIES}from"@/lib/permissions";export const dynamic="force-dynamic";export default async function Page(){await requireCapability(CAPABILITIES.BILLING_REVIEW);return <main className="shell"><Header manager/><div className="content"><h1 className="page-title">Billing runs</h1><p className="muted">Create transparent draft charges from attendance, review exceptions and generate approved invoices.</p><FinanceConsole mode="billing"/></div></main>}
+import { Header } from "@/components/header";
+import { SimpleFinanceConsole } from "@/components/simple-finance-console";
+import { requireCapability, CAPABILITIES } from "@/lib/permissions";
+
+export const dynamic = "force-dynamic";
+
+export default async function Page() {
+  await requireCapability(CAPABILITIES.BILLING_REVIEW);
+  return <main className="shell"><Header manager/><div className="content">
+    <h1 className="page-title">Billing</h1>
+    <p className="muted">Create invoices from attendance in three guided steps.</p>
+    <SimpleFinanceConsole mode="billing"/>
+  </div></main>;
+}

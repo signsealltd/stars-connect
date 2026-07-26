@@ -197,12 +197,23 @@ export async function getSyncSnapshot(database?: IDBPDatabase<StarsConnectDB>) {
 }
 
 let activeSync: Promise<boolean> | null = null;
+let syncRequestedWhileActive = false;
 export function syncNow() {
   if (typeof window === "undefined") return Promise.resolve(false);
   const eligibility=kioskSyncEligibility(window.location.pathname,localStorage);
   if(!eligibility.allowed)return Promise.resolve(false);
-  if (activeSync) return activeSync;
-  activeSync = performSync().finally(() => { activeSync = null; });
+  if (activeSync) {
+    syncRequestedWhileActive = true;
+    return activeSync;
+  }
+  activeSync = (async () => {
+    let synced = await performSync();
+    while (syncRequestedWhileActive) {
+      syncRequestedWhileActive = false;
+      synced = await performSync() || synced;
+    }
+    return synced;
+  })().finally(() => { activeSync = null; });
   return activeSync;
 }
 

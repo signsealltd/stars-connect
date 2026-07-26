@@ -1,6 +1,6 @@
 import "fake-indexeddb/auto";
-import { beforeEach, describe, expect, it } from "vitest";
-import { applyPulledBatch, applyPulledEvent, clearUnprovisionedQueue, db, inspectUnprovisionedQueue } from "./local-db";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { applyPulledBatch, applyPulledEvent, clearUnprovisionedQueue, db, inspectUnprovisionedQueue, queueChange, syncNow } from "./local-db";
 
 const storage = new Map<string,string>();
 Object.defineProperty(globalThis, "localStorage", { value: {
@@ -20,6 +20,8 @@ beforeEach(async()=>{
   const database=await db();
   for(const store of ["staff","attendance","clockEvents","pending","metadata","rollCalls","appliedEvents","conflicts","visitorVisits"] as const)await database.clear(store);
 });
+
+afterEach(() => vi.unstubAllGlobals());
 
 describe("pulled event application",()=>{
   it("applies a Tablet A clock event to Tablet B local state",async()=>{
@@ -67,5 +69,36 @@ describe("unprovisioned desktop queue safety",()=>{
   it("protects legitimate queues after device provisioning",async()=>{
     localStorage.setItem("pulse-device-id","tablet-1");localStorage.setItem("pulse-device-token","secret");
     await expect(clearUnprovisionedQueue()).rejects.toThrow("PROVISIONED_QUEUE_PROTECTED");
+  });
+});
+describe("register synchronisation",()=>{
+  it("runs another upload when attendance is queued during an active sync",async()=>{
+    localStorage.setItem("pulse-device-id","tablet-1");
+    localStorage.setItem("pulse-device-token","secret");
+    vi.stubGlobal("window",{location:{pathname:"/register"},dispatchEvent:()=>undefined});
+    vi.stubGlobal("navigator",{onLine:true});
+    vi.stubGlobal("CustomEvent",class{});
+    let releaseFirst!:()=>void;
+    const firstGate=new Promise<void>(resolve=>{releaseFirst=resolve});
+    const response=(init?:RequestInit)=>({
+      ok:true,
+      json:async()=>{
+        const body=JSON.parse(String(init?.body));
+        return{acknowledged:body.events.map((event:{id:string})=>event.id),events:[],cursor:body.cursor};
+      },
+    });
+    const fetchMock=vi.fn()
+      .mockImplementationOnce(async(_url:string,init?:RequestInit)=>{await firstGate;return response(init)})
+      .mockImplementation(async(_url:string,init?:RequestInit)=>response(init));
+    vi.stubGlobal("fetch",fetchMock);
+    await queueChange({id:"attendance-1",operation:"ATTENDANCE",payload:{},createdAt:new Date().toISOString(),attempts:0});
+    const firstSync=syncNow();
+    await vi.waitFor(()=>expect(fetchMock).toHaveBeenCalledTimes(1));
+    await queueChange({id:"attendance-2",operation:"ATTENDANCE",payload:{},createdAt:new Date().toISOString(),attempts:0});
+    syncNow();
+    releaseFirst();
+    await firstSync;
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(await (await db()).count("pending")).toBe(0);
   });
 });

@@ -11,6 +11,8 @@ export const staffUpdateSchema = z.object({
   endDate: z.string().date().or(z.literal("")).nullable().optional(),
   notes: z.string().trim().max(5000).nullable().optional(),
   contractedWeeklyHours: z.number().min(0).max(168).nullable().optional(),
+  hourlyRate: z.number().min(0).max(10000).nullable().optional(),
+  payrollNumber: z.string().trim().max(80).nullable().optional(),
   clockingEnabled: z.boolean().optional(),
   active: z.boolean().optional(),
   pin: z.string().regex(/^\d{4,8}$/).optional(),

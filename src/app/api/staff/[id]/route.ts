@@ -42,6 +42,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       ...(incoming.email ? { email: incoming.email.toLowerCase() } : {}),
       ...(incoming.startDate ? { startDate: new Date(incoming.startDate) } : {}),
       ...(incoming.endDate !== undefined ? { endDate: incoming.endDate ? new Date(incoming.endDate) : null } : {}),
+      ...(incoming.payrollNumber !== undefined ? { payrollNumber: incoming.payrollNumber || null } : {}),
       ...(incoming.active === false ? { archivedAt: new Date() } : incoming.active === true ? { archivedAt: null } : {}),
     };
     const after = await prisma.$transaction(async (tx) => {

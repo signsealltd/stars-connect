@@ -297,3 +297,14 @@ SETTINGS_ENCRYPTION_KEY="at-least-32-random-characters"
 ```
 
 SMTP passwords saved in the application are AES-256-GCM encrypted and are never returned by the settings API. Back up this key securely; changing or losing it requires entering the SMTP password again.
+## Controlled VPS updates and backups
+
+Administrators can review the running package version and Git commit and create/download MariaDB backups under **Settings -> Version & Backups**. Set `DATABASE_BACKUP_PATH` to a root-owned directory outside the public web root and grant the PM2 application user write access. Backups contain sensitive personal data and must be moved to approved encrypted storage and restoration-tested.
+
+For a normal VPS release, run from the application directory:
+
+```bash
+bash scripts/deploy-vps.sh
+```
+
+The script takes a pre-deployment MariaDB backup, locks against concurrent deployments, fast-forwards `main`, installs the lockfile dependencies, applies Prisma migrations, builds production assets, and restarts/saves the `stars-connect` PM2 process. It stops immediately if any stage fails. Do not expose this script directly to unauthenticated HTTP requests.

@@ -14,7 +14,8 @@
     "db:migrate": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
     "db:bootstrap-visitors": "tsx scripts/bootstrap-visitor-config.ts",
-    "db:prepare-live-test": "tsx scripts/prepare-live-test.ts"
+    "db:prepare-live-test": "tsx scripts/prepare-live-test.ts",
+    "db:backup": "node scripts/backup-database.mjs"
   },
   "dependencies": {
     "@prisma/client": "^6.12.0",

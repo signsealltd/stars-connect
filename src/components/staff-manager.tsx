@@ -7,11 +7,13 @@ type Staff = {
   id: string; firstName: string; lastName: string; displayName: string; email: string;
   phone?: string; jobRole: string; active: boolean; clockingEnabled: boolean;
   startDate: string; endDate?: string; notes?: string; pinEnabled: boolean;
+  payrollNumber?: string; contractedWeeklyHours?: number; hourlyRate?: number;
 };
 
 const blank = {
   firstName: "", lastName: "", displayName: "", email: "", phone: "", jobRole: "",
   startDate: "", endDate: "", notes: "", clockingEnabled: true, pin: "",
+  payrollNumber: "", contractedWeeklyHours: "", hourlyRate: "",
 };
 
 export function StaffManager() {
@@ -41,13 +43,14 @@ export function StaffManager() {
       email: row.email, phone: row.phone || "", jobRole: row.jobRole,
       startDate: row.startDate.slice(0, 10), endDate: row.endDate?.slice(0, 10) || "",
       notes: row.notes || "", clockingEnabled: row.clockingEnabled, pin: "",
+      payrollNumber: row.payrollNumber || "", contractedWeeklyHours: row.contractedWeeklyHours?.toString() || "", hourlyRate: row.hourlyRate?.toString() || "",
     } : blank);
   }
 
   async function save(event: React.FormEvent) {
     event.preventDefault();
     setError("");
-    const payload = { ...form, pin: form.pin || undefined };
+    const payload = { ...form, pin: form.pin || undefined, payrollNumber: form.payrollNumber || null, contractedWeeklyHours: form.contractedWeeklyHours === "" ? null : Number(form.contractedWeeklyHours), hourlyRate: form.hourlyRate === "" ? null : Number(form.hourlyRate) };
     const isNew = editing === "new";
     const res = await fetch(isNew ? "/api/staff" : `/api/staff/${(editing as Staff).id}`, {
       method: isNew ? "POST" : "PATCH",
@@ -102,6 +105,9 @@ export function StaffManager() {
           <label className="form-label">Phone<input className="field" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></label>
           <label className="form-label">Start date<input className="field" type="date" value={form.startDate} onChange={(e) => setForm({ ...form, startDate: e.target.value })} required /></label>
           <label className="form-label">End date<input className="field" type="date" value={form.endDate} onChange={(e) => setForm({ ...form, endDate: e.target.value })} /></label>
+          <label className="form-label">Payroll number<input className="field" autoComplete="off" value={form.payrollNumber} onChange={(e) => setForm({ ...form, payrollNumber: e.target.value })} /></label>
+          <label className="form-label">Contracted hours per week<input className="field" type="number" min="0" max="168" step="0.25" value={form.contractedWeeklyHours} onChange={(e) => setForm({ ...form, contractedWeeklyHours: e.target.value })} /></label>
+          <label className="form-label">Hourly rate (£)<input className="field" type="number" min="0" step="0.01" value={form.hourlyRate} onChange={(e) => setForm({ ...form, hourlyRate: e.target.value })} /></label>
           <label className="form-label full"><span><KeyRound size={16} /> {editing === "new" ? "Initial PIN" : "Reset PIN"}</span><input className="field" type="password" inputMode="numeric" pattern="\d{4,8}" placeholder={editing === "new" ? "4–8 digits (optional)" : "Leave blank to keep current PIN"} value={form.pin} onChange={(e) => setForm({ ...form, pin: e.target.value })} /></label>
           <label className="form-label full">Restricted manager notes<textarea className="field" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></label>
           <label className="full"><input type="checkbox" checked={form.clockingEnabled} onChange={(e) => setForm({ ...form, clockingEnabled: e.target.checked })} /> Allow this staff member to clock in and out</label>

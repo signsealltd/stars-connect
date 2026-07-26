@@ -16,7 +16,9 @@ const staffSchema = z.object({
   startDate: z.string().date(),
   endDate: z.string().date().optional().or(z.literal("")),
   notes: z.string().trim().max(5000).optional().or(z.literal("")),
-  contractedWeeklyHours: z.number().min(0).max(168).optional(),
+  contractedWeeklyHours: z.number().min(0).max(168).nullable().optional(),
+  hourlyRate: z.number().min(0).max(10000).nullable().optional(),
+  payrollNumber: z.string().trim().max(80).nullable().optional().or(z.literal("")),
   clockingEnabled: z.boolean().default(true),
   pin: z.string().regex(/^\d{4,8}$/).optional(),
 });
@@ -59,6 +61,7 @@ export async function POST(req: NextRequest) {
           email: data.email.toLowerCase(),
           phone: data.phone || null,
           notes: data.notes || null,
+          payrollNumber: data.payrollNumber || null,
           startDate: new Date(data.startDate),
           endDate: data.endDate ? new Date(data.endDate) : null,
         },

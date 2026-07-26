@@ -16,6 +16,7 @@ const deviceHeaders = () => ({
 
 export default function Register() {
   const [unlocked, setUnlocked] = useState(false);
+  const [checkingManagerAccess, setCheckingManagerAccess] = useState(true);
   const [pin, setPin] = useState("");
   const [unlocking, setUnlocking] = useState(false);
   const [error, setError] = useState("");
@@ -24,6 +25,14 @@ export default function Register() {
   const [q, setQ] = useState("");
   const [saved, setSaved] = useState(false);
   const date = localDateKey();
+
+  useEffect(() => {
+    fetch("/api/auth/me", { cache: "no-store" }).then(async (response) => {
+      if (!response.ok) return;
+      const user = await response.json();
+      if (["MANAGER", "DIRECTOR", "ADMINISTRATOR"].includes(user.role)) setUnlocked(true);
+    }).finally(() => setCheckingManagerAccess(false));
+  }, []);
 
   useEffect(() => {
     if (!unlocked) return;
@@ -69,6 +78,8 @@ export default function Register() {
     await saveAttendance(value);
     void syncNow();
   }
+
+  if (checkingManagerAccess) return <main className="shell"><Header/><div className="content"><div className="empty"><span className="spinner"/> Checking access...</div></div></main>;
 
   if (!unlocked) return <main className="shell"><Header/><div className="content"><Link href="/" className="muted" style={{ display: "inline-flex", gap: 7, textDecoration: "none" }}><ArrowLeft size={20}/>Kiosk home</Link><section className="card" style={{ maxWidth: 480, margin: "48px auto", padding: 28 }}><KeyRound size={34}/><h1>Staff PIN required</h1><p className="muted">Student names are protected. Ask a staff member to enter their PIN to open the register.</p>{error && <div className="alert alert-error">{error}</div>}<form onSubmit={unlock}><label className="form-label">Staff PIN<input className="field" type="password" inputMode="numeric" autoComplete="off" pattern="\d{4,8}" value={pin} onChange={(event) => setPin(event.target.value)} autoFocus required/></label><button className="btn primary" disabled={unlocking}>{unlocking ? "Checking..." : "Unlock register"}</button></form></section></div></main>;
 

@@ -1,0 +1,21 @@
+CREATE TABLE `StaffTrainingRecord` (
+  `id` CHAR(36) NOT NULL,
+  `staffId` CHAR(36) NOT NULL,
+  `courseName` VARCHAR(191) NOT NULL,
+  `provider` VARCHAR(191) NULL,
+  `certificateReference` VARCHAR(191) NULL,
+  `completedDate` DATE NOT NULL,
+  `expiryDate` DATE NULL,
+  `mandatory` BOOLEAN NOT NULL DEFAULT false,
+  `notes` TEXT NULL,
+  `active` BOOLEAN NOT NULL DEFAULT true,
+  `createdById` CHAR(36) NOT NULL,
+  `updatedById` CHAR(36) NOT NULL,
+  `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  `updatedAt` DATETIME(3) NOT NULL,
+  PRIMARY KEY (`id`),
+  INDEX `StaffTrainingRecord_staffId_active_idx` (`staffId`, `active`),
+  INDEX `StaffTrainingRecord_expiryDate_active_idx` (`expiryDate`, `active`),
+  INDEX `StaffTrainingRecord_courseName_idx` (`courseName`),
+  CONSTRAINT `StaffTrainingRecord_staffId_fkey` FOREIGN KEY (`staffId`) REFERENCES `StaffMember` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;

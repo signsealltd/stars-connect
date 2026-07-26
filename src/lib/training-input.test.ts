@@ -1,0 +1,3 @@
+import { describe, expect, it } from "vitest";
+import { trainingSchema } from "./training-input";
+describe("training input",()=>{it("accepts a complete training record",()=>{expect(trainingSchema.safeParse({staffId:"0191b0ea-d4b8-48ca-ae5f-8ec270b44763",courseName:"Safeguarding adults",provider:"Local Authority",completedDate:"2026-07-01",expiryDate:"2027-07-01",mandatory:true}).success).toBe(true)});it("rejects missing staff and invalid dates",()=>{expect(trainingSchema.safeParse({staffId:"bad",courseName:"X",completedDate:"01/07/2026"}).success).toBe(false)})});

@@ -122,6 +122,7 @@ model StaffMember {
   notes                 String?           @db.Text
   credentials           StaffCredential[]
   clockEvents           ClockEvent[]
+  trainingRecords       StaffTrainingRecord[]
   createdAt             DateTime          @default(now())
   updatedAt             DateTime          @updatedAt
   archivedAt            DateTime?
@@ -129,6 +130,28 @@ model StaffMember {
   @@index([active, displayName])
 }
 
+
+model StaffTrainingRecord {
+  id                   String      @id @default(uuid()) @db.Char(36)
+  staffId              String      @db.Char(36)
+  staff                StaffMember @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  courseName           String      @db.VarChar(191)
+  provider             String?     @db.VarChar(191)
+  certificateReference String?     @db.VarChar(191)
+  completedDate        DateTime    @db.Date
+  expiryDate           DateTime?   @db.Date
+  mandatory            Boolean     @default(false)
+  notes                String?     @db.Text
+  active               Boolean     @default(true)
+  createdById          String      @db.Char(36)
+  updatedById          String      @db.Char(36)
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+
+  @@index([staffId, active])
+  @@index([expiryDate, active])
+  @@index([courseName])
+}
 model StaffCredential {
   id         String         @id @default(uuid()) @db.Char(36)
   staffId    String         @db.Char(36)

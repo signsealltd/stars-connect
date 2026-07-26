@@ -3,7 +3,7 @@ export type ManagerNavItem={label:string;href:string;roles?:Role[]};
 export type ManagerNavGroup={label:string;href?:string;items:ManagerNavItem[];roles?:Role[]};
 const elevated:Role[]=["MANAGER","DIRECTOR","ADMINISTRATOR"],directors:Role[]=["DIRECTOR","ADMINISTRATOR"],admins:Role[]=["ADMINISTRATOR"];
 export const managerNavigation:ManagerNavGroup[]=[
- {label:"People",items:[{label:"Staff",href:"/dashboard/staff",roles:elevated},{label:"Students",href:"/dashboard/students",roles:elevated},{label:"Visitors",href:"/dashboard/visitors"}]},
+ {label:"People",items:[{label:"Staff",href:"/dashboard/staff",roles:elevated},{label:"Staff Training",href:"/dashboard/training",roles:elevated},{label:"Students",href:"/dashboard/students",roles:elevated},{label:"Visitors",href:"/dashboard/visitors"}]},
  {label:"Attendance",items:[{label:"Registers",href:"/register"},{label:"Timesheets",href:"/timesheets",roles:elevated},{label:"Emergency Register",href:"/emergency"},{label:"Live attendance",href:"/live"}]},
  {label:"Finance",roles:elevated,items:[{label:"Payroll",href:"/dashboard/payroll",roles:elevated},{label:"Billing",href:"/dashboard/billing",roles:elevated}]},
  {label:"Reports",roles:elevated,items:[{label:"Operational Reports",href:"/reports",roles:elevated},{label:"Daily Reports",href:"/dashboard/reports/daily",roles:elevated},{label:"Export History",href:"/dashboard/reports/payroll",roles:elevated}]},

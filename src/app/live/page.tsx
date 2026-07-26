@@ -1,7 +1,72 @@
 "use client";
-import { useEffect,useState } from "react";
+
+import { useEffect, useState } from "react";
+import { RefreshCw } from "lucide-react";
 import { Header } from "@/components/header";
-import { activeLocalVisitors,db } from "@/lib/local-db";
-import { localDateKey } from "@/lib/dates";
-export default function Live(){const[staff,setStaff]=useState<string[]>([]),[students,setStudents]=useState<string[]>([]),[visitors,setVisitors]=useState<string[]>([]);useEffect(()=>{(async()=>{const d=await db();setStaff((await d.getAll("staff")).filter(s=>s.currentState==="IN").map(s=>s.displayName));const date=localDateKey(),att=await d.getAllFromIndex("attendance","by-date",date),all=await d.getAll("students");setStudents(att.filter(a=>a.status==="PRESENT"||a.status==="LATE").map(a=>all.find(s=>s.id===a.studentId)?.displayName||"Student"));setVisitors((await activeLocalVisitors()).map(v=>`${v.fullName}${v.company?` · ${v.company}`:""} · Host: ${v.host}`))})()},[]);return <main className="shell"><Header manager/><div className="content"><h1 className="page-title">Who is on site?</h1><p className="muted">Based on this tablet’s latest local attendance and visitor data.</p><div className="grid" style={{gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))"}}><List title={`Staff currently in · ${staff.length}`} items={staff}/><List title={`Students present · ${students.length}`} items={students}/><List title={`Visitors on site · ${visitors.length}`} items={visitors}/></div></div></main>}
-function List({title,items}:{title:string;items:string[]}){return <section className="card" style={{padding:22}}><h2>{title}</h2>{items.length?items.map((x,i)=><div key={`${x}-${i}`} style={{fontSize:18,padding:"13px 0",borderTop:"1px solid #e5e9e7"}}>{x}</div>):<p className="muted">Nobody recorded.</p>}</section>}
+
+type Person = { id: string; name: string; detail?: string };
+type LiveData = {
+  staff: Person[];
+  students: Array<Person & { status: string }>;
+  visitors: Array<Person & { company?: string | null; host: string }>;
+};
+
+export default function Live() {
+  const [data, setData] = useState<LiveData>();
+  const [error, setError] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
+
+  async function load() {
+    setRefreshing(true);
+    setError("");
+    try {
+      const response = await fetch("/api/live", { cache: "no-store" });
+      if (response.status === 401 || response.status === 403) {
+        window.location.assign("/login");
+        return;
+      }
+      if (!response.ok) throw new Error("Live attendance could not be loaded.");
+      setData(await response.json());
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : "Live attendance could not be loaded.");
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
+  useEffect(() => {
+    void load();
+    const timer = window.setInterval(load, 15_000);
+    const refresh = () => {
+      if (document.visibilityState === "visible") void load();
+    };
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, []);
+
+  const visitors = data?.visitors.map((visitor) => ({
+    ...visitor,
+    detail: [visitor.company, visitor.host ? `Host: ${visitor.host}` : undefined].filter(Boolean).join(" · "),
+  }));
+
+  return <main className="shell"><Header manager/><div className="content">
+    <div className="page-head"><div><h1 className="page-title">Who is on site?</h1><p className="muted">Live server attendance from authorised STARS Connect tablets.</p></div>
+      <button className="btn secondary" onClick={load} disabled={refreshing}><RefreshCw size={17} className={refreshing ? "spin" : undefined}/>Refresh</button>
+    </div>
+    {error && <div className="alert alert-error" role="alert">{error}</div>}
+    {!data ? <div className="card empty">Loading live attendance…</div> : <div className="grid" style={{gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))"}}>
+      <List title={`Staff currently in · ${data.staff.length}`} items={data.staff}/>
+      <List title={`Students present · ${data.students.length}`} items={data.students}/>
+      <List title={`Visitors on site · ${visitors!.length}`} items={visitors!}/>
+    </div>}
+  </div></main>;
+}
+
+function List({title,items}:{title:string;items:Person[]}) {
+  return <section className="card" style={{padding:22}}><h2>{title}</h2>{items.length ? items.map(person => <div key={person.id} style={{fontSize:18,padding:"13px 0",borderTop:"1px solid #e5e9e7"}}>{person.name}{person.detail && <div className="muted">{person.detail}</div>}</div>) : <p className="muted">Nobody recorded.</p>}</section>;
+}

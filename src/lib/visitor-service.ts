@@ -8,6 +8,7 @@ export function publicVisitorPayload(payload: Record<string, unknown>) {
   const safe = { ...payload };
   delete safe.signature;
   delete safe.mobile;
+  delete safe.email;
   delete safe.acceptedRulesText;
   return safe as Prisma.InputJsonValue;
 }
@@ -30,8 +31,8 @@ export async function applyVisitorSignIn(tx: Tx, raw: Record<string, unknown>, d
   const retentionDays = typeof retention?.value === "number" ? retention.value : 30;
   const visitor = await tx.visitor.upsert({
     where: { id: p.visitorId },
-    update: { fullName: p.fullName, normalizedName: normalizeVisitorName(p.fullName), company: p.company || null, mobile: p.mobile || null },
-    create: { id: p.visitorId, fullName: p.fullName, normalizedName: normalizeVisitorName(p.fullName), company: p.company || null, mobile: p.mobile || null },
+    update: { fullName: p.fullName, normalizedName: normalizeVisitorName(p.fullName), company: p.company || null, mobile: p.mobile || null, email: p.email || null },
+    create: { id: p.visitorId, fullName: p.fullName, normalizedName: normalizeVisitorName(p.fullName), company: p.company || null, mobile: p.mobile || null, email: p.email || null },
   });
   return tx.visitorVisit.create({
     data: {

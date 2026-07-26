@@ -42,7 +42,8 @@ export async function getSession() {
 const rank: Record<Role, number> = {
   RECEPTION: 1,
   MANAGER: 2,
-  ADMINISTRATOR: 3,
+  ADMINISTRATOR: 4,
+  DIRECTOR: 3,
 };
 
 export async function requireRole(role: Role = "RECEPTION") {

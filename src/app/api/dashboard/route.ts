@@ -31,7 +31,7 @@ export async function GET(req:NextRequest){
    email:email?{status:email.status,sentAt:email.sentAt,failureReason:email.failureReason}:null,
    recentEvents:events.slice(0,8).map(e=>({id:e.id,name:e.staff.displayName,type:e.type,time:e.deviceTimestamp})),
    recentAttendance:attendance.slice(0,8).map(a=>({id:a.id,name:a.student.displayName,status:a.status,time:a.updatedAt})),
-   devices:devices.map(d=>({...d,currentCursor:String(d.currentCursor),stale:d.status==="REVOKED"||!d.lastSeenAt||d.lastSeenAt<staleThreshold})),
+   devices:devices.map(d=>({...d,currentCursor:String(d.currentCursor),stale:d.status==="ACTIVE"&&Boolean(d.lastSeenAt&&d.lastSeenAt<staleThreshold)})),
   });
  })
 }

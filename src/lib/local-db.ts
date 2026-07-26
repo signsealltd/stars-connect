@@ -213,6 +213,7 @@ async function performSync() {
         "content-type": "application/json",
         "x-device-id": localStorage.getItem("pulse-device-id") || "development-device",
         authorization: `Bearer ${localStorage.getItem("pulse-device-token") || "development-token"}`,
+        "x-app-version": process.env.NEXT_PUBLIC_APP_VERSION || "1.0.0",
       },
       body: JSON.stringify({ cursor, events: changes }),
     });

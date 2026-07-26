@@ -1,41 +1,10 @@
-import { randomBytes } from "crypto";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest,NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { withRole, jsonError, requestContext } from "@/lib/api";
+import { withRole,jsonError,requestContext } from "@/lib/api";
 import { audit } from "@/lib/audit";
-import { sha256 } from "@/lib/security";
-
-export async function GET(req: NextRequest) {
-  return withRole(req, "ADMINISTRATOR", async () => {
-    const devices = await prisma.device.findMany({
-      orderBy: [{ status: "asc" }, { name: "asc" }],
-      select: {
-        id: true, name: true, status: true, appVersion: true, lastSeenAt: true,
-        lastSyncAt: true, pendingEventCount: true, currentCursor: true,
-        tokenRotatedAt: true, revokedAt: true, createdAt: true,
-      },
-    });
-    return NextResponse.json(devices.map((d) => ({ ...d, currentCursor: String(d.currentCursor) })));
-  });
-}
-
-export async function POST(req: NextRequest) {
-  return withRole(req, "ADMINISTRATOR", async (user) => {
-    const parsed = z.object({ name: z.string().trim().min(2).max(120) }).safeParse(await req.json().catch(() => null));
-    if (!parsed.success) return jsonError("Enter a device name.", 422);
-    const token = randomBytes(32).toString("base64url");
-    const device = await prisma.device.create({
-      data: { name: parsed.data.name, tokenHash: sha256(token), tokenRotatedAt: new Date() },
-    });
-    await audit("DEVICE_PROVISIONED", {
-      actorType: "USER", actorId: user.id, entityType: "Device", entityId: device.id,
-      afterValue: { name: device.name, status: device.status }, ...requestContext(req),
-    });
-    return NextResponse.json({
-      device: { id: device.id, name: device.name, status: device.status },
-      token,
-      setupCode: `${device.id}.${token}`,
-    }, { status: 201 });
-  });
-}
+import { deviceOperationalStatus } from "@/lib/devices";
+import { issueSetupCode,placeholderCredentialHash } from "@/lib/device-provisioning";
+const createSchema=z.object({name:z.string().trim().min(2).max(120).refine(value=>!/[<>]/.test(value))});
+export async function GET(req:NextRequest){return withRole(req,"ADMINISTRATOR",async()=>{const devices=await prisma.device.findMany({orderBy:[{isSeedData:"asc"},{createdAt:"desc"}],select:{id:true,name:true,status:true,appVersion:true,lastSeenAt:true,lastSyncAt:true,pendingEventCount:true,currentCursor:true,tokenRotatedAt:true,revokedAt:true,createdAt:true,isSeedData:true}});return NextResponse.json(devices.map(device=>({...device,currentCursor:String(device.currentCursor),operationalStatus:deviceOperationalStatus(device)})))})}
+export async function POST(req:NextRequest){return withRole(req,"ADMINISTRATOR",async user=>{const parsed=createSchema.safeParse(await req.json().catch(()=>null));if(!parsed.success)return jsonError("Enter a friendly device name between 2 and 120 characters.",422);const result=await prisma.$transaction(async tx=>{const device=await tx.device.create({data:{name:parsed.data.name,tokenHash:placeholderCredentialHash(),tokenRotatedAt:new Date()}});const code=await issueSetupCode(device.id,user.id,tx);return{device, ...code}});await audit("DEVICE_PROVISIONED",{actorType:"USER",actorId:user.id,entityType:"Device",entityId:result.device.id,afterValue:{name:result.device.name,status:result.device.status,setupCodeExpiresAt:result.expiresAt},...requestContext(req)});return NextResponse.json({device:{id:result.device.id,name:result.device.name,status:result.device.status},setupCode:result.setupCode,expiresAt:result.expiresAt},{status:201})})}

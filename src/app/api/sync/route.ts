@@ -6,6 +6,7 @@ import { sha256 } from "@/lib/security";
 import { audit } from "@/lib/audit";
 import { rateLimit } from "@/lib/rate-limit";
 import { applyVisitorSignIn, applyVisitorSignOut, publicVisitorPayload } from "@/lib/visitor-service";
+import { localDateAsDatabaseDate, localDateKey } from "@/lib/dates";
 
 const eventSchema = z.object({
   id: z.uuid(),
@@ -21,7 +22,7 @@ async function authorise(req: NextRequest) {
   const token = req.headers.get("authorization")?.replace(/^Bearer /, "");
   if (!id || !token) return null;
   if (id === "development-device" && token === "development-token" && process.env.NODE_ENV !== "production") {
-    const first = await prisma.device.findFirst({ where: { status: "ACTIVE" } });
+    const first = await prisma.device.findFirst({ where: { isSeedData: true } });
     return first;
   }
   return prisma.device.findFirst({ where: { id, tokenHash: sha256(token), status: "ACTIVE" } });
@@ -129,6 +130,8 @@ export async function POST(req: NextRequest) {
       });
       acknowledged.push(item.id);
       await audit("SYNC_EVENT_ACCEPTED", { actorType: "DEVICE", deviceId: device.id, entityType: item.operation, entityId: item.id });
+      const sourceTimestamp=item.operation==="ATTENDANCE"?String(item.payload.date):item.operation==="CLOCK_EVENT"?String(item.payload.deviceTimestamp):item.operation.startsWith("VISITOR_")?String(item.payload.signedInAt||item.payload.signedOutAt||item.createdAt):null;
+      if(sourceTimestamp){const affectedDate=localDateAsDatabaseDate(/^\d{4}-\d{2}-\d{2}$/.test(sourceTimestamp)?sourceTimestamp:localDateKey(new Date(sourceTimestamp)));await prisma.dailyAttendanceReport.updateMany({where:{reportDate:affectedDate,status:{in:["GENERATED","EMAILED","SUPERSEDED"]}},data:{potentiallyOutdated:true}});}
       if (item.operation === "VISITOR_SIGN_IN" || item.operation === "VISITOR_SIGN_OUT") await audit(item.operation === "VISITOR_SIGN_IN" ? "VISITOR_SIGNED_IN" : "VISITOR_SIGNED_OUT", { actorType:"DEVICE",deviceId:device.id,entityType:"VisitorVisit",entityId:String((item.payload as Record<string,unknown>).visitId || item.id) });
     } catch (error) {
       const message = error instanceof Error ? error.message : "SYNC_FAILED";
@@ -145,7 +148,7 @@ export async function POST(req: NextRequest) {
   const cursor = updates.at(-1)?.sequence ?? after;
   await prisma.device.update({
     where: { id: device.id },
-    data: { lastSeenAt: new Date(), lastSyncAt: new Date(), pendingEventCount: Math.max(0, parsed.data.events.length - acknowledged.length), currentCursor: cursor },
+    data: { lastSeenAt: new Date(), lastSyncAt: new Date(), pendingEventCount: Math.max(0, parsed.data.events.length - acknowledged.length), currentCursor: cursor, appVersion: req.headers.get("x-app-version")?.slice(0,40) || device.appVersion },
   });
   return NextResponse.json({
     acknowledged,

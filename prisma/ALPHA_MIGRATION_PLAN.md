@@ -39,3 +39,20 @@ npx prisma migrate resolve --applied 202607260001_visitor_management
 ```
 
 Never run `migrate resolve` before confirming that `db push` completed successfully. When using `db push`, run `npm run db:bootstrap-visitors` to add only the production-safe default visitor reasons, initial rules and retention settings; it does not create demo users, staff or students.
+
+## Device provisioning migration
+
+Migration `202607260002_device_provisioning` adds hashed, expiring one-time setup codes and marks the two known fake seeded devices as revoked demonstration data. Apply it with `npx prisma migrate deploy` after the baseline is recorded. If the alpha still uses `prisma db push`, run the push and then mark this migration applied only after verifying `DeviceProvisioningCode` and `Device.isSeedData` exist:
+
+```bash
+npx prisma migrate resolve --applied 202607260002_device_provisioning
+```
+## Finance and reporting migration
+
+Migration `202607260003_finance_reporting` is additive: it extends the role enum, adds nullable reference fields and creates finance/report/document tables. Back up MariaDB and `DOCUMENT_STORAGE_PATH`, then apply with `npx prisma migrate deploy` after migrations 001 and 002 are recorded. Do not use `db push --force-reset`.
+
+If the legacy alpha still has no migration history, complete and verify its non-destructive `db push`, then resolve this migration as applied only after checking the new columns and tables exist:
+
+```bash
+npx prisma migrate resolve --applied 202607260003_finance_reporting
+```

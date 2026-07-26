@@ -21,6 +21,10 @@ const schema = z.object({
   visitorRecordRetentionDays: z.number().int().min(30).max(3650),
   visitorSignatureRetentionDays: z.number().int().min(1).max(365),
   visitorPhoneRetentionDays: z.number().int().min(1).max(365),
+  attendanceRetentionDays: z.number().int().min(365).max(36500),
+  generatedReportRetentionDays: z.number().int().min(365).max(36500),
+  payrollDocumentRetentionDays: z.number().int().min(365).max(36500),
+  invoiceRetentionDays: z.number().int().min(365).max(36500),
 });
 
 const defaults = {
@@ -39,6 +43,10 @@ const defaults = {
   visitorRecordRetentionDays: 730,
   visitorSignatureRetentionDays: 30,
   visitorPhoneRetentionDays: 30,
+  attendanceRetentionDays: 2555,
+  generatedReportRetentionDays: 2555,
+  payrollDocumentRetentionDays: 2555,
+  invoiceRetentionDays: 2555,
 };
 
 export async function GET(req: NextRequest) {

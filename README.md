@@ -97,6 +97,7 @@ The seed is idempotent where practical and contains fake data only.
 Users, all with password `ChangeMe!123`:
 
 - `admin@starsconnect.test`
+- `director@starsconnect.test`
 - `manager@starsconnect.test`
 - `reception@starsconnect.test`
 
@@ -113,7 +114,9 @@ These credentials are public development fixtures. Never use them in production 
 5. On the tablet, open `/setup`.
 6. Paste the code and authorise the tablet.
 
-The server stores only a SHA-256 token hash. Rotating a token invalidates the previous tablet credential. Revoked devices cannot synchronise. Browser storage is not a hardware secure enclave, so use Android screen lock/pinning and physically controlled tablets.
+Setup codes are random, stored only as SHA-256 hashes, expire after 15 minutes and are atomically consumed once. Redeeming a code generates the long-lived tablet credential; that credential is shown only to the receiving tablet and stored in its browser. Rotating immediately invalidates the previous credential and creates a fresh one-time setup code. Revocation invalidates the credential and all outstanding setup codes, preventing sync and protected kiosk API access. Browser storage is not a hardware secure enclave, so use Android screen lock/pinning and physically controlled tablets.
+
+The development seed retains two revoked `isSeedData` device records because fake attendance rows reference them. They are demonstration sources, cannot be rotated or activated through the admin page, and do not block provisioning a real tablet with any friendly name.
 
 ## Reports and permissions
 
@@ -230,3 +233,48 @@ npm run build
 ## Deliberately excluded from V1
 
 Student invoicing, payroll-provider integration, facial recognition, biometric verification, door access, staff rotas, holiday requests and direct tablet-to-tablet networking.
+
+## Payroll, billing and immutable documents
+
+Managers can review payroll periods and billing runs. Directors and administrators can approve and lock periods, configure billing profiles, charge rules, invoice numbering and organisation/remittance details, generate payroll summaries and issue invoice PDFs. Reception has no access to these APIs or pages. Permission checks use named capabilities in `src/lib/permissions.ts` and are enforced on the server.
+
+Generated payroll summaries, invoices, daily PDFs and CSV files are written outside `public/` under `DOCUMENT_STORAGE_PATH` (default `.data/documents`). Database records retain the document number, version, source period, MIME type, byte size and SHA-256 hash. Downloads use authenticated, audited, unguessable database identifiers with `private, no-store` responses. Back up this directory with the database. Do not serve it from Nginx.
+
+Payroll exports provide approved hours and absence categories only. STARS Connect deliberately does not calculate tax, National Insurance, pensions or net pay. Invoice sending is manual in this phase; issued invoice records are preserved and numbers are never intentionally reused.
+
+Attendance handling rules:
+
+- open clock/attendance/visitor records remain open and are flagged; durations are never invented
+- overnight clock sessions preserve the original pair and are flagged as spanning midnight
+- daily reports cover the previous complete Europe/London calendar day and handle GMT/BST boundaries
+- late-synchronised or corrected records do not overwrite generated files; an authorised revision creates Version 2 or later and preserves the original
+- daily staff totals are labelled recorded attendance hours until payroll has been reviewed and approved
+- visitor signatures and private notes are never added to emailed daily reports; telephone, email and vehicle fields default off
+
+## Daily attendance report cron
+
+Configure **Settings → Email reports** and run the protected job every five minutes. The endpoint is idempotent, stores the report before delivery, prevents duplicate successful delivery, and leaves failures visible for manual retry:
+
+```cron
+*/5 * * * * curl -fsS -X POST -H "Authorization: Bearer $REPORT_JOB_SECRET" https://app.starsconnect.co.uk/api/cron/daily-attendance >/dev/null
+```
+
+The default execution time is `00:05 Europe/London`, covering the previous local calendar day. Store `REPORT_JOB_SECRET` in a root-owned environment file or wrapper, not directly in a world-readable crontab.
+
+## Finance/reporting deployment migration
+
+Migration `202607260003_finance_reporting` adds the Director role, payroll numbers, service-user billing references, visitor email, shared document metadata, payroll periods/entries/adjustments, billing profiles/rules/runs/charges/invoices, immutable daily reports and delivery attempts. It only adds nullable columns/new tables and extends the role enum; it does not invent historic financial data.
+
+After a verified MariaDB and document-storage backup:
+
+```bash
+npm ci
+npx prisma validate
+npx prisma generate
+npx prisma migrate deploy
+npm run typecheck
+npm test
+npm run lint
+npm run build
+pm2 restart stars-connect --update-env
+```

@@ -9,6 +9,7 @@ datasource db {
 
 enum Role {
   ADMINISTRATOR
+  DIRECTOR
   MANAGER
   RECEPTION
 }
@@ -109,6 +110,7 @@ model StaffMember {
   jobRole               String            @db.VarChar(100)
   profilePhotoUrl       String?           @db.VarChar(500)
   contractedWeeklyHours Decimal?          @db.Decimal(5, 2)
+  payrollNumber         String?           @unique @db.VarChar(80)
   active                Boolean           @default(true)
   clockingEnabled       Boolean           @default(true)
   sortOrder             Int               @default(0)
@@ -154,6 +156,7 @@ model Student {
   fundingCategory     String?             @db.VarChar(100)
   fundingOrganisation String?             @db.VarChar(191)
   internalReference   String?             @unique @db.VarChar(100)
+  billingReference    String?             @db.VarChar(100)
   notes               String?             @db.Text
   attendance          StudentAttendance[]
   createdAt           DateTime            @default(now())
@@ -164,24 +167,39 @@ model Student {
 }
 
 model Device {
-  id                String              @id @default(uuid()) @db.Char(36)
-  name              String              @db.VarChar(120)
-  tokenHash         String              @unique @db.Char(64)
-  status            DeviceStatus        @default(ACTIVE)
-  appVersion        String?             @db.VarChar(40)
+  id                String                   @id @default(uuid()) @db.Char(36)
+  name              String                   @db.VarChar(120)
+  tokenHash         String                   @unique @db.Char(64)
+  status            DeviceStatus             @default(ACTIVE)
+  appVersion        String?                  @db.VarChar(40)
   lastSeenAt        DateTime?
   lastSyncAt        DateTime?
-  pendingEventCount Int                 @default(0)
-  currentCursor     BigInt              @default(0)
+  pendingEventCount Int                      @default(0)
+  currentCursor     BigInt                   @default(0)
   tokenRotatedAt    DateTime?
   revokedAt         DateTime?
+  isSeedData        Boolean                  @default(false)
   clockEvents       ClockEvent[]
   attendances       StudentAttendance[]
   syncEvents        SyncEvent[]
-  visitorSignIns    VisitorVisit[]      @relation("VisitorSignInDevice")
-  visitorSignOuts   VisitorVisit[]      @relation("VisitorSignOutDevice")
-  createdAt         DateTime            @default(now())
-  updatedAt         DateTime            @updatedAt
+  visitorSignIns    VisitorVisit[]           @relation("VisitorSignInDevice")
+  visitorSignOuts   VisitorVisit[]           @relation("VisitorSignOutDevice")
+  provisioningCodes DeviceProvisioningCode[]
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
+}
+
+model DeviceProvisioningCode {
+  id          String    @id @default(uuid()) @db.Char(36)
+  deviceId    String    @db.Char(36)
+  device      Device    @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  codeHash    String    @unique @db.Char(64)
+  expiresAt   DateTime
+  consumedAt  DateTime?
+  createdById String    @db.Char(36)
+  createdAt   DateTime  @default(now())
+
+  @@index([deviceId, expiresAt])
 }
 
 model Visitor {
@@ -190,6 +208,7 @@ model Visitor {
   normalizedName String         @db.VarChar(120)
   company        String?        @db.VarChar(191)
   mobile         String?        @db.VarChar(40)
+  email          String?        @db.VarChar(191)
   visits         VisitorVisit[]
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
@@ -445,4 +464,278 @@ model AppSetting {
   value     Json
   updatedBy String?  @db.Char(36)
   updatedAt DateTime @updatedAt
+}
+
+model DocumentRecord {
+  id                   String    @id @default(uuid()) @db.Char(36)
+  documentNumber       String    @db.VarChar(80)
+  documentType         String    @db.VarChar(40)
+  periodStart          DateTime  @db.Date
+  periodEnd            DateTime  @db.Date
+  version              Int       @default(1)
+  status               String    @default("GENERATED") @db.VarChar(30)
+  createdById          String    @db.Char(36)
+  reviewedById         String?   @db.Char(36)
+  approvedById         String?   @db.Char(36)
+  reviewedAt           DateTime?
+  approvedAt           DateTime?
+  generatedAt          DateTime?
+  generationSource     String    @db.VarChar(40)
+  storagePath          String    @db.VarChar(500)
+  mimeType             String    @db.VarChar(100)
+  fileSize             Int
+  sha256Hash           String    @db.Char(64)
+  revisionReason       String?   @db.Text
+  supersededDocumentId String?   @db.Char(36)
+  emailDeliveryStatus  String?   @db.VarChar(30)
+  sourceType           String?   @db.VarChar(40)
+  sourceId             String?   @db.Char(36)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  @@unique([documentNumber, version])
+  @@index([documentType, periodStart, periodEnd])
+  @@index([sourceType, sourceId])
+}
+
+model PayrollPeriod {
+  id                 String              @id @default(uuid()) @db.Char(36)
+  periodStart        DateTime            @db.Date
+  periodEnd          DateTime            @db.Date
+  payDate            DateTime?           @db.Date
+  status             String              @default("DRAFT") @db.VarChar(30)
+  version            Int                 @default(1)
+  notes              String?             @db.Text
+  revisionReason     String?             @db.Text
+  supersedesPeriodId String?             @db.Char(36)
+  createdById        String              @db.Char(36)
+  reviewedById       String?             @db.Char(36)
+  approvedById       String?             @db.Char(36)
+  reviewedAt         DateTime?
+  approvedAt         DateTime?
+  lockedAt           DateTime?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  entries            PayrollEntry[]
+  adjustments        PayrollAdjustment[]
+
+  @@unique([periodStart, periodEnd, version])
+  @@index([status, periodStart])
+}
+
+model PayrollEntry {
+  id                  String        @id @default(uuid()) @db.Char(36)
+  payrollPeriodId     String        @db.Char(36)
+  payrollPeriod       PayrollPeriod @relation(fields: [payrollPeriodId], references: [id], onDelete: Cascade)
+  staffId             String        @db.Char(36)
+  staffName           String        @db.VarChar(120)
+  payrollNumber       String?       @db.VarChar(80)
+  ordinaryMinutes     Int           @default(0)
+  overtimeMinutes     Int           @default(0)
+  holidayMinutes      Int           @default(0)
+  sicknessMinutes     Int           @default(0)
+  trainingMinutes     Int           @default(0)
+  unpaidMinutes       Int           @default(0)
+  adjustmentMinutes   Int           @default(0)
+  totalPayableMinutes Int           @default(0)
+  exceptionCount      Int           @default(0)
+  exceptionStatus     String        @default("CLEAR") @db.VarChar(30)
+  reviewedAt          DateTime?
+  reviewedById        String?       @db.Char(36)
+  sourceSnapshot      Json
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  @@unique([payrollPeriodId, staffId])
+  @@index([staffId])
+}
+
+model PayrollAdjustment {
+  id              String        @id @default(uuid()) @db.Char(36)
+  payrollPeriodId String        @db.Char(36)
+  payrollPeriod   PayrollPeriod @relation(fields: [payrollPeriodId], references: [id], onDelete: Cascade)
+  staffId         String        @db.Char(36)
+  date            DateTime      @db.Date
+  category        String        @db.VarChar(30)
+  minutes         Int
+  paid            Boolean       @default(true)
+  reason          String        @db.Text
+  createdById     String        @db.Char(36)
+  createdAt       DateTime      @default(now())
+
+  @@index([payrollPeriodId, staffId, date])
+}
+
+model BillingProfile {
+  id                  String       @id @default(uuid()) @db.Char(36)
+  studentId           String       @db.Char(36)
+  payerType           String       @db.VarChar(40)
+  payerName           String       @db.VarChar(191)
+  billingAddress      String       @db.Text
+  billingEmail        String?      @db.VarChar(191)
+  contactTelephone    String?      @db.VarChar(40)
+  fundingOrganisation String?      @db.VarChar(191)
+  purchaseOrderNumber String?      @db.VarChar(100)
+  fundingReference    String?      @db.VarChar(100)
+  billingReference    String?      @db.VarChar(100)
+  invoiceFrequency    String       @default("MONTHLY") @db.VarChar(30)
+  paymentTermsDays    Int          @default(30)
+  currency            String       @default("GBP") @db.Char(3)
+  vatTreatment        String       @default("OUTSIDE_SCOPE") @db.VarChar(30)
+  vatRate             Decimal      @default(0) @db.Decimal(5, 2)
+  exemptionReason     String?      @db.Text
+  consolidatedByPayer Boolean      @default(false)
+  activeFrom          DateTime     @db.Date
+  activeTo            DateTime?    @db.Date
+  financeNotes        String?      @db.Text
+  createdById         String       @db.Char(36)
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+  chargeRules         ChargeRule[]
+
+  @@index([studentId, activeFrom, activeTo])
+}
+
+model ChargeRule {
+  id                   String         @id @default(uuid()) @db.Char(36)
+  billingProfileId     String         @db.Char(36)
+  billingProfile       BillingProfile @relation(fields: [billingProfileId], references: [id], onDelete: Cascade)
+  chargeType           String         @db.VarChar(40)
+  description          String         @db.VarChar(191)
+  unitType             String         @db.VarChar(30)
+  rate                 Decimal        @db.Decimal(10, 2)
+  attendanceDependency String         @default("ATTENDED") @db.VarChar(30)
+  applicableWeekdays   Json
+  activeFrom           DateTime       @db.Date
+  activeTo             DateTime?      @db.Date
+  minimumMinutes       Int?
+  roundingMinutes      Int?
+  vatTreatment         String         @db.VarChar(30)
+  vatRate              Decimal        @default(0) @db.Decimal(5, 2)
+  active               Boolean        @default(true)
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+
+  @@index([billingProfileId, active])
+}
+
+model BillingRun {
+  id              String          @id @default(uuid()) @db.Char(36)
+  periodStart     DateTime        @db.Date
+  periodEnd       DateTime        @db.Date
+  status          String          @default("DRAFT") @db.VarChar(30)
+  version         Int             @default(1)
+  notes           String?         @db.Text
+  revisionReason  String?         @db.Text
+  supersedesRunId String?         @db.Char(36)
+  createdById     String          @db.Char(36)
+  reviewedById    String?         @db.Char(36)
+  approvedById    String?         @db.Char(36)
+  reviewedAt      DateTime?
+  approvedAt      DateTime?
+  lockedAt        DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  charges         BillingCharge[]
+  invoices        Invoice[]
+
+  @@unique([periodStart, periodEnd, version])
+  @@index([status, periodStart])
+}
+
+model BillingCharge {
+  id                 String     @id @default(uuid()) @db.Char(36)
+  billingRunId       String     @db.Char(36)
+  billingRun         BillingRun @relation(fields: [billingRunId], references: [id], onDelete: Cascade)
+  billingProfileId   String     @db.Char(36)
+  studentId          String     @db.Char(36)
+  studentName        String     @db.VarChar(120)
+  payerName          String     @db.VarChar(191)
+  sourceAttendanceId String?    @db.Char(36)
+  sourceDate         DateTime   @db.Date
+  chargeRuleId       String?    @db.Char(36)
+  description        String     @db.VarChar(191)
+  quantity           Decimal    @db.Decimal(10, 3)
+  unitRate           Decimal    @db.Decimal(10, 2)
+  netAmount          Decimal    @db.Decimal(10, 2)
+  vatRate            Decimal    @db.Decimal(5, 2)
+  vatAmount          Decimal    @db.Decimal(10, 2)
+  grossAmount        Decimal    @db.Decimal(10, 2)
+  manuallyAdjusted   Boolean    @default(false)
+  adjustmentReason   String?    @db.Text
+  excluded           Boolean    @default(false)
+  exceptionCode      String?    @db.VarChar(50)
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  @@unique([billingRunId, sourceAttendanceId, chargeRuleId])
+  @@index([billingRunId, studentId])
+}
+
+model Invoice {
+  id               String     @id @default(uuid()) @db.Char(36)
+  billingRunId     String     @db.Char(36)
+  billingRun       BillingRun @relation(fields: [billingRunId], references: [id])
+  invoiceNumber    String     @unique @db.VarChar(80)
+  version          Int        @default(1)
+  status           String     @default("DRAFT") @db.VarChar(30)
+  studentId        String?    @db.Char(36)
+  payerName        String     @db.VarChar(191)
+  billingProfileId String     @db.Char(36)
+  invoiceDate      DateTime   @db.Date
+  dueDate          DateTime   @db.Date
+  netTotal         Decimal    @db.Decimal(10, 2)
+  vatTotal         Decimal    @db.Decimal(10, 2)
+  grossTotal       Decimal    @db.Decimal(10, 2)
+  documentId       String?    @db.Char(36)
+  issuedAt         DateTime?
+  supersedesId     String?    @db.Char(36)
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  @@index([billingRunId, payerName])
+}
+
+model DailyAttendanceReport {
+  id                  String           @id @default(uuid()) @db.Char(36)
+  reportDate          DateTime         @db.Date
+  version             Int              @default(1)
+  status              String           @default("GENERATING") @db.VarChar(30)
+  generatedById       String?          @db.Char(36)
+  generationSource    String           @db.VarChar(40)
+  generatedAt         DateTime?
+  studentCount        Int              @default(0)
+  staffCount          Int              @default(0)
+  visitorCount        Int              @default(0)
+  exceptionCount      Int              @default(0)
+  sourceSnapshot      Json
+  pdfDocumentId       String?          @db.Char(36)
+  csvDocumentId       String?          @db.Char(36)
+  potentiallyOutdated Boolean          @default(false)
+  revisionReason      String?          @db.Text
+  supersedesReportId  String?          @db.Char(36)
+  recipientSummary    String?          @db.VarChar(500)
+  emailDeliveryStatus String?          @db.VarChar(30)
+  executionKey        String           @unique @db.VarChar(100)
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+  deliveries          ReportDelivery[]
+
+  @@unique([reportDate, version])
+  @@index([reportDate, status])
+}
+
+model ReportDelivery {
+  id             String                @id @default(uuid()) @db.Char(36)
+  reportId       String                @db.Char(36)
+  report         DailyAttendanceReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  recipients     Json
+  status         String                @default("PENDING") @db.VarChar(30)
+  attemptNumber  Int                   @default(1)
+  attemptedAt    DateTime              @default(now())
+  sentAt         DateTime?
+  failureReason  String?               @db.Text
+  idempotencyKey String                @unique @db.VarChar(120)
+
+  @@index([reportId, status])
 }

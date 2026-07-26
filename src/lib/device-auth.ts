@@ -7,7 +7,7 @@ export async function authenticateDevice(req: NextRequest) {
   const token = req.headers.get("authorization")?.replace(/^Bearer /, "");
   if (!id || !token) return null;
   if (id === "development-device" && token === "development-token" && process.env.NODE_ENV !== "production") {
-    return prisma.device.findFirst({ where: { status: "ACTIVE" } });
+    return prisma.device.findFirst({ where: { isSeedData: true } });
   }
   const device = await prisma.device.findUnique({ where: { id } });
   if (!device || device.status !== "ACTIVE" || !safeEqual(device.tokenHash, sha256(token))) return null;

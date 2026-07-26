@@ -16,6 +16,7 @@ export const visitorSignInSchema = z.object({
   otherReason: z.string().trim().max(250).refine((value) => !/[<>]/.test(value)).optional(),
   vehicleRegistration: z.string().trim().max(20).regex(/^[A-Za-z0-9 -]*$/).optional(),
   mobile: z.string().trim().max(40).regex(/^[0-9+() -]*$/).optional(),
+  email: z.email().max(191).optional(),
   expectedDurationMinutes: z.number().int().min(5).max(1440).optional(),
   signedInAt: z.string().datetime(),
   ruleSetId: z.uuid(),

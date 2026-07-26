@@ -726,16 +726,59 @@ model DailyAttendanceReport {
 }
 
 model ReportDelivery {
-  id             String                @id @default(uuid()) @db.Char(36)
-  reportId       String                @db.Char(36)
-  report         DailyAttendanceReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
-  recipients     Json
-  status         String                @default("PENDING") @db.VarChar(30)
-  attemptNumber  Int                   @default(1)
-  attemptedAt    DateTime              @default(now())
-  sentAt         DateTime?
-  failureReason  String?               @db.Text
-  idempotencyKey String                @unique @db.VarChar(120)
+  id               String                @id @default(uuid()) @db.Char(36)
+  reportId         String                @db.Char(36)
+  report           DailyAttendanceReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  recipients       Json
+  status           String                @default("PENDING") @db.VarChar(30)
+  attemptNumber    Int                   @default(1)
+  attemptedAt      DateTime              @default(now())
+  sentAt           DateTime?
+  failureReason    String?               @db.Text
+  safeCategory     String?               @db.VarChar(40)
+  smtpResponseCode String?               @db.VarChar(20)
+  emailType        String                @default("DAILY_REPORT") @db.VarChar(40)
+  subject          String?               @db.VarChar(191)
+  initiatedById    String?               @db.Char(36)
+  invocationSource String                @default("SCHEDULED") @db.VarChar(30)
+  idempotencyKey   String                @unique @db.VarChar(120)
 
   @@index([reportId, status])
+}
+
+model MailOperation {
+  id               String   @id @default(uuid()) @db.Char(36)
+  operationType    String   @db.VarChar(40)
+  status           String   @db.VarChar(30)
+  recipient        String?  @db.VarChar(191)
+  subject          String?  @db.VarChar(191)
+  safeCategory     String   @db.VarChar(40)
+  smtpResponseCode String?  @db.VarChar(20)
+  safeSummary      String   @db.VarChar(500)
+  durationMs       Int
+  actorId          String?  @db.Char(36)
+  environmentName  String   @db.VarChar(80)
+  createdAt        DateTime @default(now())
+
+  @@index([operationType, createdAt])
+  @@index([status, createdAt])
+}
+
+model ScheduledJobRun {
+  id            String    @id @default(uuid()) @db.Char(36)
+  executionKey  String    @unique @db.VarChar(120)
+  jobType       String    @db.VarChar(50)
+  reportDate    DateTime  @db.Date
+  status        String    @db.VarChar(30)
+  attemptNumber Int       @default(1)
+  reportId      String?   @db.Char(36)
+  safeSummary   String?   @db.VarChar(500)
+  startedAt     DateTime  @default(now())
+  finishedAt    DateTime?
+  lockExpiresAt DateTime
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([jobType, reportDate])
+  @@index([status, startedAt])
 }

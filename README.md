@@ -63,9 +63,12 @@ SESSION_SECRET="generate-at-least-32-random-bytes"
 APP_URL="http://localhost:3000"
 SMTP_HOST="smtp.example.org"
 SMTP_PORT="587"
-SMTP_USER="change-me"
+SMTP_USERNAME="change-me"
 SMTP_PASSWORD="change-me"
-SMTP_FROM="STARS Connect <stars-connect@example.org>"
+SMTP_FROM_NAME="STARS Connect"
+SMTP_FROM_EMAIL="stars-connect@example.org"
+APP_ENV="development"
+REPORT_JOB_SECRET="generate-an-independent-random-secret"
 CRON_SECRET="generate-an-independent-random-secret"
 ```
 
@@ -134,26 +137,35 @@ Administrators configure visitor reasons, required fields, immutable site-rule v
 Visitor sign-in/out uses the tablet UUID queue. Signature strokes, mobile numbers and accepted rule text are processed by the receiving server but are deliberately removed from replicated `SyncEvent` payloads. Other tablets receive only the operational details required for live and emergency registers.
 
 Run the protected visitor-retention endpoint daily. It clears expired signature stroke data, removes expired phone numbers and anonymises fully elapsed visitor histories according to Settings. Take a database backup before changing retention values or manually anonymising records.
-## SMTP and daily summaries
+## SMTP diagnostics and daily reports
 
-Configure the SMTP variables in `.env`, then use **Settings** to:
+Administrators and directors can open **Settings → Email** (`/dashboard/settings/email`) to inspect a secret-free SMTP summary, explicitly check the connection, and send a test message to one recipient. Delivery and diagnostic attempts are retained at `/dashboard/reports/email-deliveries`. SMTP acceptance means only that the configured server accepted the message; it does not prove inbox delivery.
 
-- enable/disable summaries
-- set the Europe/London send time
-- configure recipients
-- send a test summary
+Required application variables are `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM_NAME`, `SMTP_FROM_EMAIL`, `APP_URL`, `APP_ENV`, and an independent high-entropy `REPORT_JOB_SECRET`. Never place their values in source control or support screenshots.
 
-Emails contain HTML and plain text, include visitor counts and visitors still signed in, and never include visitor signatures, mobile numbers or attendance photographs.
+The protected report endpoint is POST-only at `/api/internal/reports/daily/run` and requires `Authorization: Bearer <REPORT_JOB_SECRET>`.
 
-The app does not use an in-process timer. Run the protected endpoint every five minutes; it checks the configured Europe/London time and prevents duplicate successful sends:
+It runs at 00:05 Europe/London and creates the immutable report for the previous local calendar day. A database lock and stable execution key prevent overlapping schedulers and duplicate successful delivery. Failed jobs can be invoked again without regenerating the report. An uncertain SMTP outcome is not automatically resent; review it in delivery history and use the controlled manual retry after checking the mailbox/provider.
+
+On Ubuntu, put the secret in a root-owned environment file or wrapper (`chmod 600`), then install exactly one scheduler:
 
 ```cron
-*/5 * * * * curl -fsS -H "Authorization: Bearer $CRON_SECRET" https://app.starsconnect.co.uk/api/cron/daily-summary >/dev/null
-15 2 * * * curl -fsS -X POST -H "Authorization: Bearer $CRON_SECRET" https://app.starsconnect.co.uk/api/cron/visitor-retention >/dev/null
+CRON_TZ=Europe/London
+5 0 * * * /usr/local/sbin/stars-connect-daily-report >> /var/log/stars-connect-daily-reports.log 2>&1
+15 2 * * * /usr/local/sbin/stars-connect-visitor-retention >> /var/log/stars-connect-visitor-retention.log 2>&1
 ```
 
-Store `CRON_SECRET` in the cron user’s protected environment; do not write the actual value into the crontab command if process visibility is a concern. A root-owned wrapper or protected environment file is preferable.
+The daily-report wrapper should load the protected environment and run:
 
+```bash
+/usr/bin/curl -fsS -X POST \
+  -H "Authorization: Bearer ${REPORT_JOB_SECRET}" \
+  "${APP_URL}/api/internal/reports/daily/run"
+```
+
+In Plesk, create a **Run a command** scheduled task for the same protected wrapper, set it to `5 0 * * *`, and confirm the server/task timezone is Europe/London. Do not configure both Plesk and system cron. PM2 keeps the web process running but is not the scheduler; restart with `pm2 restart stars-connect --update-env` after changing environment values.
+
+To test manually, run the wrapper once and inspect **Settings → Email**, delivery history, the daily report, audit log, and the protected cron log. A repeated successful invocation returns an already-processed result. Rotate `REPORT_JOB_SECRET` by replacing it in the application and wrapper together, restarting PM2, testing once, and securely deleting the old value. Disable scheduling by disabling daily reports in application settings or removing the single scheduler.
 ## Existing alpha database
 
 The live alpha was originally created with `npx prisma db push`. Read [prisma/ALPHA_MIGRATION_PLAN.md](prisma/ALPHA_MIGRATION_PLAN.md) before schema deployment.
@@ -251,19 +263,9 @@ Attendance handling rules:
 - daily staff totals are labelled recorded attendance hours until payroll has been reviewed and approved
 - visitor signatures and private notes are never added to emailed daily reports; telephone, email and vehicle fields default off
 
-## Daily attendance report cron
-
-Configure **Settings → Email reports** and run the protected job every five minutes. The endpoint is idempotent, stores the report before delivery, prevents duplicate successful delivery, and leaves failures visible for manual retry:
-
-```cron
-*/5 * * * * curl -fsS -X POST -H "Authorization: Bearer $REPORT_JOB_SECRET" https://app.starsconnect.co.uk/api/cron/daily-attendance >/dev/null
-```
-
-The default execution time is `00:05 Europe/London`, covering the previous local calendar day. Store `REPORT_JOB_SECRET` in a root-owned environment file or wrapper, not directly in a world-readable crontab.
-
 ## Finance/reporting deployment migration
 
-Migration `202607260003_finance_reporting` adds the Director role, payroll numbers, service-user billing references, visitor email, shared document metadata, payroll periods/entries/adjustments, billing profiles/rules/runs/charges/invoices, immutable daily reports and delivery attempts. It only adds nullable columns/new tables and extends the role enum; it does not invent historic financial data.
+Migrations `202607260003_finance_reporting` and `202607260004_email_health_jobs` add the Director role, payroll numbers, service-user billing references, visitor email, shared document metadata, payroll periods/entries/adjustments, billing profiles/rules/runs/charges/invoices, immutable daily reports and delivery attempts. It only adds nullable columns/new tables and extends the role enum; it does not invent historic financial data.
 
 After a verified MariaDB and document-storage backup:
 

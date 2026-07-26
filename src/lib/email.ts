@@ -1,19 +1,8 @@
-import nodemailer from "nodemailer";
 import { Prisma } from "@prisma/client";
 import { prisma } from "./prisma";
 import { formatUkDate, formatUkTime, localDateAsDatabaseDate, localDateKey } from "./dates";
 import { siteSummary } from "./reports";
-
-function transport() {
-  const port = Number(process.env.SMTP_PORT || 587);
-  if (!process.env.SMTP_HOST || !process.env.SMTP_FROM) throw new Error("SMTP is not configured");
-  return nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port,
-    secure: port === 465,
-    auth: process.env.SMTP_USER ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASSWORD } : undefined,
-  });
-}
+import { safeSmtpError, smtpEnvironment, smtpTransport } from "./smtp";
 
 export async function buildDailySummary(date = localDateKey()) {
   const summary = await siteSummary(date);
@@ -54,8 +43,10 @@ export async function sendDailySummary(options: { date?:string;recipients?:strin
   });
   try {
     const content = await buildDailySummary(date);
-    await transport().sendMail({
-      from: process.env.SMTP_FROM,
+    const mailConfig = smtpEnvironment();
+    if (!mailConfig.configured) throw Object.assign(new Error("SMTP_CONFIG_INVALID"), { code: "SMTP_CONFIG_INVALID" });
+    await smtpTransport().sendMail({
+      from: { name: mailConfig.fromName, address: mailConfig.fromEmail },
       to: recipients,
       subject: `STARS Connect daily attendance summary — ${formatUkDate(`${date}T12:00:00Z`)}`,
       text: content.text,
@@ -63,7 +54,7 @@ export async function sendDailySummary(options: { date?:string;recipients?:strin
     });
     return await prisma.dailySummaryEmail.update({ where:{id:record.id}, data:{status:"SENT",sentAt:new Date()} });
   } catch (error) {
-    await prisma.dailySummaryEmail.update({ where:{id:record.id}, data:{status:"FAILED",failureReason:error instanceof Error?error.message:"Email failed",retryCount:{increment:1}} });
-    throw error;
+    await prisma.dailySummaryEmail.update({ where:{id:record.id}, data:{status:"FAILED",failureReason:(error as {code?:string}).code==="SMTP_CONFIG_INVALID"?"SMTP is not configured.":safeSmtpError(error).summary,retryCount:{increment:1}} });
+    throw Object.assign(new Error("EMAIL_FAILED"), { safe: (error as {code?:string}).code==="SMTP_CONFIG_INVALID"?{category:"CONFIGURATION",summary:"SMTP is not configured."}:safeSmtpError(error) });
   }
 }

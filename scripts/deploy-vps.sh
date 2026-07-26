@@ -11,7 +11,9 @@ git fetch origin main
 git checkout main
 git merge --ff-only origin/main
 export GIT_COMMIT_SHA="$(git rev-parse --short HEAD)"
-npm ci --no-audit --no-fund
+# Production is the runtime mode, but Next.js still needs devDependencies
+# such as Tailwind/PostCSS while compiling the production bundle.
+npm ci --include=dev --no-audit --no-fund
 npx prisma migrate deploy
 npx prisma generate
 npm run build

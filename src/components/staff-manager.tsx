@@ -71,7 +71,7 @@ export function StaffManager() {
   return <>
     <div className="toolbar">
       <label style={{ position: "relative" }}><Search size={18} style={{ position: "absolute", left: 13, top: 16 }} />
-        <input className="field" style={{ paddingLeft: 40 }} placeholder="Search staff" value={search} onChange={(e) => setSearch(e.target.value)} />
+        <input autoComplete="off" className="field" style={{ paddingLeft: 40 }} placeholder="Search staff" value={search} onChange={(e) => setSearch(e.target.value)} />
       </label>
       <select className="field" value={status} onChange={(e) => setStatus(e.target.value)}>
         <option value="active">Active staff</option><option value="archived">Archived staff</option><option value="all">All staff</option>
@@ -93,24 +93,24 @@ export function StaffManager() {
         </tr>)}</tbody></table> : <div className="empty"><b>No staff found</b><p>Change the search or status filter, or add a staff member.</p></div>}
     </section>
     {editing && <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={editing === "new" ? "Add staff" : "Edit staff"}>
-      <form className="modal" onSubmit={save}>
+      <form autoComplete="off" className="modal" onSubmit={save}>
         <h2 style={{ marginTop: 0 }}>{editing === "new" ? "Add staff member" : `Edit ${(editing as Staff).displayName}`}</h2>
         {error && <div className="alert alert-error">{error}</div>}
         <div className="form-grid" style={{ marginTop: 16 }}>
-          <label className="form-label">First name<input className="field" value={form.firstName} onChange={(e) => setForm({ ...form, firstName: e.target.value })} required /></label>
-          <label className="form-label">Surname<input className="field" value={form.lastName} onChange={(e) => setForm({ ...form, lastName: e.target.value })} required /></label>
-          <label className="form-label">Display name<input className="field" value={form.displayName} onChange={(e) => setForm({ ...form, displayName: e.target.value })} required /></label>
-          <label className="form-label">Job title<input className="field" value={form.jobRole} onChange={(e) => setForm({ ...form, jobRole: e.target.value })} required /></label>
-          <label className="form-label">Email<input className="field" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required /></label>
-          <label className="form-label">Phone<input className="field" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></label>
-          <label className="form-label">Start date<input className="field" type="date" value={form.startDate} onChange={(e) => setForm({ ...form, startDate: e.target.value })} required /></label>
-          <label className="form-label">End date<input className="field" type="date" value={form.endDate} onChange={(e) => setForm({ ...form, endDate: e.target.value })} /></label>
+          <label className="form-label">First name<input autoComplete="off" className="field" value={form.firstName} onChange={(e) => setForm({ ...form, firstName: e.target.value })} required /></label>
+          <label className="form-label">Surname<input autoComplete="off" className="field" value={form.lastName} onChange={(e) => setForm({ ...form, lastName: e.target.value })} required /></label>
+          <label className="form-label">Display name<input autoComplete="off" className="field" value={form.displayName} onChange={(e) => setForm({ ...form, displayName: e.target.value })} required /></label>
+          <label className="form-label">Job title<input autoComplete="off" className="field" value={form.jobRole} onChange={(e) => setForm({ ...form, jobRole: e.target.value })} required /></label>
+          <label className="form-label">Email<input autoComplete="off" className="field" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required /></label>
+          <label className="form-label">Phone<input autoComplete="off" className="field" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></label>
+          <label className="form-label">Start date<input autoComplete="off" className="field" type="date" value={form.startDate} onChange={(e) => setForm({ ...form, startDate: e.target.value })} required /></label>
+          <label className="form-label">End date<input autoComplete="off" className="field" type="date" value={form.endDate} onChange={(e) => setForm({ ...form, endDate: e.target.value })} /></label>
           <label className="form-label">Payroll number<input className="field" autoComplete="off" value={form.payrollNumber} onChange={(e) => setForm({ ...form, payrollNumber: e.target.value })} /></label>
-          <label className="form-label">Contracted hours per week<input className="field" type="number" min="0" max="168" step="0.25" value={form.contractedWeeklyHours} onChange={(e) => setForm({ ...form, contractedWeeklyHours: e.target.value })} /></label>
-          <label className="form-label">Hourly rate (£)<input className="field" type="number" min="0" step="0.01" value={form.hourlyRate} onChange={(e) => setForm({ ...form, hourlyRate: e.target.value })} /></label>
-          <label className="form-label full"><span><KeyRound size={16} /> {editing === "new" ? "Initial PIN" : "Reset PIN"}</span><input className="field" type="password" inputMode="numeric" pattern="\d{4,8}" placeholder={editing === "new" ? "4–8 digits (optional)" : "Leave blank to keep current PIN"} value={form.pin} onChange={(e) => setForm({ ...form, pin: e.target.value })} /></label>
-          <label className="form-label full">Restricted manager notes<textarea className="field" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></label>
-          <label className="full"><input type="checkbox" checked={form.clockingEnabled} onChange={(e) => setForm({ ...form, clockingEnabled: e.target.checked })} /> Allow this staff member to clock in and out</label>
+          <label className="form-label">Contracted hours per week<input autoComplete="off" className="field" type="number" min="0" max="168" step="0.25" value={form.contractedWeeklyHours} onChange={(e) => setForm({ ...form, contractedWeeklyHours: e.target.value })} /></label>
+          <label className="form-label">Hourly rate (£)<input autoComplete="off" className="field" type="number" min="0" step="0.01" value={form.hourlyRate} onChange={(e) => setForm({ ...form, hourlyRate: e.target.value })} /></label>
+          <label className="form-label full"><span><KeyRound size={16} /> {editing === "new" ? "Initial PIN" : "Reset PIN"}</span><input autoComplete="off" className="field" type="password" inputMode="numeric" pattern="\d{4,8}" placeholder={editing === "new" ? "4–8 digits (optional)" : "Leave blank to keep current PIN"} value={form.pin} onChange={(e) => setForm({ ...form, pin: e.target.value })} /></label>
+          <label className="form-label full">Restricted manager notes<textarea autoComplete="off" className="field" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></label>
+          <label className="full"><input autoComplete="off" type="checkbox" checked={form.clockingEnabled} onChange={(e) => setForm({ ...form, clockingEnabled: e.target.checked })} /> Allow this staff member to clock in and out</label>
         </div>
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 9, marginTop: 20 }}>
           <button type="button" className="btn secondary" onClick={() => setEditing(null)}>Cancel</button>

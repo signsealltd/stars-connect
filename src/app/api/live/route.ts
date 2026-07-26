@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
           id: true,
           displayName: true,
           clockEvents: {
-            where: { device: { isSeedData: false } },
+            where: { device: { isSeedData: false, lastSyncAt: { not: null } } },
             orderBy: { deviceTimestamp: "desc" },
             take: 1,
             select: { type: true, deviceTimestamp: true },
@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
           date,
           status: { in: ["PRESENT", "LATE"] },
           student: { active: true },
-          device: { isSeedData: false },
+          device: { isSeedData: false, lastSyncAt: { not: null } },
         },
         select: {
           id: true,

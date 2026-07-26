@@ -6,7 +6,7 @@ import { isExpectedDay, localDateAsDatabaseDate, localDateKey, localDayBounds } 
 export async function GET(req:NextRequest){
  return withRole(req,"RECEPTION",async user=>{
   const date=localDateKey(),dbDate=localDateAsDatabaseDate(date),{start,end}=localDayBounds(date);
-  const[events,attendance,students,devices,conflicts,corrections,rollCall,email,activeVisitors]=await Promise.all([
+  const[events,attendance,students,devices,conflicts,corrections,rollCall,email,activeVisitors,payrollAwaiting,billingAwaiting,dailyReport]=await Promise.all([
    prisma.clockEvent.findMany({where:{deviceTimestamp:{gte:start,lte:end}},include:{staff:true},orderBy:{deviceTimestamp:"desc"}}),
    prisma.studentAttendance.findMany({where:{date:dbDate},include:{student:true},orderBy:{updatedAt:"desc"}}),
    prisma.student.findMany({where:{active:true},select:{id:true,expectedDays:true}}),
@@ -16,6 +16,9 @@ export async function GET(req:NextRequest){
    prisma.emergencyRollCall.findFirst({where:{status:"ACTIVE"},orderBy:{startedAt:"desc"},include:{entries:true}}),
    prisma.dailySummaryEmail.findFirst({where:{date:dbDate},orderBy:{attemptedAt:"desc"}}),
    prisma.visitorVisit.count({where:{signedOutAt:null,emergencyIncluded:true}}),
+   prisma.payrollPeriod.count({where:{status:{in:["REQUIRES_REVIEW","REVIEWED"]}}}),
+   prisma.billingRun.count({where:{status:{in:["REQUIRES_REVIEW","REVIEWED"]}}}),
+   prisma.dailyAttendanceReport.findFirst({orderBy:[{reportDate:"desc"},{version:"desc"}],select:{id:true,status:true,reportDate:true,exceptionCount:true}}),
   ]);
   const latest=new Map<string,(typeof events)[number]>();for(const e of events)if(!latest.has(e.staffId))latest.set(e.staffId,e);
   const staffIn=[...latest.values()].filter(e=>e.type==="CLOCK_IN");
@@ -27,7 +30,7 @@ export async function GET(req:NextRequest){
    absent:attendance.filter(a=>a.status==="ABSENT").length,late:attendance.filter(a=>a.status==="LATE").length,
    expected:expectedIds.size,notMarked:[...expectedIds].filter(id=>!markedIds.has(id)).length,
    missingClockOut:staffIn.length,review:events.filter(e=>e.reviewRequired).length+conflicts,
-   conflicts,corrections,emergency:rollCall?{id:rollCall.id,startedAt:rollCall.startedAt,missing:rollCall.entries.filter(e=>!e.accountedFor).length}:null,
+   conflicts,corrections,payrollAwaiting,billingAwaiting,dailyReport,emergency:rollCall?{id:rollCall.id,startedAt:rollCall.startedAt,missing:rollCall.entries.filter(e=>!e.accountedFor).length}:null,
    email:email?{status:email.status,sentAt:email.sentAt,failureReason:email.failureReason}:null,
    recentEvents:events.slice(0,8).map(e=>({id:e.id,name:e.staff.displayName,type:e.type,time:e.deviceTimestamp})),
    recentAttendance:attendance.slice(0,8).map(a=>({id:a.id,name:a.student.displayName,status:a.status,time:a.updatedAt})),

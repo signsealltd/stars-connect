@@ -1,0 +1,1 @@
+import{requireRole}from"@/lib/security";export default async function ConflictsLayout({children}:{children:React.ReactNode}){await requireRole("MANAGER");return children}

@@ -1,0 +1,14 @@
+import type{Role}from"@prisma/client";
+export type ManagerNavItem={label:string;href:string;roles?:Role[]};
+export type ManagerNavGroup={label:string;href?:string;items:ManagerNavItem[];roles?:Role[]};
+const elevated:Role[]=["MANAGER","DIRECTOR","ADMINISTRATOR"],directors:Role[]=["DIRECTOR","ADMINISTRATOR"],admins:Role[]=["ADMINISTRATOR"];
+export const managerNavigation:ManagerNavGroup[]=[
+ {label:"People",items:[{label:"Staff",href:"/dashboard/staff",roles:elevated},{label:"Students",href:"/dashboard/students",roles:elevated},{label:"Visitors",href:"/dashboard/visitors"}]},
+ {label:"Attendance",items:[{label:"Registers",href:"/register"},{label:"Timesheets",href:"/timesheets",roles:elevated},{label:"Emergency Register",href:"/emergency"},{label:"Live attendance",href:"/live"}]},
+ {label:"Finance",roles:elevated,items:[{label:"Payroll",href:"/dashboard/payroll",roles:elevated},{label:"Billing",href:"/dashboard/billing",roles:elevated}]},
+ {label:"Reports",roles:elevated,items:[{label:"Operational Reports",href:"/reports",roles:elevated},{label:"Daily Reports",href:"/dashboard/reports/daily",roles:elevated},{label:"Export History",href:"/dashboard/reports/payroll",roles:elevated}]},
+ {label:"Settings",items:[{label:"Administration hub",href:"/dashboard/settings",roles:elevated},{label:"Organisation",href:"/settings",roles:admins},{label:"Email",href:"/dashboard/settings/email",roles:directors},{label:"Devices",href:"/dashboard/settings/devices",roles:admins},{label:"Users & Permissions",href:"/dashboard/settings/users",roles:admins},{label:"Synchronisation",href:"/dashboard/settings/synchronisation",roles:elevated},{label:"Conflicts",href:"/dashboard/conflicts",roles:elevated},{label:"Audit Log",href:"/dashboard/audit",roles:admins}]}
+];
+const allowed=(role:Role,roles?:Role[])=>!roles||roles.includes(role);
+export function managerNavForRole(role:Role){return managerNavigation.filter(group=>allowed(role,group.roles)).map(group=>({...group,items:group.items.filter(item=>allowed(role,item.roles))})).filter(group=>group.items.length)}
+export function activeManagerSection(pathname:string){if(pathname==="/dashboard")return"Dashboard";for(const group of managerNavigation)if(group.items.some(item=>pathname===item.href||pathname.startsWith(`${item.href}/`)))return group.label;if(pathname.startsWith("/dashboard/settings"))return"Settings";if(pathname.startsWith("/dashboard/payroll")||pathname.startsWith("/dashboard/billing"))return"Finance";if(pathname.startsWith("/dashboard/reports"))return"Reports";return undefined}

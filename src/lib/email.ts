@@ -3,6 +3,7 @@ import { prisma } from "./prisma";
 import { formatUkDate, formatUkTime, localDateAsDatabaseDate, localDateKey } from "./dates";
 import { siteSummary } from "./reports";
 import { safeSmtpError, smtpEnvironment, smtpTransport } from "./smtp";
+import { loadSmtpEnv } from "./smtp-settings";
 
 export async function buildDailySummary(date = localDateKey()) {
   const summary = await siteSummary(date);
@@ -43,9 +44,10 @@ export async function sendDailySummary(options: { date?:string;recipients?:strin
   });
   try {
     const content = await buildDailySummary(date);
-    const mailConfig = smtpEnvironment();
+    const smtpEnv = await loadSmtpEnv();
+    const mailConfig = smtpEnvironment(smtpEnv);
     if (!mailConfig.configured) throw Object.assign(new Error("SMTP_CONFIG_INVALID"), { code: "SMTP_CONFIG_INVALID" });
-    await smtpTransport().sendMail({
+    await smtpTransport(smtpEnv).sendMail({
       from: { name: mailConfig.fromName, address: mailConfig.fromEmail },
       to: recipients,
       subject: `STARS Connect daily attendance summary — ${formatUkDate(`${date}T12:00:00Z`)}`,

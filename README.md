@@ -280,3 +280,20 @@ npm run lint
 npm run build
 pm2 restart stars-connect --update-env
 ```
+## Preparing the live test environment
+
+After a verified MariaDB and document-storage backup, remove all demonstration devices, staff, students and their dependent operational/finance records with:
+
+```bash
+CONFIRM_LIVE_TEST_RESET=REMOVE_ALL_STAFF_STUDENTS_DEVICES npm run db:prepare-live-test
+```
+
+This preserves manager users, organisation/email settings and the audit log. It also removes visitor activity because visits reference devices. Do not run `npm run db:seed` on the cleaned live environment.
+
+Set a stable secret before saving SMTP credentials in **Settings → Email**:
+
+```env
+SETTINGS_ENCRYPTION_KEY="at-least-32-random-characters"
+```
+
+SMTP passwords saved in the application are AES-256-GCM encrypted and are never returned by the settings API. Back up this key securely; changing or losing it requires entering the SMTP password again.

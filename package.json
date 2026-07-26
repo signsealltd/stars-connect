@@ -13,7 +13,8 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
-    "db:bootstrap-visitors": "tsx scripts/bootstrap-visitor-config.ts"
+    "db:bootstrap-visitors": "tsx scripts/bootstrap-visitor-config.ts",
+    "db:prepare-live-test": "tsx scripts/prepare-live-test.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.12.0",

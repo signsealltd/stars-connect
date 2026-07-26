@@ -232,6 +232,12 @@ export async function clearUnprovisionedQueue(){
   emitSyncStatus(await getSyncSnapshot(database));
 }
 
+export async function resetKioskDataForProvisioning(){
+  const database=await db();
+  for(const store of ["staff","students","attendance","clockEvents","pending","metadata","rollCalls","appliedEvents","conflicts","visitorVisits"]as const)await database.clear(store);
+  localStorage.removeItem("pulse-sync-cursor");
+}
+
 async function performSync() {
   if (!navigator.onLine) return false;
   if(!hasDeviceCredential(localStorage))return false;

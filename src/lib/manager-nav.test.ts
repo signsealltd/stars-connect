@@ -58,6 +58,11 @@ describe("shell structure and interaction hooks",()=>{
     expect(header).toContain("manager-menu-toggle");
     expect(header).toContain("onMouseEnter");
   });
+  it("keeps desktop dropdowns open briefly when the pointer leaves",()=>{
+    expect(header).toContain("scheduleClose");
+    expect(header).toContain("},2000)");
+    expect(header).toContain("onMouseLeave");
+  });
   it("protects the dashboard shell server-side",()=>{
     expect(readFileSync(join(process.cwd(),"src/app/dashboard/layout.tsx"),"utf8")).toContain('requireRole("RECEPTION")');
   });

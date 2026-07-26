@@ -29,12 +29,14 @@ async function authorise(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const suppliedId=req.headers.get("x-device-id"),suppliedToken=req.headers.get("authorization")?.replace(/^Bearer /, "");
+  if(!suppliedId||!suppliedToken)return NextResponse.json({error:"This browser has not been provisioned as a kiosk device.",category:"DEVICE_UNPROVISIONED"},{status:401});
   const device = await authorise(req);
-  if (!device) return NextResponse.json({ error: "This tablet is not authorised. Ask an administrator to check Devices." }, { status: 401 });
+  if (!device) return NextResponse.json({ error: "This tablet credential is not authorised. Ask an administrator to check Devices.",category:"DEVICE_CREDENTIAL_REJECTED" }, { status: 401 });
   const parsed = bodySchema.safeParse(await req.json().catch(() => null));
-  if (!parsed.success) return NextResponse.json({ error: "The synchronisation data was not valid." }, { status: 400 });
+  if (!parsed.success) return NextResponse.json({ error: "The synchronisation data was not valid.",category:"PAYLOAD_INVALID" }, { status: 400 });
   const visitorEvents = parsed.data.events.filter((event) => event.operation.startsWith("VISITOR_"));
-  if (visitorEvents.length) { const limit = rateLimit(`visitor-submit:${device.id}`, 20, 60_000); if (!limit.allowed) return NextResponse.json({ error: "Too many visitor submissions. Please wait and retry." }, { status: 429 }); }
+  if (visitorEvents.length) { const limit = rateLimit(`visitor-submit:${device.id}`, 20, 60_000); if (!limit.allowed) return NextResponse.json({ error: "Too many visitor submissions. Please wait and retry.",category:"RATE_LIMITED" }, { status: 429 }); }
   const acknowledged: string[] = [];
 
   for (const item of parsed.data.events) {

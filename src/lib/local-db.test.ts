@@ -1,6 +1,6 @@
 import "fake-indexeddb/auto";
 import { beforeEach, describe, expect, it } from "vitest";
-import { applyPulledBatch, applyPulledEvent, db } from "./local-db";
+import { applyPulledBatch, applyPulledEvent, clearUnprovisionedQueue, db, inspectUnprovisionedQueue } from "./local-db";
 
 const storage = new Map<string,string>();
 Object.defineProperty(globalThis, "localStorage", { value: {
@@ -55,4 +55,17 @@ describe("visitor offline synchronisation",()=>{
   it("applies a Tablet A visitor sign-in to Tablet B exactly once",async()=>{const database=await db();expect(await applyPulledEvent(database,signIn)).toBe("applied");expect(await applyPulledEvent(database,signIn)).toBe("duplicate");expect((await database.get("visitorVisits",signIn.eventId))?.fullName).toBe("Jamie Visitor")});
   it("applies a pulled visitor sign-out",async()=>{const database=await db();await applyPulledEvent(database,signIn);await applyPulledEvent(database,{sequence:"51",eventId:"77777777-7777-4777-8777-777777777777",operation:"VISITOR_SIGN_OUT",payload:{visitId:signIn.eventId,signedOutAt:"2026-07-26T10:00:00Z"},createdAt:"2026-07-26T10:00:01Z"});expect((await database.get("visitorVisits",signIn.eventId))?.signedOutAt).toBe("2026-07-26T10:00:00Z")});
   it("keeps active visitors available for the offline emergency register",async()=>{const database=await db();await applyPulledEvent(database,signIn);const active=(await database.getAll("visitorVisits")).filter(v=>!v.signedOutAt&&v.emergencyIncluded);expect(active.map(v=>v.fullName)).toEqual(["Jamie Visitor"])});
+});
+describe("unprovisioned desktop queue safety",()=>{
+  it("allows stale queue inspection and explicit clearing only while unprovisioned",async()=>{
+    const database=await db();
+    await database.put("pending",{id:"stale-1",operation:"ATTENDANCE",payload:{},createdAt:"2026-07-20T08:00:00Z",attempts:1});
+    expect((await inspectUnprovisionedQueue()).items).toEqual([{id:"stale-1",operation:"ATTENDANCE",createdAt:"2026-07-20T08:00:00Z",attempts:1}]);
+    await clearUnprovisionedQueue();
+    expect(await database.count("pending")).toBe(0);
+  });
+  it("protects legitimate queues after device provisioning",async()=>{
+    localStorage.setItem("pulse-device-id","tablet-1");localStorage.setItem("pulse-device-token","secret");
+    await expect(clearUnprovisionedQueue()).rejects.toThrow("PROVISIONED_QUEUE_PROTECTED");
+  });
 });

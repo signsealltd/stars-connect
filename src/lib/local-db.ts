@@ -1,6 +1,7 @@
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
 import type { LocalAttendance, LocalClockEvent, LocalStudent, LocalVisitorVisit, PendingChange } from "./types";
 import { normalizeVisitorName } from "./visitors";
+import { hasDeviceCredential,kioskSyncEligibility,safeSyncRejection,type SyncRejectionCategory } from "./kiosk-context";
 
 type LocalStaff = { id: string; displayName: string; currentState: "IN" | "OUT" };
 type RollCall = { id: string; startedAt: string; entries: Array<{ id:string;personType:string;personId:string;displayName:string;accountedFor:boolean }> };
@@ -47,6 +48,7 @@ function emitSyncStatus(detail: Record<string, unknown>) {
 }
 
 export async function queueChange(change: PendingChange) {
+  if(typeof localStorage!=="undefined"&&!hasDeviceCredential(localStorage))throw new Error("DEVICE_UNPROVISIONED");
   const database = await db();
   await database.put("pending", change);
   await database.put("metadata", { key: "lastLocalChange", value: new Date().toISOString() });
@@ -190,18 +192,38 @@ export async function getSyncSnapshot(database?: IDBPDatabase<StarsConnectDB>) {
     conflicts: await d.count("conflicts"),
     lastSync: (await d.get("metadata", "lastSync"))?.value,
     syncError: (await d.get("metadata", "syncError"))?.value,
+    rejectionCategory: (await d.get("metadata", "syncRejectionCategory"))?.value,
   };
 }
 
 let activeSync: Promise<boolean> | null = null;
 export function syncNow() {
+  if (typeof window === "undefined") return Promise.resolve(false);
+  const eligibility=kioskSyncEligibility(window.location.pathname,localStorage);
+  if(!eligibility.allowed)return Promise.resolve(false);
   if (activeSync) return activeSync;
   activeSync = performSync().finally(() => { activeSync = null; });
   return activeSync;
 }
 
+export async function inspectUnprovisionedQueue(){
+  if(hasDeviceCredential(localStorage))throw new Error("PROVISIONED_QUEUE_PROTECTED");
+  const database=await db(),pending=await database.getAll("pending");
+  return{count:pending.length,items:pending.map(item=>({id:item.id,operation:item.operation,createdAt:item.createdAt,attempts:item.attempts}))};
+}
+
+export async function clearUnprovisionedQueue(){
+  if(hasDeviceCredential(localStorage))throw new Error("PROVISIONED_QUEUE_PROTECTED");
+  const database=await db();
+  await database.clear("pending");
+  await database.delete("metadata","syncError");
+  await database.delete("metadata","syncRejectionCategory");
+  emitSyncStatus(await getSyncSnapshot(database));
+}
+
 async function performSync() {
   if (!navigator.onLine) return false;
+  if(!hasDeviceCredential(localStorage))return false;
   const database = await db();
   emitSyncStatus({ ...(await getSyncSnapshot(database)), syncing: true });
   try {
@@ -211,13 +233,13 @@ async function performSync() {
       method: "POST",
       headers: {
         "content-type": "application/json",
-        "x-device-id": localStorage.getItem("pulse-device-id") || "development-device",
-        authorization: `Bearer ${localStorage.getItem("pulse-device-token") || "development-token"}`,
+        "x-device-id": localStorage.getItem("pulse-device-id")!,
+        authorization: `Bearer ${localStorage.getItem("pulse-device-token")!}`,
         "x-app-version": process.env.NEXT_PUBLIC_APP_VERSION || "1.0.0",
       },
       body: JSON.stringify({ cursor, events: changes }),
     });
-    if (!response.ok) throw new Error((await response.json().catch(() => null))?.error || "Synchronisation was rejected");
+    if (!response.ok){const body=await response.json().catch(()=>null),category=(body?.category as SyncRejectionCategory)||safeSyncRejection(response.status);throw Object.assign(new Error(body?.error||"Synchronisation was rejected"),{category});}
     const result = await response.json();
     await applyPulledBatch(result.events || []);
     for (const id of result.acknowledged || []) await database.delete("pending", id);
@@ -225,12 +247,15 @@ async function performSync() {
     await database.put("metadata", { key: "syncCursor", value: appliedCursor });
     await database.put("metadata", { key: "lastSync", value: new Date().toISOString() });
     await database.delete("metadata", "syncError");
+    await database.delete("metadata", "syncRejectionCategory");
     localStorage.setItem("pulse-sync-cursor", appliedCursor);
     emitSyncStatus({ ...(await getSyncSnapshot(database)), syncing: false });
     return true;
   } catch (error) {
     const message = error instanceof Error ? error.message : "Synchronisation failed";
+    const category=(error as {category?:SyncRejectionCategory}).category||(navigator.onLine?"SERVER_UNAVAILABLE":"NETWORK_UNAVAILABLE");
     await database.put("metadata", { key: "syncError", value: message });
+    await database.put("metadata", { key: "syncRejectionCategory", value: category });
     emitSyncStatus({ ...(await getSyncSnapshot(database)), syncing: false });
     return false;
   }

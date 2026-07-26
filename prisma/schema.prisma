@@ -175,6 +175,7 @@ model Device {
   appVersion        String?                  @db.VarChar(40)
   lastSeenAt        DateTime?
   lastSyncAt        DateTime?
+  syncRequestedAt   DateTime?
   pendingEventCount Int                      @default(0)
   currentCursor     BigInt                   @default(0)
   tokenRotatedAt    DateTime?

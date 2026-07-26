@@ -10,5 +10,7 @@ describe("kiosk device heartbeat", () => {
   expect(runtime).toContain("hasDeviceCredential(localStorage)");
   expect(runtime).toContain("window.setInterval(heartbeat,KIOSK_HEARTBEAT_MS)");
   expect(runtime).toContain("void syncNow()");
+  expect(runtime).toContain("/api/devices/sync-request");
+  expect(runtime).toContain("SYNC_REQUEST_POLL_MS");
  });
 });

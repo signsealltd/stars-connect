@@ -1,0 +1,1 @@
+ALTER TABLE `Device` ADD COLUMN `syncRequestedAt` DATETIME(3) NULL;

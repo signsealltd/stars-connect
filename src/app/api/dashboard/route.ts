@@ -13,7 +13,7 @@ export async function GET(req:NextRequest){
    prisma.staffMember.findMany({where:{active:true,clockingEnabled:true},select:{clockEvents:{where:{device:{isSeedData:false,lastSyncAt:{not:null}}},orderBy:{deviceTimestamp:"desc"},take:1,select:{type:true,deviceTimestamp:true}}}}),
    prisma.studentAttendance.findMany({where:{date:dbDate,device:{isSeedData:false,lastSyncAt:{not:null}}},include:{student:true},orderBy:{updatedAt:"desc"}}),
    prisma.student.findMany({where:{active:true},select:{id:true,expectedDays:true}}),
-   prisma.device.findMany({where:{isSeedData:false},select:{id:true,name:true,lastSyncAt:true,lastSeenAt:true,status:true,pendingEventCount:true,currentCursor:true,appVersion:true}}),
+   prisma.device.findMany({where:{isSeedData:false},select:{id:true,name:true,lastSyncAt:true,lastSeenAt:true,status:true,pendingEventCount:true,currentCursor:true,appVersion:true,syncRequestedAt:true}}),
    prisma.syncConflict.count({where:{status:"OPEN"}}),
    prisma.clockCorrection.count({where:{createdAt:{gte:start,lte:end}}}),
    prisma.emergencyRollCall.findFirst({where:{status:"ACTIVE"},orderBy:{startedAt:"desc"},include:{entries:true}}),
@@ -32,7 +32,7 @@ export async function GET(req:NextRequest){
    email:email?{status:email.status,sentAt:email.sentAt,failureReason:email.failureReason}:null,
    recentEvents:events.slice(0,8).map(e=>({id:e.id,name:e.staff.displayName,type:e.type,time:e.deviceTimestamp})),
    recentAttendance:attendance.slice(0,8).map(a=>({id:a.id,name:a.student.displayName,status:a.status,time:a.updatedAt})),
-   devices:devices.map(d=>({...d,currentCursor:String(d.currentCursor),operationalStatus:deviceOperationalStatus(d)})),
+   devices:devices.map(d=>({...d,currentCursor:String(d.currentCursor),operationalStatus:deviceOperationalStatus(d),syncPending:Boolean(d.syncRequestedAt&&(!d.lastSyncAt||d.syncRequestedAt>d.lastSyncAt))})),
   },{headers:{"Cache-Control":"private, no-store, max-age=0"}});
  })
 }

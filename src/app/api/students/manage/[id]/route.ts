@@ -9,12 +9,12 @@ const schema = z.object({
   lastName: z.string().trim().min(1).max(80).optional(),
   displayName: z.string().trim().min(1).max(120).optional(),
   startDate: z.string().date().optional(),
-  endDate: z.string().date().nullable().optional(),
+  endDate: z.string().date().nullable().optional().or(z.literal("")),
   expectedDays: z.array(z.number().int().min(1).max(7)).max(7).optional(),
-  fundingCategory: z.string().trim().max(100).nullable().optional(),
-  fundingOrganisation: z.string().trim().max(191).nullable().optional(),
-  internalReference: z.string().trim().max(100).nullable().optional(),
-  notes: z.string().trim().max(5000).nullable().optional(),
+  fundingCategory: z.string().trim().max(100).nullable().optional().or(z.literal("")),
+  fundingOrganisation: z.string().trim().max(191).nullable().optional().or(z.literal("")),
+  internalReference: z.string().trim().max(100).nullable().optional().or(z.literal("")),
+  notes: z.string().trim().max(5000).nullable().optional().or(z.literal("")),
   active: z.boolean().optional(),
 });
 
@@ -43,6 +43,10 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       ...d,
       ...(d.startDate ? { startDate: new Date(d.startDate) } : {}),
       ...(d.endDate !== undefined ? { endDate: d.endDate ? new Date(d.endDate) : null } : {}),
+      ...(d.fundingCategory !== undefined ? { fundingCategory: d.fundingCategory || null } : {}),
+      ...(d.fundingOrganisation !== undefined ? { fundingOrganisation: d.fundingOrganisation || null } : {}),
+      ...(d.internalReference !== undefined ? { internalReference: d.internalReference || null } : {}),
+      ...(d.notes !== undefined ? { notes: d.notes || null } : {}),
       ...(d.active === false ? { archivedAt: new Date() } : d.active === true ? { archivedAt: null } : {}),
     } });
     const action = before.active !== after.active ? (after.active ? "STUDENT_RESTORED" : "STUDENT_ARCHIVED") : "STUDENT_UPDATED";

@@ -810,3 +810,93 @@ model ScheduledJobRun {
   @@index([jobType, reportDate])
   @@index([status, startedAt])
 }
+
+model PremisesAsset {
+  id              String                    @id @default(uuid()) @db.Char(36)
+  name            String                    @db.VarChar(191)
+  category        String                    @db.VarChar(60)
+  location        String?                   @db.VarChar(191)
+  manufacturer    String?                   @db.VarChar(120)
+  model           String?                   @db.VarChar(120)
+  serialNumber    String?                   @db.VarChar(120)
+  responsibleName String?                   @db.VarChar(120)
+  serviceProvider String?                   @db.VarChar(191)
+  recurrenceDays  Int?
+  nextDueDate     DateTime?                 @db.Date
+  active          Boolean                   @default(true)
+  notes           String?                   @db.Text
+  createdById     String                    @db.Char(36)
+  updatedById     String                    @db.Char(36)
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
+  inspections     PremisesInspection[]
+  actions         PremisesCorrectiveAction[]
+  documents       PremisesDocument[]
+
+  @@index([category, active])
+  @@index([nextDueDate, active])
+}
+
+model PremisesInspection {
+  id                   String                     @id @default(uuid()) @db.Char(36)
+  assetId              String                     @db.Char(36)
+  asset                PremisesAsset              @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  testType             String                     @db.VarChar(191)
+  completedDate        DateTime                   @db.Date
+  result               String                     @db.VarChar(30)
+  completedBy          String                     @db.VarChar(120)
+  contractor           String?                    @db.VarChar(191)
+  certificateReference String?                    @db.VarChar(191)
+  nextDueDate          DateTime?                  @db.Date
+  notes                String?                    @db.Text
+  createdById          String                     @db.Char(36)
+  createdAt            DateTime                   @default(now())
+  actions              PremisesCorrectiveAction[]
+
+  @@index([assetId, completedDate])
+  @@index([result, completedDate])
+}
+
+model PremisesCorrectiveAction {
+  id           String              @id @default(uuid()) @db.Char(36)
+  assetId      String?             @db.Char(36)
+  asset        PremisesAsset?      @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  inspectionId String?             @db.Char(36)
+  inspection   PremisesInspection? @relation(fields: [inspectionId], references: [id], onDelete: SetNull)
+  title        String              @db.VarChar(191)
+  priority     String              @db.VarChar(20)
+  status       String              @default("OPEN") @db.VarChar(30)
+  assignedTo   String?             @db.VarChar(120)
+  dueDate      DateTime?           @db.Date
+  completedAt  DateTime?
+  notes        String?             @db.Text
+  createdById  String              @db.Char(36)
+  updatedById  String              @db.Char(36)
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  @@index([status, dueDate])
+  @@index([assetId])
+}
+
+model PremisesDocument {
+  id             String          @id @default(uuid()) @db.Char(36)
+  assetId        String?         @db.Char(36)
+  asset          PremisesAsset?  @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  title          String          @db.VarChar(191)
+  documentType   String          @db.VarChar(60)
+  reference      String?         @db.VarChar(191)
+  provider       String?         @db.VarChar(191)
+  issuedDate     DateTime?       @db.Date
+  expiryDate     DateTime?       @db.Date
+  documentUrl    String?         @db.VarChar(500)
+  notes          String?         @db.Text
+  active         Boolean         @default(true)
+  createdById    String          @db.Char(36)
+  updatedById    String          @db.Char(36)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@index([documentType, active])
+  @@index([expiryDate, active])
+}

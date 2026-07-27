@@ -2,11 +2,14 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { organisationDefaults } from "./organisation-settings";
 import { preferenceDefaults, quickActionOptions } from "./user-preferences";
+import { themePresets } from "./theme-presets";
 
 describe("organisation and user personalisation", () => {
   it("keeps the STARS purple theme as the default", () => {
     expect(organisationDefaults.themePrimary).toBe("#82368c");
     expect(organisationDefaults.themePrimaryDark).toBe("#54205d");
+    expect(organisationDefaults.themePreset).toBe("default");
+    expect(Object.keys(themePresets)).toHaveLength(6);
   });
 
   it("provides user-specific display and quick-action defaults", () => {

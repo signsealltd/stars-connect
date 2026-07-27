@@ -3,11 +3,12 @@
 
 import { useEffect, useState } from "react";
 import { Save } from "lucide-react";
+import { isThemePreset, themePresets, type ThemePresetId } from "@/lib/theme-presets";
 
 type Settings = {
   organisationName: string; organisationLegalName: string; organisationAddress: string;
   organisationRegistrationNumber: string; organisationLogoUrl: string;
-  themePrimary: string; themePrimaryDark: string; themeAccent: string;
+  themePreset: string; themePrimary: string; themePrimaryDark: string; themeAccent: string;
 };
 
 async function compressLogo(file: File) {
@@ -33,18 +34,30 @@ export function OrganisationSettingsForm() {
     const response = await fetch("/api/settings/organisation", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(form) });
     const result = await response.json();
     if (!response.ok) return setError(result.error || "Organisation settings could not be saved.");
-    setNotice("Organisation and theme settings saved. Refreshing the page will apply the branding everywhere.");
+    setForm(result);
+    setNotice("Organisation and theme settings saved.");
     window.dispatchEvent(new CustomEvent("stars-branding", { detail: result }));
   }
   return <form className="card form-grid" style={{ padding: 24, marginBottom: 22 }} onSubmit={save} autoComplete="off">
-    <div className="full"><h2>Organisation and appearance</h2><p className="muted">Purple remains the default. Custom colours apply throughout manager and kiosk screens.</p></div>
+    <div className="full"><h2>Organisation and appearance</h2><p className="muted">Choose a consistent preset theme. Default restores the original STARS purple appearance.</p></div>
     <label className="form-label">Display name<input className="field" value={form.organisationName} onChange={(e) => setForm({ ...form, organisationName: e.target.value })}/></label>
     <label className="form-label">Legal/company name<input className="field" value={form.organisationLegalName} onChange={(e) => setForm({ ...form, organisationLegalName: e.target.value })}/></label>
     <label className="form-label">Registration number<input className="field" value={form.organisationRegistrationNumber} onChange={(e) => setForm({ ...form, organisationRegistrationNumber: e.target.value })}/></label>
     <label className="form-label full">Address<textarea className="field" value={form.organisationAddress} onChange={(e) => setForm({ ...form, organisationAddress: e.target.value })}/></label>
     <label className="form-label full">Organisation logo<input className="field" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={async(e) => { const file=e.target.files?.[0]; if(file) setForm({...form,organisationLogoUrl:await compressLogo(file)}); }}/>{form.organisationLogoUrl&&<img src={form.organisationLogoUrl} alt="Organisation logo preview" style={{maxWidth:180,maxHeight:90,objectFit:"contain",marginTop:10}}/>}</label>
-    {[["themePrimary","Primary colour"],["themePrimaryDark","Header colour"],["themeAccent","Accent colour"]].map(([key,label])=><label className="form-label" key={key}>{label}<input className="field" type="color" value={form[key as keyof Settings]} onChange={(e)=>setForm({...form,[key]:e.target.value})}/></label>)}
-    <div className="full"><button type="button" className="btn secondary" onClick={()=>setForm({...form,themePrimary:"#82368c",themePrimaryDark:"#54205d",themeAccent:"#27778b"})}>Restore purple theme</button></div>
+    <fieldset className="full theme-picker">
+      <legend>Application theme</legend>
+      <div className="theme-options">
+        {Object.entries(themePresets).map(([id, preset]) => {
+          const selected = (isThemePreset(form.themePreset) ? form.themePreset : "default") === id;
+          return <label className={`theme-option${selected ? " selected" : ""}`} key={id}>
+            <input type="radio" name="themePreset" value={id} checked={selected} onChange={() => setForm({ ...form, themePreset: id as ThemePresetId })}/>
+            <span className="theme-swatches" aria-hidden="true"><i style={{ background: preset.header }}/><i style={{ background: preset.primary }}/><i style={{ background: preset.accent }}/></span>
+            <strong>{preset.label}</strong>
+          </label>;
+        })}
+      </div>
+    </fieldset>
     {error&&<div className="alert alert-error full">{error}</div>}{notice&&<div className="alert alert-success full">{notice}</div>}
     <div className="full"><button className="btn primary"><Save size={17}/>Save organisation settings</button></div>
   </form>;

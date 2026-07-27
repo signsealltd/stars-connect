@@ -1,5 +1,6 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
+import{appConfirm}from"@/lib/app-dialog";
 
 import { useCallback, useEffect, useState } from "react";
 import { Archive, KeyRound, Pencil, Plus, RotateCcw, Search } from "lucide-react";
@@ -66,7 +67,7 @@ export function StaffManager() {
   }
 
   async function setActive(row: Staff, active: boolean) {
-    if (!confirm(`${active ? "Restore" : "Archive"} ${row.displayName}? Historic clock records will be preserved.`)) return;
+    if (!await appConfirm(`${active ? "Restore" : "Archive"} ${row.displayName}? Historic clock records will be preserved.`)) return;
     await fetch(`/api/staff/${row.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ active }) });
     await load();
   }
@@ -111,7 +112,7 @@ export function StaffManager() {
           <label className="form-label">Payroll number<input className="field" autoComplete="off" value={form.payrollNumber} onChange={(e) => setForm({ ...form, payrollNumber: e.target.value })} /></label>
           <label className="form-label">Contracted hours per week<input autoComplete="off" className="field" type="number" min="0" max="168" step="0.25" value={form.contractedWeeklyHours} onChange={(e) => setForm({ ...form, contractedWeeklyHours: e.target.value })} /></label>
           <label className="form-label">Hourly rate (Â£)<input autoComplete="off" className="field" type="number" min="0" step="0.01" value={form.hourlyRate} onChange={(e) => setForm({ ...form, hourlyRate: e.target.value })} /></label>
-          <label className="form-label full"><span><KeyRound size={16} /> {editing === "new" ? "Initial PIN" : "Reset PIN"}</span><input autoComplete="off" className="field" type="password" inputMode="numeric" pattern="\d{4,8}" placeholder={editing === "new" ? "4â€“8 digits (optional)" : "Leave blank to keep current PIN"} value={form.pin} onChange={(e) => setForm({ ...form, pin: e.target.value })} /></label>
+          <label className="form-label full"><span><KeyRound size={16} /> {editing === "new" ? "Initial PIN" : "Reset PIN"}</span><input autoComplete="off" name="staff-pin-entry" data-lpignore="true" data-1p-ignore="true" className="field pin-entry-secure" type="text" inputMode="numeric" pattern="\d{4,8}" placeholder={editing === "new" ? "4â€“8 digits (optional)" : "Leave blank to keep current PIN"} value={form.pin} onChange={(e) => setForm({ ...form, pin: e.target.value })} /></label>
           <label className="form-label full">Restricted manager notes<textarea autoComplete="off" className="field" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></label>
           <label className="full"><input autoComplete="off" type="checkbox" checked={form.clockingEnabled} onChange={(e) => setForm({ ...form, clockingEnabled: e.target.checked })} /> Allow this staff member to clock in and out</label><label className="full"><input autoComplete="off" type="checkbox" checked={form.cameraRequired} onChange={(e) => setForm({ ...form, cameraRequired: e.target.checked })} /> Require a front-camera confirmation when camera mode is “Required for selected staff”</label>
         </div>

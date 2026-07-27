@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";import{appConfirm,appPrompt}from"@/lib/app-dialog";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import styles from "./finance-workflow.module.css";
@@ -68,7 +68,7 @@ export function SimpleFinanceRunReview({ mode, id }: { mode: "payroll" | "billin
   }
 
   async function resolve(record: Entry | Charge) {
-    const reason = prompt("Briefly explain how this warning was checked or corrected:");
+    const reason = await appPrompt("Briefly explain how this warning was checked or corrected:");
     if (!reason || reason.trim().length < 5) return;
     setWorking(true); setError("");
     try {
@@ -80,7 +80,7 @@ export function SimpleFinanceRunReview({ mode, id }: { mode: "payroll" | "billin
   }
 
   async function exclude(record: Entry | Charge, isExcluded: boolean) {
-    const reason = prompt(`Reason for ${isExcluded ? "restoring" : "excluding"} this record:`);
+    const reason = await appPrompt(`Reason for ${isExcluded ? "restoring" : "excluding"} this record:`);
     if (!reason || reason.trim().length < 5) return;
     setWorking(true); setError("");
     try {
@@ -92,7 +92,7 @@ export function SimpleFinanceRunReview({ mode, id }: { mode: "payroll" | "billin
   }
 
   async function refreshCalculations() {
-    if (!confirm("Refresh this run from the latest attendance records?")) return;
+    if (!await appConfirm("Refresh this run from the latest attendance records?")) return;
     setWorking(true); setError("");
     try { await action("calculate"); setSuccess("Calculations refreshed."); }
     catch (caught) { setError(caught instanceof Error ? caught.message : "Unable to refresh calculations."); }
@@ -101,7 +101,7 @@ export function SimpleFinanceRunReview({ mode, id }: { mode: "payroll" | "billin
 
   async function approveAndCreate() {
     if (!run || exceptions.length || !records.length) return;
-    if (!confirm(`Approve the totals shown and create the final ${mode === "payroll" ? "payroll files" : "invoices"}?`)) return;
+    if (!await appConfirm(`Approve the totals shown and create the final ${mode === "payroll" ? "payroll files" : "invoices"}?`)) return;
     setWorking(true); setError("");
     try {
       let status = run.status;

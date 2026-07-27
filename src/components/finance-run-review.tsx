@@ -1,4 +1,4 @@
-"use client";
+"use client";import{appConfirm,appPrompt}from"@/lib/app-dialog";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { workflowActions } from "@/lib/finance-workflow";
@@ -101,7 +101,7 @@ export function FinanceRunReview({ mode, id }: { mode: "payroll" | "billing"; id
     return body;
   }
   async function reasoned(action: string, recordId: string) {
-    const reason = prompt("Enter the required internal reason (at least 5 characters):");
+    const reason = await appPrompt("Enter the required internal reason (at least 5 characters):");
     if (!reason) return;
     await act(action, { [mode === "payroll" ? "entryId" : "chargeId"]: recordId, reason });
   }
@@ -109,11 +109,11 @@ export function FinanceRunReview({ mode, id }: { mode: "payroll" | "billing"; id
     const included = mode === "payroll" ? payroll.filter(e=>e.exceptionStatus!=="EXCLUDED").length : charges.filter(c=>!c.excluded).length;
     const total = mode === "payroll" ? hours(payroll.filter(e=>e.exceptionStatus!=="EXCLUDED").reduce((n,e)=>n+e.totalPayableMinutes,0)) : money(charges.filter(c=>!c.excluded).reduce((n,c)=>n+Number(c.grossAmount),0));
     const label = action === "approve" ? `approve ${included} included records (${excludedCount} excluded), total ${total}, with ${exceptionCount} recorded exceptions` : "lock this approved run permanently";
-    if (!confirm(`Confirm you want to ${label}?`)) return;
+    if (!await appConfirm(`Confirm you want to ${label}?`)) return;
     await act(action);
   }
   async function generate() {
-    if (!confirm(`Generate ${mode === "payroll" ? "the locked payroll export" : "invoices from the locked reviewed charges"}?`)) return;
+    if (!await appConfirm(`Generate ${mode === "payroll" ? "the locked payroll export" : "invoices from the locked reviewed charges"}?`)) return;
     if (mode === "payroll") {
       const response = await fetch(`/api/payroll/periods/${id}/documents`, { method: "POST" });
       const body = await response.json();
@@ -138,11 +138,11 @@ export function FinanceRunReview({ mode, id }: { mode: "payroll" | "billing"; id
     setSelected([]);
   }
   async function addAdjustment(entry: Entry) {
-    const minutes = Number(prompt("Adjustment minutes (negative values reduce payable time):"));
+    const minutes = Number(await appPrompt("Adjustment minutes (negative values reduce payable time):"));
     if (!Number.isFinite(minutes)) return;
-    const category = prompt("Category: HOLIDAY, SICKNESS, TRAINING or MANUAL", "MANUAL");
-    const date = prompt("Attendance date (YYYY-MM-DD)", run?.periodStart.slice(0, 10));
-    const reason = prompt("Required adjustment reason:");
+    const category = await appPrompt("Category: HOLIDAY, SICKNESS, TRAINING or MANUAL", "MANUAL");
+    const date = await appPrompt("Attendance date (YYYY-MM-DD)", run?.periodStart.slice(0, 10));
+    const reason = await appPrompt("Required adjustment reason:");
     if (!category || !date || !reason) return;
     await act("add-adjustment", { staffId: entry.staffId, date, category, minutes, paid: true, reason });
     setSuccess("Adjustment recorded. Recalculate the run to apply it.");

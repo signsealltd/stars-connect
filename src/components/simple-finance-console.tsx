@@ -1,4 +1,4 @@
-"use client";
+"use client";import{appConfirm}from"@/lib/app-dialog";
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -56,7 +56,7 @@ export function SimpleFinanceConsole({ mode }: { mode: Mode }) {
   }
 
   async function refresh(item: Item) {
-    if (!confirm("Refresh this run from the latest attendance records?")) return;
+    if (!await appConfirm("Refresh this run from the latest attendance records?")) return;
     setWorking(true); setError("");
     const response = await fetch(`${endpoint}/${item.id}`, {
       method: "PATCH", headers: { "content-type": "application/json" },

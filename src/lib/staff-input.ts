@@ -1,4 +1,4 @@
-﻿import { z } from "zod";
+import { z } from "zod";
 
 export const staffUpdateSchema = z.object({
   firstName: z.string().trim().min(1).max(80).optional(),
@@ -15,6 +15,7 @@ export const staffUpdateSchema = z.object({
   hourlyRate: z.number().min(0).max(10000).nullable().optional(),
   payrollNumber: z.string().trim().max(80).nullable().optional(),
   clockingEnabled: z.boolean().optional(),
+  cameraRequired: z.boolean().optional(),
   active: z.boolean().optional(),
   pin: z.string().regex(/^\d{4,8}$/).optional(),
 });

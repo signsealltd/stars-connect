@@ -34,4 +34,15 @@ describe("operations usability pass", () => {
       expect(screensaver).toContain(key);
     }
   });
+  it("uses shared report recipients and captures required PIN photos with the front camera", () => {
+    const reports = readFileSync("src/lib/daily-reports.ts", "utf8");
+    expect(reports).toContain("dailyEmailRecipients");
+    expect(reports).toContain("!settings.dailyReportTo.length");
+    const clock = readFileSync("src/app/clock/page.tsx", "utf8");
+    expect(clock).toContain('facingMode:{exact:"user"}');
+    expect(clock).toContain("photoDataUrl");
+    const sync = readFileSync("src/app/api/sync/route.ts", "utf8");
+    expect(sync).toContain("attendancePhoto.create");
+    expect(sync).toContain('key !== "photoDataUrl"');
+  });
 });

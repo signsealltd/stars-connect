@@ -1,4 +1,4 @@
-﻿/* eslint-disable @next/next/no-img-element */
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
@@ -6,14 +6,14 @@ import { Archive, KeyRound, Pencil, Plus, RotateCcw, Search } from "lucide-react
 
 type Staff = {
   id: string; firstName: string; lastName: string; displayName: string; email: string;
-  phone?: string; jobRole: string; active: boolean; clockingEnabled: boolean;
+  phone?: string; jobRole: string; active: boolean; clockingEnabled: boolean; cameraRequired: boolean;
   startDate: string; endDate?: string; notes?: string; pinEnabled: boolean;
   payrollNumber?: string; contractedWeeklyHours?: number; hourlyRate?: number; profilePhotoUrl?: string;
 };
 
 const blank = {
   firstName: "", lastName: "", displayName: "", email: "", phone: "", jobRole: "",
-  startDate: "", endDate: "", notes: "", clockingEnabled: true, pin: "",
+  startDate: "", endDate: "", notes: "", clockingEnabled: true, cameraRequired: false, pin: "",
   payrollNumber: "", contractedWeeklyHours: "", hourlyRate: "", profilePhotoUrl: "",
 };
 
@@ -45,7 +45,7 @@ export function StaffManager() {
       firstName: row.firstName, lastName: row.lastName, displayName: row.displayName,
       email: row.email, phone: row.phone || "", jobRole: row.jobRole,
       startDate: row.startDate.slice(0, 10), endDate: row.endDate?.slice(0, 10) || "",
-      notes: row.notes || "", clockingEnabled: row.clockingEnabled, pin: "",
+      notes: row.notes || "", clockingEnabled: row.clockingEnabled, cameraRequired: row.cameraRequired, pin: "",
       payrollNumber: row.payrollNumber || "", contractedWeeklyHours: row.contractedWeeklyHours?.toString() || "", hourlyRate: row.hourlyRate?.toString() || "", profilePhotoUrl: row.profilePhotoUrl || "",
     } : blank);
   }
@@ -113,7 +113,7 @@ export function StaffManager() {
           <label className="form-label">Hourly rate (Â£)<input autoComplete="off" className="field" type="number" min="0" step="0.01" value={form.hourlyRate} onChange={(e) => setForm({ ...form, hourlyRate: e.target.value })} /></label>
           <label className="form-label full"><span><KeyRound size={16} /> {editing === "new" ? "Initial PIN" : "Reset PIN"}</span><input autoComplete="off" className="field" type="password" inputMode="numeric" pattern="\d{4,8}" placeholder={editing === "new" ? "4â€“8 digits (optional)" : "Leave blank to keep current PIN"} value={form.pin} onChange={(e) => setForm({ ...form, pin: e.target.value })} /></label>
           <label className="form-label full">Restricted manager notes<textarea autoComplete="off" className="field" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></label>
-          <label className="full"><input autoComplete="off" type="checkbox" checked={form.clockingEnabled} onChange={(e) => setForm({ ...form, clockingEnabled: e.target.checked })} /> Allow this staff member to clock in and out</label>
+          <label className="full"><input autoComplete="off" type="checkbox" checked={form.clockingEnabled} onChange={(e) => setForm({ ...form, clockingEnabled: e.target.checked })} /> Allow this staff member to clock in and out</label><label className="full"><input autoComplete="off" type="checkbox" checked={form.cameraRequired} onChange={(e) => setForm({ ...form, cameraRequired: e.target.checked })} /> Require a front-camera confirmation when camera mode is “Required for selected staff”</label>
         </div>
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 9, marginTop: 20 }}>
           <button type="button" className="btn secondary" onClick={() => setEditing(null)}>Cancel</button>

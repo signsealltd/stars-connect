@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { mkdir, writeFile } from "node:fs/promises";
+import path from "node:path";
 import { z } from "zod";
 import { Prisma, type AttendanceStatus, type ClockEventType, type PhotoStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
@@ -17,6 +19,7 @@ const eventSchema = z.object({
 });
 const bodySchema = z.object({ cursor: z.string().regex(/^\d+$/), events: z.array(eventSchema).max(250) });
 const attendanceStatusSchema = z.enum(["NOT_MARKED", "PRESENT", "ABSENT", "OFFSITE", "LATE", "CANCELLED"]);
+const attendancePhotoRoot = process.env.ATTENDANCE_PHOTO_STORAGE_PATH || path.join(process.cwd(), ".data", "attendance-photos");
 
 async function authorise(req: NextRequest) {
   const id = req.headers.get("x-device-id");
@@ -60,10 +63,18 @@ export async function POST(req: NextRequest) {
             await tx.syncConflict.create({
               data: {
                 entityType: "ClockEvent", entityId: item.id, deviceId: device.id,
-                serverValue: JSON.parse(JSON.stringify(duplicate)), incomingValue: p as Prisma.InputJsonValue,
+                serverValue: JSON.parse(JSON.stringify(duplicate)), incomingValue: Object.fromEntries(Object.entries(p).filter(([key]) => key !== "photoDataUrl")) as Prisma.InputJsonValue,
               },
             });
           } else {
+            const photoDataUrl = typeof p.photoDataUrl === "string" ? p.photoDataUrl : "";
+            let photoBuffer: Buffer | undefined;
+            if (p.photoStatus === "CAPTURED") {
+              const match = /^data:image\/jpeg;base64,([A-Za-z0-9+/=]+)$/.exec(photoDataUrl);
+              if (!match) throw new Error("INVALID_ATTENDANCE_PHOTO");
+              photoBuffer = Buffer.from(match[1], "base64");
+              if (!photoBuffer.length || photoBuffer.length > 250_000) throw new Error("INVALID_ATTENDANCE_PHOTO");
+            }
             await tx.clockEvent.create({
               data: {
                 id: item.id, staffId: String(p.staffId), deviceId: device.id,
@@ -72,6 +83,14 @@ export async function POST(req: NextRequest) {
                 photoStatus: String(p.photoStatus || "NOT_REQUIRED") as PhotoStatus,
               },
             });
+            if (photoBuffer) {
+              const retention = await tx.appSetting.findUnique({ where: { key: "photoRetentionDays" } });
+              const retentionDays = Math.min(3650, Math.max(1, Number(retention?.value || 30)));
+              await mkdir(attendancePhotoRoot, { recursive: true });
+              const storagePath = path.join(attendancePhotoRoot, `${item.id}.jpg`);
+              await writeFile(storagePath, photoBuffer);
+              await tx.attendancePhoto.create({ data: { clockEventId: item.id, storagePath, mimeType: "image/jpeg", sizeBytes: photoBuffer.length, expiresAt: new Date(Date.now() + retentionDays * 86_400_000) } });
+            }
           }
         } else if (item.operation === "ATTENDANCE") {
           const date = new Date(`${String(p.date).slice(0, 10)}T00:00:00.000Z`);
@@ -128,8 +147,9 @@ export async function POST(req: NextRequest) {
               },
           });
         }
+        const replicatedPayload = item.operation.startsWith("VISITOR_") ? publicVisitorPayload(p) : item.operation === "CLOCK_EVENT" ? Object.fromEntries(Object.entries(p).filter(([key]) => key !== "photoDataUrl")) : p;
         await tx.syncEvent.create({
-          data: { eventId: item.id, deviceId: device.id, operation: item.operation, payload: item.operation.startsWith("VISITOR_") ? publicVisitorPayload(p) : p as Prisma.InputJsonValue },
+          data: { eventId: item.id, deviceId: device.id, operation: item.operation, payload: replicatedPayload as Prisma.InputJsonValue },
         });
       });
       acknowledged.push(item.id);

@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
@@ -21,6 +21,7 @@ const staffSchema = z.object({
   hourlyRate: z.number().min(0).max(10000).nullable().optional(),
   payrollNumber: z.string().trim().max(80).nullable().optional().or(z.literal("")),
   clockingEnabled: z.boolean().default(true),
+  cameraRequired: z.boolean().default(false),
   pin: z.string().regex(/^\d{4,8}$/).optional(),
 });
 

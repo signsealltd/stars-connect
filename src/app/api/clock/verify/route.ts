@@ -26,12 +26,18 @@ export async function POST(req: NextRequest) {
     await new Promise((resolve) => setTimeout(resolve, 400));
     return NextResponse.json({ error: "PIN not recognised" }, { status: 401 });
   }
-  const last = await prisma.clockEvent.findFirst({ where: { staffId: credential.staffId }, orderBy: { deviceTimestamp: "desc" } });
+  const [last, cameraSetting] = await Promise.all([
+    prisma.clockEvent.findFirst({ where: { staffId: credential.staffId }, orderBy: { deviceTimestamp: "desc" } }),
+    prisma.appSetting.findUnique({ where: { key: "cameraMode" } }),
+  ]);
+  const cameraMode = typeof cameraSetting?.value === "string" ? cameraSetting.value : "OPTIONAL";
+  const cameraRequired = cameraMode === "REQUIRED_ALL" || (cameraMode === "REQUIRED_SELECTED" && credential.staff.cameraRequired);
   await audit("STAFF_PIN_VERIFIED", { actorType: "DEVICE", deviceId: device.id, entityType: "StaffMember", entityId: credential.staffId, ...requestContext(req) });
   return NextResponse.json({
     staffId: credential.staffId,
     displayName: credential.staff.displayName,
     nextAction: last?.type === "CLOCK_IN" ? "CLOCK_OUT" : "CLOCK_IN",
-    cameraRequired: credential.staff.cameraRequired,
+    cameraMode,
+    cameraRequired,
   });
 }

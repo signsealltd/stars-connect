@@ -109,7 +109,7 @@ model StaffMember {
   email                 String            @unique @db.VarChar(191)
   phone                 String?           @db.VarChar(40)
   jobRole               String            @db.VarChar(100)
-  profilePhotoUrl       String?           @db.VarChar(500)
+  profilePhotoUrl       String?           @db.Text
   contractedWeeklyHours Decimal?          @db.Decimal(5, 2)
   hourlyRate            Decimal?          @db.Decimal(10, 2)
   payrollNumber         String?           @unique @db.VarChar(80)

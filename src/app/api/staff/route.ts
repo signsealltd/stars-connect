@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
@@ -13,6 +13,7 @@ const staffSchema = z.object({
   email: z.email().max(191),
   phone: z.string().trim().max(40).optional().or(z.literal("")),
   jobRole: z.string().trim().min(1).max(100),
+  profilePhotoUrl: z.string().max(250000).nullable().optional(),
   startDate: z.string().date(),
   endDate: z.string().date().optional().or(z.literal("")),
   notes: z.string().trim().max(5000).optional().or(z.literal("")),
@@ -83,3 +84,4 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(staff, { status: 201 });
   });
 }
+

@@ -1,4 +1,4 @@
-import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
+﻿import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
 import { prisma } from "./prisma";
 
 const KEY = "smtpConfiguration";
@@ -26,9 +26,10 @@ export async function loadSmtpEnv(){
 }
 export async function saveSmtpSettings(input:{host:string;port:number;secure:boolean;username:string;password?:string;clearCredentials?:boolean;fromName:string;fromEmail:string},userId:string){
   const current=await prisma.appSetting.findUnique({where:{key:KEY}}),previous=(current?.value||{})as Stored;
-  const username=input.clearCredentials?"":input.username;
+  const username=input.clearCredentials?"":input.username||previous.username||"";
   const passwordCipher=input.clearCredentials?undefined:input.password?encrypt(input.password):previous.passwordCipher;
   const value:Stored={host:input.host,port:input.port,secure:input.secure,username,passwordCipher,fromName:input.fromName,fromEmail:input.fromEmail};
   await prisma.appSetting.upsert({where:{key:KEY},update:{value,updatedBy:userId},create:{key:KEY,value,updatedBy:userId}});
   return{passwordChanged:Boolean(input.password),credentialsCleared:Boolean(input.clearCredentials)};
 }
+

@@ -1,3 +1,4 @@
+﻿/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
@@ -7,14 +8,16 @@ type Staff = {
   id: string; firstName: string; lastName: string; displayName: string; email: string;
   phone?: string; jobRole: string; active: boolean; clockingEnabled: boolean;
   startDate: string; endDate?: string; notes?: string; pinEnabled: boolean;
-  payrollNumber?: string; contractedWeeklyHours?: number; hourlyRate?: number;
+  payrollNumber?: string; contractedWeeklyHours?: number; hourlyRate?: number; profilePhotoUrl?: string;
 };
 
 const blank = {
   firstName: "", lastName: "", displayName: "", email: "", phone: "", jobRole: "",
   startDate: "", endDate: "", notes: "", clockingEnabled: true, pin: "",
-  payrollNumber: "", contractedWeeklyHours: "", hourlyRate: "",
+  payrollNumber: "", contractedWeeklyHours: "", hourlyRate: "", profilePhotoUrl: "",
 };
+
+async function compressStaffPhoto(file:File){if(file.size>12*1024*1024)throw new Error("Choose an image smaller than 12 MB.");const bitmap=await createImageBitmap(file),size=320,canvas=document.createElement("canvas");canvas.width=size;canvas.height=size;const context=canvas.getContext("2d")!;const scale=Math.max(size/bitmap.width,size/bitmap.height),width=bitmap.width*scale,height=bitmap.height*scale;context.drawImage(bitmap,(size-width)/2,(size-height)/2,width,height);bitmap.close();const value=canvas.toDataURL("image/jpeg",0.72);if(value.length>250000)throw new Error("The compressed photograph is still too large. Choose a simpler image.");return value}
 
 export function StaffManager() {
   const [rows, setRows] = useState<Staff[]>([]);
@@ -43,7 +46,7 @@ export function StaffManager() {
       email: row.email, phone: row.phone || "", jobRole: row.jobRole,
       startDate: row.startDate.slice(0, 10), endDate: row.endDate?.slice(0, 10) || "",
       notes: row.notes || "", clockingEnabled: row.clockingEnabled, pin: "",
-      payrollNumber: row.payrollNumber || "", contractedWeeklyHours: row.contractedWeeklyHours?.toString() || "", hourlyRate: row.hourlyRate?.toString() || "",
+      payrollNumber: row.payrollNumber || "", contractedWeeklyHours: row.contractedWeeklyHours?.toString() || "", hourlyRate: row.hourlyRate?.toString() || "", profilePhotoUrl: row.profilePhotoUrl || "",
     } : blank);
   }
 
@@ -79,10 +82,10 @@ export function StaffManager() {
       <button className="btn primary" style={{ marginLeft: "auto" }} onClick={() => open()}><Plus size={18} /> Add staff</button>
     </div>
     <section className="card table-wrap">
-      {loading ? <div className="empty"><span className="spinner" /> Loading staff…</div> :
+      {loading ? <div className="empty"><span className="spinner" /> Loading staffâ€¦</div> :
       rows.length ? <table className="table"><thead><tr><th>Name</th><th>Job title</th><th>Email</th><th>Clocking</th><th>Status</th><th>Actions</th></tr></thead>
         <tbody>{rows.map((row) => <tr key={row.id}>
-          <td><b>{row.displayName}</b><div className="muted">{row.firstName} {row.lastName}</div></td>
+          <td><div style={{display:"flex",alignItems:"center",gap:10}}>{row.profilePhotoUrl?<img src={row.profilePhotoUrl} alt="" style={{width:48,height:48,borderRadius:"50%",objectFit:"cover"}}/>:<span className="badge badge-neutral" style={{width:48,height:48,justifyContent:"center"}}>{row.firstName[0]}{row.lastName[0]}</span>}<div><b>{row.displayName}</b><div className="muted">{row.firstName} {row.lastName}</div></div></div></td>
           <td>{row.jobRole}</td><td>{row.email}</td>
           <td><span className={`badge ${row.clockingEnabled && row.pinEnabled ? "badge-success" : "badge-warning"}`}>{row.clockingEnabled ? (row.pinEnabled ? "PIN enabled" : "PIN needed") : "Disabled"}</span></td>
           <td><span className={`badge ${row.active ? "badge-success" : "badge-neutral"}`}>{row.active ? "Active" : "Archived"}</span></td>
@@ -102,13 +105,13 @@ export function StaffManager() {
           <label className="form-label">Display name<input autoComplete="off" className="field" value={form.displayName} onChange={(e) => setForm({ ...form, displayName: e.target.value })} required /></label>
           <label className="form-label">Job title<input autoComplete="off" className="field" value={form.jobRole} onChange={(e) => setForm({ ...form, jobRole: e.target.value })} required /></label>
           <label className="form-label">Email<input autoComplete="off" className="field" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required /></label>
-          <label className="form-label">Phone<input autoComplete="off" className="field" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></label>
+          <label className="form-label">Phone<input autoComplete="off" className="field" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></label><label className="form-label full">Staff photograph<input autoComplete="off" className="field" type="file" accept="image/jpeg,image/png,image/webp" onChange={async(e)=>{const file=e.target.files?.[0];if(!file)return;try{setForm({...form,profilePhotoUrl:await compressStaffPhoto(file)})}catch(error){setError(error instanceof Error?error.message:"Unable to process photograph.")}}}/><small className="muted">Automatically cropped and compressed to a 320 × 320 JPEG for proportionate storage.</small>{form.profilePhotoUrl&&<div style={{display:"flex",alignItems:"center",gap:12,marginTop:8}}><img src={form.profilePhotoUrl} alt="Staff preview" style={{width:80,height:80,borderRadius:"50%",objectFit:"cover"}}/><button type="button" className="btn secondary" onClick={()=>setForm({...form,profilePhotoUrl:""})}>Remove photograph</button></div>}</label>
           <label className="form-label">Start date<input autoComplete="off" className="field" type="date" value={form.startDate} onChange={(e) => setForm({ ...form, startDate: e.target.value })} required /></label>
           <label className="form-label">End date<input autoComplete="off" className="field" type="date" value={form.endDate} onChange={(e) => setForm({ ...form, endDate: e.target.value })} /></label>
           <label className="form-label">Payroll number<input className="field" autoComplete="off" value={form.payrollNumber} onChange={(e) => setForm({ ...form, payrollNumber: e.target.value })} /></label>
           <label className="form-label">Contracted hours per week<input autoComplete="off" className="field" type="number" min="0" max="168" step="0.25" value={form.contractedWeeklyHours} onChange={(e) => setForm({ ...form, contractedWeeklyHours: e.target.value })} /></label>
-          <label className="form-label">Hourly rate (£)<input autoComplete="off" className="field" type="number" min="0" step="0.01" value={form.hourlyRate} onChange={(e) => setForm({ ...form, hourlyRate: e.target.value })} /></label>
-          <label className="form-label full"><span><KeyRound size={16} /> {editing === "new" ? "Initial PIN" : "Reset PIN"}</span><input autoComplete="off" className="field" type="password" inputMode="numeric" pattern="\d{4,8}" placeholder={editing === "new" ? "4–8 digits (optional)" : "Leave blank to keep current PIN"} value={form.pin} onChange={(e) => setForm({ ...form, pin: e.target.value })} /></label>
+          <label className="form-label">Hourly rate (Â£)<input autoComplete="off" className="field" type="number" min="0" step="0.01" value={form.hourlyRate} onChange={(e) => setForm({ ...form, hourlyRate: e.target.value })} /></label>
+          <label className="form-label full"><span><KeyRound size={16} /> {editing === "new" ? "Initial PIN" : "Reset PIN"}</span><input autoComplete="off" className="field" type="password" inputMode="numeric" pattern="\d{4,8}" placeholder={editing === "new" ? "4â€“8 digits (optional)" : "Leave blank to keep current PIN"} value={form.pin} onChange={(e) => setForm({ ...form, pin: e.target.value })} /></label>
           <label className="form-label full">Restricted manager notes<textarea autoComplete="off" className="field" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></label>
           <label className="full"><input autoComplete="off" type="checkbox" checked={form.clockingEnabled} onChange={(e) => setForm({ ...form, clockingEnabled: e.target.checked })} /> Allow this staff member to clock in and out</label>
         </div>
@@ -120,3 +123,5 @@ export function StaffManager() {
     </div>}
   </>;
 }
+
+

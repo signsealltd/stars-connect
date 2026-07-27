@@ -1,4 +1,4 @@
-import { z } from "zod";
+﻿import { z } from "zod";
 
 export const staffUpdateSchema = z.object({
   firstName: z.string().trim().min(1).max(80).optional(),
@@ -7,6 +7,7 @@ export const staffUpdateSchema = z.object({
   email: z.email().max(191).optional(),
   phone: z.string().trim().max(40).nullable().optional(),
   jobRole: z.string().trim().min(1).max(100).optional(),
+  profilePhotoUrl: z.string().max(250000).nullable().optional(),
   startDate: z.string().date().optional(),
   endDate: z.string().date().or(z.literal("")).nullable().optional(),
   notes: z.string().trim().max(5000).nullable().optional(),

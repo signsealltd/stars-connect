@@ -1,7 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import "./kiosk-controls.css";
 import { ServiceWorkerRegistration } from "@/components/service-worker-registration";
 import { KioskIdleController } from "@/components/kiosk-idle-controller";
+import { KioskBatteryStatus } from "@/components/kiosk-battery-status";
 import { AppearanceController } from "@/components/appearance-controller";
 
 export const metadata: Metadata = {
@@ -27,5 +29,5 @@ export const viewport: Viewport = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return <html lang="en-GB"><body><AppearanceController/><ServiceWorkerRegistration /><KioskIdleController />{children}</body></html>;
+  return <html lang="en-GB"><body><AppearanceController/><ServiceWorkerRegistration /><KioskIdleController /><KioskBatteryStatus />{children}</body></html>;
 }

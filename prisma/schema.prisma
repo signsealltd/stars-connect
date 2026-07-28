@@ -204,6 +204,9 @@ model Device {
   tokenHash         String                   @unique @db.Char(64)
   status            DeviceStatus             @default(ACTIVE)
   appVersion        String?                  @db.VarChar(40)
+  batteryLevel      Int?
+  batteryCharging   Boolean?
+  batteryUpdatedAt  DateTime?
   lastSeenAt        DateTime?
   lastSyncAt        DateTime?
   syncRequestedAt   DateTime?

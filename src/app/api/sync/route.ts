@@ -20,6 +20,11 @@ const eventSchema = z.object({
 const bodySchema = z.object({ cursor: z.string().regex(/^\d+$/), events: z.array(eventSchema).max(250) });
 const attendanceStatusSchema = z.enum(["NOT_MARKED", "PRESENT", "ABSENT", "OFFSITE", "LATE", "CANCELLED"]);
 const attendancePhotoRoot = process.env.ATTENDANCE_PHOTO_STORAGE_PATH || path.join(process.cwd(), ".data", "attendance-photos");
+const batteryHeadersSchema = z.object({
+  level: z.coerce.number().int().min(0).max(100),
+  charging: z.enum(["true", "false"]).transform(value => value === "true"),
+  updatedAt: z.iso.datetime(),
+});
 
 async function authorise(req: NextRequest) {
   const id = req.headers.get("x-device-id");
@@ -170,9 +175,24 @@ export async function POST(req: NextRequest) {
   const after = BigInt(parsed.data.cursor);
   const updates = await prisma.syncEvent.findMany({ where: { sequence: { gt: after } }, orderBy: { sequence: "asc" }, take: 500 });
   const cursor = updates.at(-1)?.sequence ?? after;
+  const battery = batteryHeadersSchema.safeParse({
+    level: req.headers.get("x-battery-level"),
+    charging: req.headers.get("x-battery-charging"),
+    updatedAt: req.headers.get("x-battery-updated-at"),
+  });
   await prisma.device.update({
     where: { id: device.id },
-    data: { lastSeenAt: new Date(), lastSyncAt: new Date(), pendingEventCount: Math.max(0, parsed.data.events.length - acknowledged.length), currentCursor: cursor, appVersion: req.headers.get("x-app-version")?.slice(0,40) || device.appVersion },
+    data: {
+      lastSeenAt: new Date(), lastSyncAt: new Date(),
+      pendingEventCount: Math.max(0, parsed.data.events.length - acknowledged.length),
+      currentCursor: cursor,
+      appVersion: req.headers.get("x-app-version")?.slice(0,40) || device.appVersion,
+      ...(battery.success ? {
+        batteryLevel: battery.data.level,
+        batteryCharging: battery.data.charging,
+        batteryUpdatedAt: new Date(battery.data.updatedAt),
+      } : {}),
+    },
   });
   return NextResponse.json({
     acknowledged,

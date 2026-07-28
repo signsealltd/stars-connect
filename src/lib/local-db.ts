@@ -2,6 +2,7 @@ import { openDB, type DBSchema, type IDBPDatabase } from "idb";
 import type { LocalAttendance, LocalClockEvent, LocalStudent, LocalVisitorVisit, PendingChange } from "./types";
 import { normalizeVisitorName } from "./visitors";
 import { hasDeviceCredential,kioskSyncEligibility,safeSyncRejection,type SyncRejectionCategory } from "./kiosk-context";
+import { batterySyncHeaders } from "./battery-status";
 
 type LocalStaff = { id: string; displayName: string; currentState: "IN" | "OUT" };
 type RollCall = { id: string; startedAt: string; entries: Array<{ id:string;personType:string;personId:string;displayName:string;accountedFor:boolean }> };
@@ -253,6 +254,7 @@ async function performSync() {
         "x-device-id": localStorage.getItem("pulse-device-id")!,
         authorization: `Bearer ${localStorage.getItem("pulse-device-token")!}`,
         "x-app-version": process.env.NEXT_PUBLIC_APP_VERSION || "1.0.0",
+        ...batterySyncHeaders(localStorage),
       },
       body: JSON.stringify({ cursor, events: changes }),
     });

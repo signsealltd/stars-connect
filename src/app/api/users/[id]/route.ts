@@ -24,20 +24,20 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       await prisma.user.findUnique({ where: { email: parsed.data.email } })) {
       return jsonError("An account already uses that email address.", 409);
     }
-    const { password, ...data } = parsed.data;
+    const { password, permissionOverrides, ...data } = parsed.data;
     const user = await prisma.$transaction(async (tx) => {
       const updated = await tx.user.update({
         where: { id },
-        data: { ...data, ...(password ? { passwordHash: await bcrypt.hash(password, 12) } : {}) },
-        select: { id: true, name: true, email: true, role: true, active: true, createdAt: true },
+        data: { ...data, ...(permissionOverrides?{permissionOverrides}:{}), ...(password ? { passwordHash: await bcrypt.hash(password, 12) } : {}) },
+        select: { id: true, name: true, email: true, role: true, active: true, permissionOverrides:true, createdAt: true },
       });
-      if (password || data.active === false || data.role) await tx.session.deleteMany({ where: { userId: id } });
+      if (password || data.active === false || data.role || permissionOverrides) await tx.session.deleteMany({ where: { userId: id } });
       return updated;
     });
     await audit("USER_UPDATED", {
       actorType: "USER", actorId: actor.id, entityType: "User", entityId: id,
       beforeValue: { name: before.name, email: before.email, role: before.role, active: before.active },
-      afterValue: { name: user.name, email: user.email, role: user.role, active: user.active, passwordReset: Boolean(password) },
+      afterValue: { name: user.name, email: user.email, role: user.role, active: user.active, passwordReset: Boolean(password), permissionsChanged:Boolean(permissionOverrides) },
       ...requestContext(req),
     });
     return NextResponse.json(user);

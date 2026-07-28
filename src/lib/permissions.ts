@@ -1,4 +1,5 @@
 import type { Role, User } from "@prisma/client";
+import { redirect } from "next/navigation";
 import { getSession } from "./security";
 export const CAPABILITIES = { PAYROLL_REVIEW:"payroll.review",PAYROLL_APPROVE:"payroll.approve",BILLING_REVIEW:"billing.review",BILLING_APPROVE:"billing.approve",DOCUMENT_DOWNLOAD:"document.download",DAILY_REPORT_VIEW:"daily-report.view",REPORT_SETTINGS_MANAGE:"report-settings.manage",VISITOR_CONTACT_VIEW:"visitor-contact.view" } as const;
 export type Capability=typeof CAPABILITIES[keyof typeof CAPABILITIES];
@@ -16,3 +17,4 @@ export const capabilityOptions=[
 function overrides(value:unknown):Partial<Record<Capability,boolean>>{if(!value||typeof value!=="object"||Array.isArray(value))return{};return value as Partial<Record<Capability,boolean>>}
 export const hasCapability=(role:Role,capability:Capability,permissionOverrides?:unknown)=>overrides(permissionOverrides)[capability]??grants[role].has(capability);
 export async function requireCapability(capability:Capability):Promise<User>{const session=await getSession();if(!session||!session.user.active||!hasCapability(session.user.role,capability,session.user.permissionOverrides))throw new Error("UNAUTHORISED");return session.user;}
+export async function requirePageCapability(capability:Capability):Promise<User>{const session=await getSession();if(!session||!session.user.active)redirect("/login");if(!hasCapability(session.user.role,capability,session.user.permissionOverrides))redirect(`/access-denied?from=${encodeURIComponent(capability)}`);return session.user;}

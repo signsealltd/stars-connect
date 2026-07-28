@@ -20,7 +20,8 @@ describe("manager navigation permissions",()=>{
     expect(labels).not.toContain("Billing");
   });
   it("shows email to directors and device/user/audit controls only to administrators",()=>{
-    expect(managerNavForRole("DIRECTOR").flatMap(g=>g.items.map(i=>i.label))).toContain("Email");
+    expect(managerNavForRole("DIRECTOR").flatMap(g=>g.items.map(i=>i.label))).toEqual(expect.arrayContaining(["Email","Clocking Photographs"]));
+    expect(managerNavForRole("MANAGER").flatMap(g=>g.items.map(i=>i.label))).not.toContain("Clocking Photographs");
     const admin=managerNavForRole("ADMINISTRATOR").flatMap(g=>g.items.map(i=>i.label));
     expect(admin).toEqual(expect.arrayContaining(["Email","Devices","Users & Permissions","Audit Log"]));
   });

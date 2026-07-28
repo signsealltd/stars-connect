@@ -1,5 +1,5 @@
 import { Header } from "@/components/header";
-import { SimpleBillingProfiles } from "@/components/simple-billing-profiles";
+import { SimpleBillingProfilesV2 } from "@/components/simple-billing-profiles-v2";
 import { requireCapability, CAPABILITIES } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
@@ -11,6 +11,6 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
   return <main className="shell"><Header manager/><div className="content">
     <h1 className="page-title">Billing setup</h1>
     <p className="muted">Tell STARS Connect who pays for each service user and what rate to charge.</p>
-    <SimpleBillingProfiles initialStudentId={query.studentId} returnTo={safeReturn}/>
+    <SimpleBillingProfilesV2 initialStudentId={query.studentId} returnTo={safeReturn}/>
   </div></main>;
 }

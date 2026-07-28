@@ -39,4 +39,13 @@ describe("student emergency contacts and billing integration", () => {
     expect(component).toContain("not downloaded to kiosk tablets");
     expect(component).toContain("Set up billing when this student is saved");
   });
+
+  it("omits the billing object when inline billing is disabled", () => {
+    const component = source("src/components/student-manager-v2.tsx");
+    expect(component).toContain("canManageBilling && form.billing.enabled ? form.billing : undefined");
+    const createRoute = source("src/app/api/students/records/route.ts");
+    expect(createRoute).toContain("studentValidationMessage(parsed.error)");
+    const updateRoute = source("src/app/api/students/records/[id]/route.ts");
+    expect(updateRoute).toContain("studentValidationMessage(parsed.error)");
+  });
 });

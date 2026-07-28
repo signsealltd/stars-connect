@@ -84,7 +84,7 @@ export function StudentManagerV2() {
   async function save(event: React.FormEvent) {
     event.preventDefault(); setSaving(true); setError("");
     const isNew = editing === "new";
-    const body = { ...form, ...(canManageBilling ? {} : { billing: undefined }) };
+    const body = { ...form, billing: canManageBilling && form.billing.enabled ? form.billing : undefined };
     const response = await fetch(isNew ? "/api/students/records" : `/api/students/records/${(editing as Student).id}`, {
       method: isNew ? "POST" : "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(body),
     });

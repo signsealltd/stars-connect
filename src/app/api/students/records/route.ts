@@ -4,7 +4,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { withRole, jsonError, requestContext } from "@/lib/api";
 import { audit } from "@/lib/audit";
-import { directorRoles, emergencyContactFields, inlineBillingSchema, nullableEmergencyContacts } from "@/lib/student-management";
+import { directorRoles, emergencyContactFields, inlineBillingSchema, nullableEmergencyContacts, studentValidationMessage } from "@/lib/student-management";
 import { createInlineBillingProfile } from "@/lib/billing-profile-management";
 
 const schema = z.object({
@@ -59,7 +59,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   return withRole(req, "MANAGER", async user => {
     const parsed = schema.safeParse(await req.json().catch(() => null));
-    if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message || "Please check the student details.", fields: parsed.error.flatten().fieldErrors }, { status: 422 });
+    if (!parsed.success) return NextResponse.json({ error: studentValidationMessage(parsed.error), fields: parsed.error.flatten().fieldErrors }, { status: 422 });
     const { billing, ...input } = parsed.data;
     if (billing?.enabled && !directorRoles.has(user.role)) return jsonError("Only a director or administrator can configure billing.", 403);
     try {

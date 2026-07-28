@@ -31,4 +31,18 @@ export function nullableEmergencyContacts<T extends Record<string, unknown>>(dat
   return result;
 }
 
+const fieldLabels:Record<string,string>={
+  firstName:"first name",lastName:"surname",displayName:"display name",startDate:"start date",endDate:"end date",
+  expectedDays:"expected attendance days",fundingCategory:"funding category",fundingOrganisation:"funding organisation",
+  internalReference:"internal reference",notes:"manager notes",emergencyContactName:"emergency contact name",
+  emergencyContactRelationship:"emergency contact relationship",emergencyContactPhone:"emergency contact telephone",
+  emergencyContactAlternativePhone:"alternative emergency telephone",emergencyContactEmail:"emergency contact email",
+  emergencyContactNotes:"emergency contact notes",billing:"billing setup",payerName:"billing payer name",
+  billingAddress:"invoice address",billingEmail:"invoice email",activeFrom:"billing start date",rate:"billing rate",
+};
+export function studentValidationMessage(error:z.ZodError){
+  const issue=error.issues[0],key=String(issue?.path.at(-1)||""),label=fieldLabels[key]||key;
+  return label?`Check ${label}: ${issue?.message||"invalid value"}.`:"Please check the student details.";
+}
+
 export const directorRoles = new Set(["DIRECTOR", "ADMINISTRATOR"]);

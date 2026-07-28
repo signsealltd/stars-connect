@@ -1,7 +1,9 @@
 import { PrismaClient, Role, AttendanceStatus, ClockEventType } from "@prisma/client";
 import bcrypt from "bcryptjs";
-import { createHash, randomUUID } from "crypto";
+import { createHash, randomInt, randomUUID } from "crypto";
+import { disposableSeedContext } from "../scripts/seed-safety";
 
+const seedContext = disposableSeedContext(process.env);
 const prisma = new PrismaClient();
 const hash = (value:string) => createHash("sha256").update(value).digest("hex");
 const staffNames = ["Amelia Hart","Ben Carter","Chloe Martin","Daniel Reed","Ella Brooks","Finley Ward","Grace Cooper","Harry Evans","Isla Turner","Jack Collins"];
@@ -9,37 +11,39 @@ const studentNames = ["Ava Wilson","Blake Taylor","Casey Moore","Daisy Lewis","E
 
 async function main() {
   for (const [email,name,role] of [
-    ["admin@starsconnect.test","Alex Admin",Role.ADMINISTRATOR],
-    ["director@starsconnect.test","Dana Director",Role.DIRECTOR],
-    ["manager@starsconnect.test","Morgan Manager",Role.MANAGER],
-    ["reception@starsconnect.test","Riley Reception",Role.RECEPTION],
+    ["admin@starsconnect.test","Synthetic Admin",Role.ADMINISTRATOR],
+    ["director@starsconnect.test","Synthetic Director",Role.DIRECTOR],
+    ["manager@starsconnect.test","Synthetic Manager",Role.MANAGER],
+    ["reception@starsconnect.test","Synthetic Reception",Role.RECEPTION],
   ] as const) {
     await prisma.user.upsert({
       where:{email},
       update:{name,role,active:true},
-      create:{email,name,role,passwordHash:await bcrypt.hash("ChangeMe!123",12)},
+      create:{email,name,role,passwordHash:await bcrypt.hash(seedContext.generatedPassword,12)},
     });
   }
 
   const devices = [];
-  for (const [index,name] of ["Reception Tablet","Activity Room Tablet"].entries()) {
-    const token = `development-tablet-token-${index + 1}-change-before-production`;
+  for (const name of ["[SYNTHETIC] Reception Tablet","[SYNTHETIC] Activity Room Tablet"]) {
+    const token = seedContext.generatedDeviceToken();
     const tokenHash = hash(token);
     const existing = await prisma.device.findUnique({where:{tokenHash}});
     devices.push(existing ? await prisma.device.update({where:{id:existing.id},data:{name,isSeedData:true,status:"REVOKED",revokedAt:existing.revokedAt||new Date(),pendingEventCount:0}}) : await prisma.device.create({data:{name,tokenHash,appVersion:"1.0.0",tokenRotatedAt:new Date(),isSeedData:true,status:"REVOKED",revokedAt:new Date()}}));
-    console.log(`${name} development token: ${token}`);
   }
 
   const staff = [];
+  const allocatedPins = new Set<string>();
   for (let i=0;i<staffNames.length;i++) {
     const [firstName,lastName] = staffNames[i].split(" ");
     const email = `${firstName.toLowerCase()}.${lastName.toLowerCase()}@example.test`;
     const member = await prisma.staffMember.upsert({
       where:{email},
       update:{displayName:staffNames[i],active:true,clockingEnabled:true,payrollNumber:`PAY-${String(i+1).padStart(3,"0")}`},
-      create:{firstName,lastName,displayName:staffNames[i],email,jobRole:i<2?"Team Leader":"Support Worker",startDate:new Date("2024-01-08"),contractedWeeklyHours:35,payrollNumber:`PAY-${String(i+1).padStart(3,"0")}`},
+      create:{firstName,lastName,displayName:staffNames[i],email,notes:"SYNTHETIC DISPOSABLE TEST RECORD",jobRole:i<2?"Team Leader":"Support Worker",startDate:new Date("2024-01-08"),contractedWeeklyHours:35,payrollNumber:`PAY-${String(i+1).padStart(3,"0")}`},
     });
-    const pin = String(4101+i);
+    let pin: string;
+    do pin = String(randomInt(1000, 10000)); while (allocatedPins.has(pin));
+    allocatedPins.add(pin);
     const lookupHash = hash(pin);
     const credential = await prisma.staffCredential.findFirst({where:{staffId:member.id,kind:"PIN",lookupHash}});
     if (!credential) await prisma.staffCredential.create({data:{staffId:member.id,kind:"PIN",valueHash:await bcrypt.hash(pin,12),lookupHash}});
@@ -53,7 +57,7 @@ async function main() {
     students.push(await prisma.student.upsert({
       where:{internalReference},
       update:{displayName:studentNames[i],active:true,billingReference:`BILL-${String(i+1).padStart(3,"0")}`},
-      create:{firstName,lastName,displayName:studentNames[i],expectedDays:[1,2,3,4,5],active:true,startDate:new Date("2024-09-02"),internalReference,fundingCategory:i%2?"Local authority":"Direct payment",fundingOrganisation:"Example Council",billingReference:`BILL-${String(i+1).padStart(3,"0")}`},
+      create:{firstName,lastName,displayName:studentNames[i],notes:"SYNTHETIC DISPOSABLE TEST RECORD",expectedDays:[1,2,3,4,5],active:true,startDate:new Date("2024-09-02"),internalReference,fundingCategory:i%2?"Local authority":"Direct payment",fundingOrganisation:"Example Council",billingReference:`BILL-${String(i+1).padStart(3,"0")}`},
     }));
   }
 
@@ -83,7 +87,7 @@ async function main() {
     visitorRecordRetentionDays:730,visitorSignatureRetentionDays:30,visitorPhoneRetentionDays:30,attendanceRetentionDays:2555,generatedReportRetentionDays:2555,payrollDocumentRetentionDays:2555,invoiceRetentionDays:2555,invoicePrefix:"STARS",organisationLegalName:"STARS Day Service",organisationAddress:"",companyNumber:"",vatNumber:"",bankDetails:"",remittanceInstructions:"",defaultPaymentTerms:"Payment is due by the date shown.",
   })) await prisma.appSetting.upsert({where:{key},update:{},create:{key,value}});
 
-  console.log("Seed complete. Fake logins use ChangeMe!123; development staff PINs are 4101–4110.");
+  console.log("Synthetic disposable seed completed. Credentials are intentionally not printed.");
 }
 
 main().finally(()=>prisma.$disconnect());

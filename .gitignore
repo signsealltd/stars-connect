@@ -5,6 +5,8 @@ node_modules
 coverage
 *.log
 public/uploads
+/output/
+/tmp/
 
 .data/
 *.tsbuildinfo

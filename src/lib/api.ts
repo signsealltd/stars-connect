@@ -1,13 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { Role, User } from "@prisma/client";
-import { requireRole } from "./security";
+import { AccessError, requireRole } from "./security";
 import { audit } from "./audit";
 
 export function requestContext(req: NextRequest) {
-  return {
-    ipAddress: req.headers.get("x-forwarded-for")?.split(",")[0]?.trim(),
-    userAgent: req.headers.get("user-agent")?.slice(0, 500),
-  };
+  const hops = Number.parseInt(process.env.TRUSTED_PROXY_HOPS ?? "0", 10);
+  const forwarded = req.headers.get("x-forwarded-for")?.split(",").map(value => value.trim()).filter(Boolean) ?? [];
+  const ipAddress = Number.isInteger(hops) && hops > 0 && forwarded.length >= hops ? forwarded[forwarded.length - hops] : undefined;
+  return { ipAddress, userAgent: req.headers.get("user-agent")?.slice(0, 500) };
+}
+
+export function mutationOriginAllowed(req: NextRequest) {
+  if (["GET", "HEAD", "OPTIONS"].includes(req.method)) return true;
+  const origin = req.headers.get("origin");
+  if (!origin) return process.env.NODE_ENV !== "production";
+  try {
+    const expected = new URL(process.env.APP_URL ?? req.nextUrl.origin);
+    const actual = new URL(origin);
+    return actual.protocol === expected.protocol && actual.host === expected.host;
+  } catch { return false; }
 }
 
 export async function withRole(
@@ -15,6 +26,7 @@ export async function withRole(
   role: Role,
   handler: (user: User) => Promise<NextResponse>,
 ) {
+  if (!mutationOriginAllowed(req)) return NextResponse.json({ error: "Request origin was rejected." }, { status: 403 });
   try {
     const user = await requireRole(role);
     return await handler(user);
@@ -24,10 +36,10 @@ export async function withRole(
       ...requestContext(req),
       afterValue: { requiredRole: role, path: req.nextUrl.pathname },
     });
-    return NextResponse.json(
-      { error: error instanceof Error && error.message === "UNAUTHORISED" ? "You do not have permission to do that." : "Request failed." },
-      { status: error instanceof Error && error.message === "UNAUTHORISED" ? 403 : 500 },
-    );
+    if (error instanceof AccessError) {
+      return NextResponse.json({ error: error.status === 401 ? "Please sign in." : "You do not have permission to do that." }, { status: error.status });
+    }
+    return NextResponse.json({ error: "Request failed." }, { status: 500 });
   }
 }
 

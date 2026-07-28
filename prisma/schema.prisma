@@ -92,12 +92,13 @@ model User {
 }
 
 model Session {
-  id        String   @id @default(uuid()) @db.Char(36)
-  tokenHash String   @unique @db.Char(64)
-  userId    String   @db.Char(36)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  expiresAt DateTime
-  createdAt DateTime @default(now())
+  id         String   @id @default(uuid()) @db.Char(36)
+  tokenHash  String   @unique @db.Char(64)
+  userId     String   @db.Char(36)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt  DateTime
+  lastSeenAt DateTime @default(now())
+  createdAt  DateTime @default(now())
 
   @@index([userId])
 }

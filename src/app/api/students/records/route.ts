@@ -4,7 +4,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { withRole, jsonError, requestContext } from "@/lib/api";
 import { audit } from "@/lib/audit";
-import { directorRoles, emergencyContactFields, inlineBillingSchema, nullableEmergencyContacts, studentValidationMessage } from "@/lib/student-management";
+import { directorRoles, emergencyContactFields, inlineBillingSchema, nullableEmergencyContacts, optionalBillingProfileIdSchema, studentValidationMessage } from "@/lib/student-management";
 import { createInlineBillingProfile } from "@/lib/billing-profile-management";
 
 const schema = z.object({
@@ -19,7 +19,7 @@ const schema = z.object({
   internalReference: z.string().trim().max(100).optional().or(z.literal("")),
   notes: z.string().trim().max(5000).optional().or(z.literal("")),
   ...emergencyContactFields,
-  billing: inlineBillingSchema.extend({ profileId: z.string().uuid().optional() }).optional(),
+  billing: inlineBillingSchema.extend({ profileId: optionalBillingProfileIdSchema }).optional(),
 }).refine(data => !data.endDate || data.endDate >= data.startDate, {
   message: "The end date cannot be before the start date.",
   path: ["endDate"],

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
+import { optionalBillingProfileIdSchema } from "./student-management";
 
 const source = (file: string) => readFileSync(file, "utf8");
 
@@ -42,10 +43,18 @@ describe("student emergency contacts and billing integration", () => {
 
   it("omits the billing object when inline billing is disabled", () => {
     const component = source("src/components/student-manager-v2.tsx");
-    expect(component).toContain("canManageBilling && form.billing.enabled ? form.billing : undefined");
+    expect(component).toContain("const billing = canManageBilling && form.billing.enabled");
     const createRoute = source("src/app/api/students/records/route.ts");
     expect(createRoute).toContain("studentValidationMessage(parsed.error)");
     const updateRoute = source("src/app/api/students/records/[id]/route.ts");
     expect(updateRoute).toContain("studentValidationMessage(parsed.error)");
+  });
+  it("normalises an empty new-student billing profile id instead of rejecting the form", () => {
+    expect(optionalBillingProfileIdSchema.parse("")).toBeUndefined();
+    expect(optionalBillingProfileIdSchema.parse(null)).toBeUndefined();
+    expect(optionalBillingProfileIdSchema.parse("0191b0ea-d4b8-48ca-ae5f-8ec270b44763"))
+      .toBe("0191b0ea-d4b8-48ca-ae5f-8ec270b44763");
+    const component = source("src/components/student-manager-v2.tsx");
+    expect(component).toContain("profileId: form.billing.profileId || undefined");
   });
 });

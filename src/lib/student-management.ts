@@ -14,6 +14,10 @@ export const inlineBillingSchema = z.object({
   rate: z.number().nonnegative(),
 });
 
+export const optionalBillingProfileIdSchema = z.preprocess(
+  value => value === "" || value === null ? undefined : value,
+  z.string().uuid().optional(),
+);
 export const emergencyContactFields = {
   emergencyContactName: optionalText(120),
   emergencyContactRelationship: optionalText(80),

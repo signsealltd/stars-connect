@@ -3,7 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { withRole, jsonError, requestContext } from "@/lib/api";
 import { audit } from "@/lib/audit";
-import { directorRoles, emergencyContactFields, inlineBillingSchema, nullableEmergencyContacts, studentValidationMessage } from "@/lib/student-management";
+import { directorRoles, emergencyContactFields, inlineBillingSchema, nullableEmergencyContacts, optionalBillingProfileIdSchema, studentValidationMessage } from "@/lib/student-management";
 import { createInlineBillingProfile, updateInlineBillingProfile } from "@/lib/billing-profile-management";
 
 const schema = z.object({
@@ -19,7 +19,7 @@ const schema = z.object({
   notes: z.string().trim().max(5000).optional().or(z.literal("")),
   ...emergencyContactFields,
   active: z.boolean().optional(),
-  billing: inlineBillingSchema.extend({ profileId: z.string().uuid().optional() }).optional(),
+  billing: inlineBillingSchema.extend({ profileId: optionalBillingProfileIdSchema }).optional(),
 });
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

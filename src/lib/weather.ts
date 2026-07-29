@@ -55,13 +55,19 @@ export function weatherCondition(code: number) {
   return "Cloudy";
 }
 
+function geocodingCandidates(location: string) {
+  const normalized = location.trim().replace(/\s+/g, " ");
+  const locality = normalized.split(",")[0]?.trim() ?? normalized;
+  const withoutLondonQualifier = locality
+    .replace(/\s+(?:in\s+)?(?:greater\s+)?london$/i, "")
+    .trim();
+
+  return [normalized, locality, withoutLondonQualifier]
+    .filter((candidate, index, values) => Boolean(candidate) && values.indexOf(candidate) === index);
+}
+
 async function geocodeLocation(location: string, fetcher: typeof fetch) {
-  const candidates = [
-    location.trim(),
-    location.split(",")[0]?.trim(),
-  ].filter((candidate, index, values): candidate is string =>
-    Boolean(candidate) && values.indexOf(candidate) === index
-  );
+  const candidates = geocodingCandidates(location);
 
   for (const candidate of candidates) {
     const query = new URLSearchParams({ name: candidate, count: "1", language: "en", format: "json", countryCode: "GB" });

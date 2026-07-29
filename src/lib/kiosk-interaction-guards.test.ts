@@ -40,9 +40,10 @@ describe("kiosk-only interaction guards", () => {
   });
 
   it("uses perceptible constellation drift and twinkling with reduced-motion support", () => {
-    expect(globals).toContain("animation:constellation-drift 38s");
+    expect(globals).toContain("animation:constellation-layer-drift 24s");
+    expect(globals).toContain("opacity:calc(.25 + (.75 * var(--star-intensity)))");
     expect(globals).toContain("animation:constellation-twinkle 4.8s");
-    expect(globals).toContain(".constellation-drift,.idle-constellation circle,.idle-content{animation:none!important}");
+    expect(globals).toContain(".idle-constellation,.idle-constellation circle,.idle-content{animation:none!important}");
   });
 
   it("keeps the device status bar behind the full-screen idle screensaver", () => {

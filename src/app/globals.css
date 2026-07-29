@@ -69,7 +69,8 @@ a { color: inherit; }
 .meta-bar { display: flex; flex-wrap: wrap; gap: 12px 22px; align-items: center; margin-top: 28px; padding: 18px 20px; }
 .keypad { max-width: 480px; margin: 24px auto; grid-template-columns: repeat(3, 1fr); }
 .key { height: 82px; border: 1px solid var(--border); background: white; border-radius: 16px; font-size: 29px; font-weight: 750; cursor: pointer; }
-.pin-dots { height: 50px; display: flex; justify-content: center; gap: 15px; }
+.pin-submit,.pin-submit:disabled{background:var(--primary);color:white;border-color:var(--primary);opacity:1}.pin-submit:disabled{opacity:.5}
+  .pin-dots { height: 50px; display: flex; justify-content: center; gap: 15px; }
 .pin-dots i { width: 16px; height: 16px; border-radius: 50%; background: #ddd6df; }
 .pin-dots i.on { background: var(--primary); }
 .register-row { display: grid; grid-template-columns: minmax(180px, 1fr) repeat(5, minmax(76px, auto)); gap: 8px; align-items: center; padding: 14px; border-bottom: 1px solid var(--border); }

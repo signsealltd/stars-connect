@@ -361,6 +361,7 @@ model ClockEvent {
   offlineRecorded  Boolean           @default(false)
   photoStatus      PhotoStatus       @default(NOT_REQUIRED)
   reviewRequired   Boolean           @default(false)
+  transportDuty    Boolean           @default(false)
   photos           AttendancePhoto[]
   corrections      ClockCorrection[]
   createdAt        DateTime          @default(now())
@@ -583,6 +584,10 @@ model PayrollEntry {
   trainingMinutes     Int           @default(0)
   unpaidMinutes       Int           @default(0)
   adjustmentMinutes   Int           @default(0)
+  originalMinutes     Int           @default(0)
+  transportMinutes    Int           @default(0)
+  preRoundedMinutes   Int           @default(0)
+  roundingMinutes     Int           @default(0)
   totalPayableMinutes Int           @default(0)
   exceptionCount      Int           @default(0)
   exceptionStatus     String        @default("CLEAR") @db.VarChar(30)

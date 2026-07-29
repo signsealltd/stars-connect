@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-type Row = { id: string; name: string; minutes: number; missingClockOut: boolean; openClockInAt?: string };
+type Row = { id: string; name: string; minutes: number; missingClockOut: boolean; openClockInAt?: string; transportDuty?: boolean };
 
 export function TimesheetManager({ initialRows }: { initialRows: Row[] }) {
   const [rows, setRows] = useState(initialRows);
@@ -50,7 +50,7 @@ export function TimesheetManager({ initialRows }: { initialRows: Row[] }) {
     <section className="card">
       {rows.length ? rows.map(row =>
         <div className="register-row timesheet-row" style={{ gridTemplateColumns: "1fr 150px 170px 180px" }} key={row.id}>
-          <b>{row.name}</b>
+          <b>{row.transportDuty ? "🚌 " : ""}{row.name}</b>
           <span>{Math.floor(row.minutes / 60)}h {row.minutes % 60}m</span>
           <span style={{ color: row.missingClockOut ? "#b53b3b" : "#177e59" }}>{row.missingClockOut ? "Missing clock-out" : "Complete"}</span>
           <span>{row.missingClockOut ? <button className="btn secondary" onClick={() => open(row)}>Clock out staff</button> : "—"}</span>

@@ -31,6 +31,7 @@ export default async function Timesheets() {
       minutes: total.minutes,
       missingClockOut: Boolean(open),
       openClockInAt: open?.deviceTimestamp.toISOString(),
+      transportDuty: member.clockEvents.some(event => event.transportDuty),
     };
   });
   return <main className="shell">

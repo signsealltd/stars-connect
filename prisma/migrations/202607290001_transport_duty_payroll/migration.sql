@@ -1,0 +1,8 @@
+ALTER TABLE `ClockEvent`
+  ADD COLUMN `transportDuty` BOOLEAN NOT NULL DEFAULT false;
+
+ALTER TABLE `PayrollEntry`
+  ADD COLUMN `originalMinutes` INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN `transportMinutes` INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN `preRoundedMinutes` INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN `roundingMinutes` INTEGER NOT NULL DEFAULT 0;

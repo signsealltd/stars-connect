@@ -86,6 +86,7 @@ export async function POST(req: NextRequest) {
                 type: String(p.type) as ClockEventType, deviceTimestamp: timestamp,
                 offlineRecorded: Boolean(p.offlineRecorded),
                 photoStatus: String(p.photoStatus || "NOT_REQUIRED") as PhotoStatus,
+                transportDuty: Boolean(p.transportDuty),
               },
             });
             if (photoBuffer) {

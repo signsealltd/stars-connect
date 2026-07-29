@@ -9,6 +9,6 @@ export default async function Page() {
   return <main className="shell"><Header manager/><div className="content">
     <h1 className="page-title">Payroll</h1>
     <p className="muted">Choose a period, check any warnings, then approve and download the accountant-ready files.</p>
-    <SimpleFinanceConsole mode="payroll"/>
+    <div className="toolbar"><a className="btn secondary" href="/dashboard/payroll/transport">Transport setup</a></div><SimpleFinanceConsole mode="payroll"/>
   </div></main>;
 }

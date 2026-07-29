@@ -55,21 +55,37 @@ export function weatherCondition(code: number) {
   return "Cloudy";
 }
 
+async function geocodeLocation(location: string, fetcher: typeof fetch) {
+  const candidates = [
+    location.trim(),
+    location.split(",")[0]?.trim(),
+  ].filter((candidate, index, values): candidate is string =>
+    Boolean(candidate) && values.indexOf(candidate) === index
+  );
+
+  for (const candidate of candidates) {
+    const query = new URLSearchParams({ name: candidate, count: "1", language: "en", format: "json", countryCode: "GB" });
+    let response: Response;
+    try {
+      response = await fetcher(`https://geocoding-api.open-meteo.com/v1/search?${query}`, {
+        headers: { accept: "application/json" },
+        signal: AbortSignal.timeout(8000),
+      });
+    } catch (error) {
+      throw new WeatherUpstreamError(error instanceof DOMException && error.name === "TimeoutError" ? "upstream-timeout" : "upstream-unavailable");
+    }
+    if (!response.ok) throw new WeatherUpstreamError("upstream-unavailable");
+    const place = geocodingResponse.parse(await response.json()).results?.[0];
+    if (place) return place;
+  }
+
+  throw new WeatherLocationError("geocoding-not-found");
+}
+
 export async function loadCurrentWeather(location: string, fetcher: typeof fetch = fetch): Promise<CurrentWeather> {
   if (!location.trim()) throw new WeatherLocationError("location-missing");
-  const query = new URLSearchParams({ name: location, count: "1", language: "en", format: "json", countryCode: "GB" });
-  let geocoding: Response;
-  try {
-    geocoding = await fetcher(`https://geocoding-api.open-meteo.com/v1/search?${query}`, {
-      headers: { accept: "application/json" },
-      signal: AbortSignal.timeout(8000),
-    });
-  } catch (error) {
-    throw new WeatherUpstreamError(error instanceof DOMException && error.name === "TimeoutError" ? "upstream-timeout" : "upstream-unavailable");
-  }
-  if (!geocoding.ok) throw new WeatherUpstreamError("upstream-unavailable");
-  const place = geocodingResponse.parse(await geocoding.json()).results?.[0];
-  if (!place) throw new WeatherLocationError("geocoding-not-found");
+
+  const place = await geocodeLocation(location, fetcher);
 
   const forecastQuery = new URLSearchParams({
     latitude: String(place.latitude),

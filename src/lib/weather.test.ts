@@ -40,6 +40,30 @@ describe("screensaver weather", () => {
     });
   });
 
+  it("falls back to the locality when a comma-qualified UK location has no exact match", async () => {
+    const fetcher = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ results: [] })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        results: [{ name: "Enfield", latitude: 51.65147, longitude: -0.08497, admin1: "England" }],
+      })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        current: {
+          time: "2026-07-29T15:15",
+          temperature_2m: 22,
+          apparent_temperature: 21,
+          weather_code: 1,
+          is_day: 1,
+        },
+      })));
+
+    const result = await loadCurrentWeather("Enfield, London", fetcher);
+
+    expect(fetcher).toHaveBeenCalledTimes(3);
+    expect(new URL(String(fetcher.mock.calls[0][0])).searchParams.get("name")).toBe("Enfield, London");
+    expect(new URL(String(fetcher.mock.calls[1][0])).searchParams.get("name")).toBe("Enfield");
+    expect(result.location).toBe("Enfield");
+  });
+
   it("fails safely when the configured location is not found", async () => {
     const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({ results: [] })));
     await expect(loadCurrentWeather("Invalid synthetic location", fetcher)).rejects.toThrow("geocoding-not-found");

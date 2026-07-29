@@ -1,0 +1,63 @@
+name: Remediation quality gate
+
+on:
+  pull_request:
+  push:
+    branches:
+      - "codex/**"
+      - "backup/pre-remediation-*"
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      NODE_ENV: test
+      DATABASE_URL: mysql://stars_test:stars_test@mariadb:3306/stars_connect_test
+      DISPOSABLE_DATABASE_ACKNOWLEDGEMENT: STARS_CONNECT_TEST_ONLY
+    services:
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_DATABASE: stars_connect_test
+          MARIADB_USER: stars_test
+          MARIADB_PASSWORD: stars_test
+          MARIADB_ROOT_PASSWORD: root_test_only
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npx prisma format --check
+      - run: npx prisma validate
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - run: npm audit --omit=dev --audit-level=high
+
+  secrets:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2

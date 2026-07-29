@@ -77,18 +77,18 @@ enum EmailStatus {
 }
 
 model User {
-  id              String            @id @default(uuid()) @db.Char(36)
-  email           String            @unique @db.VarChar(191)
-  name            String            @db.VarChar(120)
-  passwordHash    String
-  role            Role
-  active          Boolean           @default(true)
+  id                  String            @id @default(uuid()) @db.Char(36)
+  email               String            @unique @db.VarChar(191)
+  name                String            @db.VarChar(120)
+  passwordHash        String
+  role                Role
+  active              Boolean           @default(true)
   permissionOverrides Json?
-  sessions        Session[]
-  corrections     ClockCorrection[]
-  visitorSignOuts VisitorVisit[]    @relation("VisitorSignedOutBy")
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
+  sessions            Session[]
+  corrections         ClockCorrection[]
+  visitorSignOuts     VisitorVisit[]    @relation("VisitorSignedOutBy")
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
 }
 
 model Session {
@@ -103,34 +103,33 @@ model Session {
 }
 
 model StaffMember {
-  id                    String            @id @default(uuid()) @db.Char(36)
-  firstName             String            @db.VarChar(80)
-  lastName              String            @db.VarChar(80)
-  displayName           String            @db.VarChar(120)
-  email                 String            @unique @db.VarChar(191)
-  phone                 String?           @db.VarChar(40)
-  jobRole               String            @db.VarChar(100)
-  profilePhotoUrl       String?           @db.Text
-  contractedWeeklyHours Decimal?          @db.Decimal(5, 2)
-  hourlyRate            Decimal?          @db.Decimal(10, 2)
-  payrollNumber         String?           @unique @db.VarChar(80)
-  active                Boolean           @default(true)
-  clockingEnabled       Boolean           @default(true)
-  sortOrder             Int               @default(0)
-  cameraRequired        Boolean           @default(false)
-  startDate             DateTime          @db.Date
-  endDate               DateTime?         @db.Date
-  notes                 String?           @db.Text
+  id                    String                @id @default(uuid()) @db.Char(36)
+  firstName             String                @db.VarChar(80)
+  lastName              String                @db.VarChar(80)
+  displayName           String                @db.VarChar(120)
+  email                 String                @unique @db.VarChar(191)
+  phone                 String?               @db.VarChar(40)
+  jobRole               String                @db.VarChar(100)
+  profilePhotoUrl       String?               @db.Text
+  contractedWeeklyHours Decimal?              @db.Decimal(5, 2)
+  hourlyRate            Decimal?              @db.Decimal(10, 2)
+  payrollNumber         String?               @unique @db.VarChar(80)
+  active                Boolean               @default(true)
+  clockingEnabled       Boolean               @default(true)
+  sortOrder             Int                   @default(0)
+  cameraRequired        Boolean               @default(false)
+  startDate             DateTime              @db.Date
+  endDate               DateTime?             @db.Date
+  notes                 String?               @db.Text
   credentials           StaffCredential[]
   clockEvents           ClockEvent[]
   trainingRecords       StaffTrainingRecord[]
-  createdAt             DateTime          @default(now())
-  updatedAt             DateTime          @updatedAt
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
   archivedAt            DateTime?
 
   @@index([active, displayName])
 }
-
 
 model StaffTrainingRecord {
   id                   String      @id @default(uuid()) @db.Char(36)
@@ -153,6 +152,7 @@ model StaffTrainingRecord {
   @@index([expiryDate, active])
   @@index([courseName])
 }
+
 model StaffCredential {
   id         String         @id @default(uuid()) @db.Char(36)
   staffId    String         @db.Char(36)
@@ -169,31 +169,31 @@ model StaffCredential {
 }
 
 model Student {
-  id                  String              @id @default(uuid()) @db.Char(36)
-  firstName           String              @db.VarChar(80)
-  lastName            String              @db.VarChar(80)
-  displayName         String              @db.VarChar(120)
-  profilePhotoUrl     String?             @db.VarChar(500)
-  expectedDays        Json
-  active              Boolean             @default(true)
-  sortOrder           Int                 @default(0)
-  startDate           DateTime            @db.Date
-  endDate             DateTime?           @db.Date
-  fundingCategory     String?             @db.VarChar(100)
-  fundingOrganisation String?             @db.VarChar(191)
-  internalReference   String?             @unique @db.VarChar(100)
-  billingReference    String?             @db.VarChar(100)
-  emergencyContactName             String? @db.VarChar(120)
-  emergencyContactRelationship     String? @db.VarChar(80)
-  emergencyContactPhone            String? @db.VarChar(40)
-  emergencyContactAlternativePhone String? @db.VarChar(40)
-  emergencyContactEmail            String? @db.VarChar(191)
-  emergencyContactNotes            String? @db.Text
-  notes               String?             @db.Text
-  attendance          StudentAttendance[]
-  createdAt           DateTime            @default(now())
-  updatedAt           DateTime            @updatedAt
-  archivedAt          DateTime?
+  id                               String              @id @default(uuid()) @db.Char(36)
+  firstName                        String              @db.VarChar(80)
+  lastName                         String              @db.VarChar(80)
+  displayName                      String              @db.VarChar(120)
+  profilePhotoUrl                  String?             @db.VarChar(500)
+  expectedDays                     Json
+  active                           Boolean             @default(true)
+  sortOrder                        Int                 @default(0)
+  startDate                        DateTime            @db.Date
+  endDate                          DateTime?           @db.Date
+  fundingCategory                  String?             @db.VarChar(100)
+  fundingOrganisation              String?             @db.VarChar(191)
+  internalReference                String?             @unique @db.VarChar(100)
+  billingReference                 String?             @db.VarChar(100)
+  emergencyContactName             String?             @db.VarChar(120)
+  emergencyContactRelationship     String?             @db.VarChar(80)
+  emergencyContactPhone            String?             @db.VarChar(40)
+  emergencyContactAlternativePhone String?             @db.VarChar(40)
+  emergencyContactEmail            String?             @db.VarChar(191)
+  emergencyContactNotes            String?             @db.Text
+  notes                            String?             @db.Text
+  attendance                       StudentAttendance[]
+  createdAt                        DateTime            @default(now())
+  updatedAt                        DateTime            @updatedAt
+  archivedAt                       DateTime?
 
   @@index([active, displayName])
 }
@@ -822,23 +822,23 @@ model ScheduledJobRun {
 }
 
 model PremisesAsset {
-  id              String                    @id @default(uuid()) @db.Char(36)
-  name            String                    @db.VarChar(191)
-  category        String                    @db.VarChar(60)
-  location        String?                   @db.VarChar(191)
-  manufacturer    String?                   @db.VarChar(120)
-  model           String?                   @db.VarChar(120)
-  serialNumber    String?                   @db.VarChar(120)
-  responsibleName String?                   @db.VarChar(120)
-  serviceProvider String?                   @db.VarChar(191)
+  id              String                     @id @default(uuid()) @db.Char(36)
+  name            String                     @db.VarChar(191)
+  category        String                     @db.VarChar(60)
+  location        String?                    @db.VarChar(191)
+  manufacturer    String?                    @db.VarChar(120)
+  model           String?                    @db.VarChar(120)
+  serialNumber    String?                    @db.VarChar(120)
+  responsibleName String?                    @db.VarChar(120)
+  serviceProvider String?                    @db.VarChar(191)
   recurrenceDays  Int?
-  nextDueDate     DateTime?                 @db.Date
-  active          Boolean                   @default(true)
-  notes           String?                   @db.Text
-  createdById     String                    @db.Char(36)
-  updatedById     String                    @db.Char(36)
-  createdAt       DateTime                  @default(now())
-  updatedAt       DateTime                  @updatedAt
+  nextDueDate     DateTime?                  @db.Date
+  active          Boolean                    @default(true)
+  notes           String?                    @db.Text
+  createdById     String                     @db.Char(36)
+  updatedById     String                     @db.Char(36)
+  createdAt       DateTime                   @default(now())
+  updatedAt       DateTime                   @updatedAt
   inspections     PremisesInspection[]
   actions         PremisesCorrectiveAction[]
   documents       PremisesDocument[]
@@ -890,22 +890,22 @@ model PremisesCorrectiveAction {
 }
 
 model PremisesDocument {
-  id             String          @id @default(uuid()) @db.Char(36)
-  assetId        String?         @db.Char(36)
-  asset          PremisesAsset?  @relation(fields: [assetId], references: [id], onDelete: SetNull)
-  title          String          @db.VarChar(191)
-  documentType   String          @db.VarChar(60)
-  reference      String?         @db.VarChar(191)
-  provider       String?         @db.VarChar(191)
-  issuedDate     DateTime?       @db.Date
-  expiryDate     DateTime?       @db.Date
-  documentUrl    String?         @db.VarChar(500)
-  notes          String?         @db.Text
-  active         Boolean         @default(true)
-  createdById    String          @db.Char(36)
-  updatedById    String          @db.Char(36)
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  id           String         @id @default(uuid()) @db.Char(36)
+  assetId      String?        @db.Char(36)
+  asset        PremisesAsset? @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  title        String         @db.VarChar(191)
+  documentType String         @db.VarChar(60)
+  reference    String?        @db.VarChar(191)
+  provider     String?        @db.VarChar(191)
+  issuedDate   DateTime?      @db.Date
+  expiryDate   DateTime?      @db.Date
+  documentUrl  String?        @db.VarChar(500)
+  notes        String?        @db.Text
+  active       Boolean        @default(true)
+  createdById  String         @db.Char(36)
+  updatedById  String         @db.Char(36)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
 
   @@index([documentType, active])
   @@index([expiryDate, active])

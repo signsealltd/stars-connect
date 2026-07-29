@@ -1,3 +1,47 @@
-import{Header}from"@/components/header";import{prisma}from"@/lib/prisma";import{calculateWorkedMinutes}from"@/lib/domain";import{localDayBounds}from"@/lib/dates";import{requireRole}from"@/lib/security";
-export const dynamic="force-dynamic";
-export default async function Timesheets(){await requireRole("MANAGER");const {start}=localDayBounds();const rows=await prisma.staffMember.findMany({where:{active:true},include:{clockEvents:{where:{deviceTimestamp:{gte:start}},orderBy:{deviceTimestamp:"asc"}}},orderBy:{displayName:"asc"}}).catch(()=>[]);return <main className="shell"><Header manager/><div className="content"><h1 className="page-title">Timesheets</h1><p className="muted">Today’s calculated hours. Original clock events remain immutable.</p><section className="card">{rows.length?rows.map(s=>{const total=calculateWorkedMinutes(s.clockEvents);return <div className="register-row" style={{gridTemplateColumns:"1fr 160px 160px"}} key={s.id}><b>{s.displayName}</b><span>{Math.floor(total.minutes/60)}h {total.minutes%60}m</span><span style={{color:total.missingClockOut?"#b53b3b":"#177e59"}}>{total.missingClockOut?"Missing clock-out":"Complete"}</span></div>}):<div style={{padding:36}}><b>No timesheet data</b><p className="muted">Connect MariaDB and seed or record attendance to populate this view.</p></div>}</section></div></main>}
+import { Header } from "@/components/header";
+import { TimesheetManager } from "@/components/timesheet-manager";
+import { localDayBounds } from "@/lib/dates";
+import { calculateWorkedMinutes } from "@/lib/domain";
+import { CAPABILITIES, requirePageCapability } from "@/lib/permissions";
+import { prisma } from "@/lib/prisma";
+import { openClockIn } from "@/lib/timesheets";
+
+export const dynamic = "force-dynamic";
+
+export default async function Timesheets() {
+  await requirePageCapability(CAPABILITIES.PAYROLL_REVIEW);
+  const { start } = localDayBounds();
+  const staff = await prisma.staffMember.findMany({
+    where: { active: true },
+    include: {
+      clockEvents: {
+        where: { deviceTimestamp: { gte: start } },
+        include: { corrections: { orderBy: { createdAt: "asc" } } },
+        orderBy: { deviceTimestamp: "asc" },
+      },
+    },
+    orderBy: { displayName: "asc" },
+  }).catch(() => []);
+  const rows = staff.map(member => {
+    const total = calculateWorkedMinutes(member.clockEvents);
+    const open = openClockIn(member.clockEvents);
+    return {
+      id: member.id,
+      name: member.displayName,
+      minutes: total.minutes,
+      missingClockOut: Boolean(open),
+      openClockInAt: open?.deviceTimestamp.toISOString(),
+    };
+  });
+  return <main className="shell">
+    <Header manager/>
+    <div className="content">
+      <h1 className="page-title">Timesheets</h1>
+      <p className="muted">
+        Today&apos;s calculated hours. Managers, directors and administrators can close a
+        forgotten shift; every manual entry is audited.
+      </p>
+      <TimesheetManager initialRows={rows}/>
+    </div>
+  </main>;
+}

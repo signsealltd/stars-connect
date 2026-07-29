@@ -91,6 +91,35 @@ export function SimpleFinanceRunReview({ mode, id }: { mode: "payroll" | "billin
     finally { setWorking(false); }
   }
 
+  async function addPayItem(entry: Entry) {
+    const categoryInput = await appPrompt(
+      "Pay item type: HOLIDAY, SICKNESS, OVERTIME, TRAINING, UNPAID or OTHER",
+      "HOLIDAY",
+    );
+    const category = categoryInput?.trim().toUpperCase();
+    if (!category || !["HOLIDAY", "SICKNESS", "OVERTIME", "TRAINING", "UNPAID", "OTHER"].includes(category)) {
+      if (categoryInput) setError("Choose HOLIDAY, SICKNESS, OVERTIME, TRAINING, UNPAID or OTHER.");
+      return;
+    }
+    const date = await appPrompt("Date (YYYY-MM-DD)", run?.periodStart.slice(0, 10));
+    if (!date) return;
+    const hoursInput = await appPrompt("Number of hours", "8");
+    const itemHours = Number(hoursInput);
+    if (!Number.isFinite(itemHours) || itemHours <= 0 || itemHours > 24) {
+      setError("Enter hours greater than 0 and no more than 24.");
+      return;
+    }
+    const reason = await appPrompt("Reason or internal note (at least 5 characters):");
+    if (!reason || reason.trim().length < 5) return;
+    setWorking(true); setError(""); setSuccess("");
+    try {
+      await action("add-adjustment", { staffId: entry.staffId, date, category, minutes: Math.round(itemHours * 60), paid: category !== "UNPAID", reason }, false);
+      await action("calculate");
+      setSuccess(`${category.charAt(0)}${category.slice(1).toLowerCase()} recorded and payroll recalculated.`);
+    } catch (caught) { setError(caught instanceof Error ? caught.message : "Unable to add the pay item."); }
+    finally { setWorking(false); }
+  }
+
   async function refreshCalculations() {
     if (!await appConfirm("Refresh this run from the latest attendance records?")) return;
     setWorking(true); setError("");
@@ -178,7 +207,7 @@ export function SimpleFinanceRunReview({ mode, id }: { mode: "payroll" | "billin
       <thead><tr><th>{mode === "payroll" ? "Employee" : "Service user"}</th><th>{mode === "payroll" ? "Payroll number" : "Payer"}</th><th>{mode === "payroll" ? "Regular" : "Description"}</th><th>{mode === "payroll" ? "Overtime" : "Net"}</th><th>{mode === "payroll" ? "Adjustments" : "VAT"}</th><th>{mode === "payroll" ? "Payable" : "Total"}</th><th>Status</th><th>Action</th></tr></thead>
       <tbody>{visible.map(record => mode === "payroll" ? (() => {
         const entry = record as Entry; const isExcluded = entry.exceptionStatus === "EXCLUDED";
-        return <tr key={entry.id}><td>{entry.staffName}</td><td>{entry.payrollNumber || "Not configured"}</td><td>{hours(entry.ordinaryMinutes)}</td><td>{hours(entry.overtimeMinutes)}</td><td>{hours(entry.adjustmentMinutes)}</td><td>{hours(entry.totalPayableMinutes)}</td><td>{entry.exceptionCount ? (isExcluded ? "EXCLUDED" : entry.exceptionStatus) : "CLEAR"}</td><td><div className="table-actions">{entry.exceptionCount > 0 && !isExcluded && <button className="btn primary" disabled={working} onClick={() => resolve(entry)}>Resolve warning</button>}<button className="btn secondary" disabled={working} onClick={() => exclude(entry, isExcluded)}>{isExcluded ? "Restore" : "Exclude"}</button></div></td></tr>;
+        return <tr key={entry.id}><td><button className="btn ghost" disabled={working || complete || isExcluded} onClick={() => addPayItem(entry)}>{entry.staffName}</button></td><td>{entry.payrollNumber || "Not configured"}</td><td>{hours(entry.ordinaryMinutes)}</td><td>{hours(entry.overtimeMinutes)}</td><td>{hours(entry.adjustmentMinutes)}</td><td>{hours(entry.totalPayableMinutes)}</td><td>{entry.exceptionCount ? (isExcluded ? "EXCLUDED" : entry.exceptionStatus) : "CLEAR"}</td><td><div className="table-actions">{!complete && !isExcluded && <button className="btn secondary" disabled={working} onClick={() => addPayItem(entry)}>Add pay item</button>}{entry.exceptionCount > 0 && !isExcluded && <button className="btn primary" disabled={working} onClick={() => resolve(entry)}>Resolve warning</button>}<button className="btn secondary" disabled={working || complete} onClick={() => exclude(entry, isExcluded)}>{isExcluded ? "Restore" : "Exclude"}</button></div></td></tr>;
       })() : (() => {
         const charge = record as Charge; const missing = charge.exceptionCode === "MISSING_BILLING_PROFILE";
         return <tr key={charge.id}><td>{charge.studentName}</td><td>{missing ? "Not set up" : charge.payerName}</td><td>{missing ? "Billing details required" : charge.description}</td><td>{money(charge.netAmount)}</td><td>{money(charge.vatAmount)}</td><td>{money(charge.grossAmount)}</td><td>{charge.excluded ? "EXCLUDED" : missing ? "SETUP REQUIRED" : charge.exceptionCode || "CLEAR"}</td><td><div className="table-actions">{missing ? <a className="btn primary" href={`/dashboard/billing/profiles?studentId=${charge.studentId}&returnTo=${encodeURIComponent(`/dashboard/billing/runs/${id}`)}`}>Set up billing</a> : charge.exceptionCode && <button className="btn primary" disabled={working} onClick={() => resolve(charge)}>Resolve warning</button>}<button className="btn secondary" disabled={working} onClick={() => exclude(charge, charge.excluded)}>{charge.excluded ? "Restore" : "Exclude"}</button></div></td></tr>;

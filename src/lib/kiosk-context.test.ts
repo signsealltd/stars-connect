@@ -1,5 +1,5 @@
 import { describe,expect,it } from "vitest";
-import { kioskSyncEligibility,safeSyncRejection,shouldRegisterServiceWorker } from "./kiosk-context";
+import { kioskSyncEligibility,safeSyncRejection,shouldLoadManagerPreferences,shouldRegisterServiceWorker } from "./kiosk-context";
 import { workflowActions } from "./finance-workflow";
 const storage=(values:Record<string,string>={})=>({getItem:(key:string)=>values[key]||null});
 describe("kiosk synchronisation eligibility",()=>{
@@ -12,4 +12,5 @@ describe("service worker and safe rejection policy",()=>{
  it("registers for kiosk routes but not an unprovisioned manager route",()=>{expect(shouldRegisterServiceWorker("/clock",storage())).toBe(true);expect(shouldRegisterServiceWorker("/dashboard",storage())).toBe(false)});
  it("keeps offline support when a provisioned tablet opens a manager route",()=>expect(shouldRegisterServiceWorker("/dashboard",storage({"pulse-device-id":"tablet-1","pulse-device-token":"secret"}))).toBe(true));
  it("maps failures to non-secret categories",()=>{expect(safeSyncRejection(401)).toBe("DEVICE_CREDENTIAL_REJECTED");expect(safeSyncRejection(400)).toBe("PAYLOAD_INVALID");expect(safeSyncRejection(500)).toBe("SERVER_UNAVAILABLE")});
+ it("never loads manager preferences on kiosk routes",()=>{for(const route of["/","/clock","/register","/visitors","/emergency","/live","/offline","/setup"])expect(shouldLoadManagerPreferences(route)).toBe(false);expect(shouldLoadManagerPreferences("/dashboard")).toBe(true)});
 });

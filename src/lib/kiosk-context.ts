@@ -1,5 +1,6 @@
 export const KIOSK_ROUTES = ["/", "/clock", "/register", "/visitors", "/emergency", "/live", "/offline", "/setup"] as const;
 export function isKioskRoute(pathname:string){return KIOSK_ROUTES.some(route=>route==="/"?pathname==="/":pathname===route||pathname.startsWith(`${route}/`));}
+export function shouldLoadManagerPreferences(pathname:string){return !isKioskRoute(pathname);}
 export function hasDeviceCredential(storage:Pick<Storage,"getItem">){return Boolean(storage.getItem("pulse-device-id")&&storage.getItem("pulse-device-token"));}
 export function shouldRegisterServiceWorker(pathname:string,storage:Pick<Storage,"getItem">){return isKioskRoute(pathname)||hasDeviceCredential(storage);}
 export function kioskSyncEligibility(pathname:string,storage:Pick<Storage,"getItem">){if(!isKioskRoute(pathname))return{allowed:false,category:"MANAGER_ROUTE" as const};if(!hasDeviceCredential(storage))return{allowed:false,category:"DEVICE_UNPROVISIONED" as const};return{allowed:true,category:"DEVICE_AUTHENTICATED" as const};}

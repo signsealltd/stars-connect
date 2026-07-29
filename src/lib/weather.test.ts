@@ -42,6 +42,6 @@ describe("screensaver weather", () => {
 
   it("fails safely when the configured location is not found", async () => {
     const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({ results: [] })));
-    await expect(loadCurrentWeather("Invalid synthetic location", fetcher)).rejects.toThrow("WEATHER_LOCATION_NOT_FOUND");
+    await expect(loadCurrentWeather("Invalid synthetic location", fetcher)).rejects.toThrow("geocoding-not-found");
   });
 });

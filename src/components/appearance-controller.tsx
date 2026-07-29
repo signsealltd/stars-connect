@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect } from "react";
+import { usePathname } from "next/navigation";
+import { shouldLoadManagerPreferences } from "@/lib/kiosk-context";
 
 function applyBranding(branding: Record<string, string>) {
   const root = document.documentElement;
@@ -16,14 +18,17 @@ function applyMode(mode: string) {
 }
 
 export function AppearanceController() {
+  const pathname = usePathname();
   useEffect(() => {
     fetch("/api/branding").then((response) => response.json()).then((branding) => {
       applyBranding(branding);
       window.dispatchEvent(new CustomEvent("stars-branding", { detail: branding }));
     }).catch(() => undefined);
-    fetch("/api/preferences").then((response) => response.ok ? response.json() : null).then((preferences) => {
-      if (preferences) applyMode(preferences.colourMode);
-    }).catch(() => undefined);
+    if (shouldLoadManagerPreferences(pathname)) {
+      fetch("/api/preferences").then((response) => response.ok ? response.json() : null).then((preferences) => {
+        if (preferences) applyMode(preferences.colourMode);
+      }).catch(() => undefined);
+    }
     const update = (event: Event) => applyMode((event as CustomEvent).detail);
     const updateBranding = (event: Event) => applyBranding((event as CustomEvent).detail);
     window.addEventListener("stars-colour-mode", update);
@@ -32,6 +37,6 @@ export function AppearanceController() {
       window.removeEventListener("stars-colour-mode", update);
       window.removeEventListener("stars-branding", updateBranding);
     };
-  }, []);
+  }, [pathname]);
   return null;
 }

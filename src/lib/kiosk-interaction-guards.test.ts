@@ -7,6 +7,8 @@ const statusBar = readFileSync(join(process.cwd(), "src/components/kiosk-device-
 const css = readFileSync(join(process.cwd(), "src/app/kiosk-controls.css"), "utf8");
 const globals = readFileSync(join(process.cwd(), "src/app/globals.css"), "utf8");
 const idleController = readFileSync(join(process.cwd(), "src/components/kiosk-idle-controller.tsx"), "utf8");
+const appearance = readFileSync(join(process.cwd(), "src/components/appearance-controller.tsx"), "utf8");
+const weatherClient = readFileSync(join(process.cwd(), "src/components/screensaver-weather.tsx"), "utf8");
 
 describe("kiosk-only interaction guards", () => {
   it("enables and cleans up guards only while a kiosk route is active", () => {
@@ -51,6 +53,13 @@ describe("kiosk-only interaction guards", () => {
     expect(idleController).toContain('className="shooting-star"');
     expect(idleController).toContain('dur="23s" repeatCount="indefinite"');
     expect(globals).toContain(".shooting-star{display:none}");
+  });
+
+  it("uses kiosk-safe weather requests and bounded transient retry", () => {
+    expect(appearance).toContain("shouldLoadManagerPreferences(pathname)");
+    expect(weatherClient).toContain('fetch("/api/kiosk/weather"');
+    expect(weatherClient).not.toContain('fetch("/api/preferences"');
+    expect(weatherClient).toContain("const RETRY_DELAYS_MS = [30_000, 120_000, 300_000]");
   });
 
   it("keeps the device status bar behind the full-screen idle screensaver", () => {

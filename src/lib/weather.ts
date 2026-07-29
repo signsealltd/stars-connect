@@ -29,6 +29,19 @@ export type CurrentWeather = {
   updatedAt: string;
 };
 
+export class WeatherLocationError extends Error {
+  constructor(message: "location-missing" | "geocoding-not-found") {
+    super(message);
+    this.name = "WeatherLocationError";
+  }
+}
+
+export class WeatherUpstreamError extends Error {
+  constructor(message: "upstream-timeout" | "upstream-unavailable") {
+    super(message);
+    this.name = "WeatherUpstreamError";
+  }
+}
 export function weatherCondition(code: number) {
   if (code === 0) return "Clear";
   if (code <= 3) return "Partly cloudy";
@@ -43,14 +56,20 @@ export function weatherCondition(code: number) {
 }
 
 export async function loadCurrentWeather(location: string, fetcher: typeof fetch = fetch): Promise<CurrentWeather> {
+  if (!location.trim()) throw new WeatherLocationError("location-missing");
   const query = new URLSearchParams({ name: location, count: "1", language: "en", format: "json", countryCode: "GB" });
-  const geocoding = await fetcher(`https://geocoding-api.open-meteo.com/v1/search?${query}`, {
-    headers: { accept: "application/json" },
-    signal: AbortSignal.timeout(8000),
-  });
-  if (!geocoding.ok) throw new Error("WEATHER_LOCATION_UNAVAILABLE");
+  let geocoding: Response;
+  try {
+    geocoding = await fetcher(`https://geocoding-api.open-meteo.com/v1/search?${query}`, {
+      headers: { accept: "application/json" },
+      signal: AbortSignal.timeout(8000),
+    });
+  } catch (error) {
+    throw new WeatherUpstreamError(error instanceof DOMException && error.name === "TimeoutError" ? "upstream-timeout" : "upstream-unavailable");
+  }
+  if (!geocoding.ok) throw new WeatherUpstreamError("upstream-unavailable");
   const place = geocodingResponse.parse(await geocoding.json()).results?.[0];
-  if (!place) throw new Error("WEATHER_LOCATION_NOT_FOUND");
+  if (!place) throw new WeatherLocationError("geocoding-not-found");
 
   const forecastQuery = new URLSearchParams({
     latitude: String(place.latitude),
@@ -58,11 +77,16 @@ export async function loadCurrentWeather(location: string, fetcher: typeof fetch
     current: "temperature_2m,apparent_temperature,weather_code,is_day",
     timezone: "Europe/London",
   });
-  const forecast = await fetcher(`https://api.open-meteo.com/v1/forecast?${forecastQuery}`, {
-    headers: { accept: "application/json" },
-    signal: AbortSignal.timeout(8000),
-  });
-  if (!forecast.ok) throw new Error("WEATHER_UNAVAILABLE");
+  let forecast: Response;
+  try {
+    forecast = await fetcher(`https://api.open-meteo.com/v1/forecast?${forecastQuery}`, {
+      headers: { accept: "application/json" },
+      signal: AbortSignal.timeout(8000),
+    });
+  } catch (error) {
+    throw new WeatherUpstreamError(error instanceof DOMException && error.name === "TimeoutError" ? "upstream-timeout" : "upstream-unavailable");
+  }
+  if (!forecast.ok) throw new WeatherUpstreamError("upstream-unavailable");
   const current = forecastResponse.parse(await forecast.json()).current;
   return {
     location: place.name,

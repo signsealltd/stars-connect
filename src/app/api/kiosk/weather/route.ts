@@ -1,38 +1,67 @@
 import { NextRequest, NextResponse } from "next/server";
-import { authenticateDevice } from "@/lib/device-auth";
+import { authenticateDeviceDetailed } from "@/lib/device-auth";
 import { prisma } from "@/lib/prisma";
-import { loadCurrentWeather, type CurrentWeather } from "@/lib/weather";
+import { loadCurrentWeather, WeatherLocationError, WeatherUpstreamError } from "@/lib/weather";
+import { readWeatherCache, writeWeatherCache } from "@/lib/weather-cache";
 
 const TTL_MS = 15 * 60 * 1000;
-const cache = new Map<string, { expiresAt: number; weather: CurrentWeather }>();
+function diagnostic(category: string) {
+  console.warn(`[kiosk-weather] ${category}`);
+}
 
 export async function GET(req: NextRequest) {
-  const device = await authenticateDevice(req);
-  if (!device) return NextResponse.json({ error: "Device not authorised" }, { status: 401 });
+  const authentication = await authenticateDeviceDetailed(req);
+  if (!authentication.ok) {
+    diagnostic(authentication.category);
+    return NextResponse.json(
+      { error: "Device not authorised", category: authentication.category },
+      { status: authentication.status },
+    );
+  }
+
   const rows = await prisma.appSetting.findMany({
     where: { key: { in: ["screensaverWeatherEnabled", "screensaverWeatherLocation"] } },
   });
-  const values = Object.fromEntries(rows.map(row => [row.key, row.value]));
-  if (values.screensaverWeatherEnabled === false) return NextResponse.json({ enabled: false });
-  const location = typeof values.screensaverWeatherLocation === "string"
-    ? values.screensaverWeatherLocation.trim()
+  const settings = Object.fromEntries(rows.map(row => [row.key, row.value]));
+  if (settings.screensaverWeatherEnabled === false) {
+    diagnostic("weather-disabled");
+    return new NextResponse(null, { status: 204 });
+  }
+  const location = typeof settings.screensaverWeatherLocation === "string"
+    ? settings.screensaverWeatherLocation.trim()
     : "Enfield, London";
-  if (!location) return NextResponse.json({ enabled: false });
+  if (!location) {
+    diagnostic("location-missing");
+    return NextResponse.json({ error: "Weather location is missing", category: "location-missing" }, { status: 422 });
+  }
 
-  const cached = cache.get(location.toLocaleLowerCase("en-GB"));
+  const cacheKey = location.toLocaleLowerCase("en-GB");
+  const cached = readWeatherCache(cacheKey);
   if (cached && cached.expiresAt > Date.now()) {
-    return NextResponse.json({ enabled: true, weather: cached.weather }, {
+    return NextResponse.json({ weather: cached.weather, stale: false }, {
       headers: { "cache-control": "private, max-age=300" },
     });
   }
 
   try {
     const weather = await loadCurrentWeather(location);
-    cache.set(location.toLocaleLowerCase("en-GB"), { expiresAt: Date.now() + TTL_MS, weather });
-    return NextResponse.json({ enabled: true, weather }, {
+    writeWeatherCache(cacheKey, Date.now() + TTL_MS, weather);
+    return NextResponse.json({ weather, stale: false }, {
       headers: { "cache-control": "private, max-age=300" },
     });
-  } catch {
-    return NextResponse.json({ enabled: true, unavailable: true }, { status: 503 });
+  } catch (error) {
+    if (error instanceof WeatherLocationError) {
+      diagnostic(error.message);
+      return NextResponse.json({ error: "Weather location was not found", category: error.message }, { status: 422 });
+    }
+    if (cached) {
+      diagnostic("stale-cache-used");
+      return NextResponse.json({ weather: cached.weather, stale: true }, {
+        headers: { "cache-control": "private, no-cache" },
+      });
+    }
+    const category = error instanceof WeatherUpstreamError ? error.message : "upstream-unavailable";
+    diagnostic(category);
+    return NextResponse.json({ error: "Weather service is temporarily unavailable", category }, { status: 503 });
   }
 }

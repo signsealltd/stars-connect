@@ -22,7 +22,7 @@ body.has-kiosk-status-bar { padding-bottom: calc(54px + env(safe-area-inset-bott
 
 .kiosk-device-status-bar {
   position: fixed;
-  z-index: 10010;
+  z-index: 9990;
   left: 0;
   right: 0;
   bottom: 0;

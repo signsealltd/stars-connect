@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 const component = readFileSync(join(process.cwd(), "src/components/kiosk-battery-status.tsx"), "utf8");
 const statusBar = readFileSync(join(process.cwd(), "src/components/kiosk-device-status-bar.tsx"), "utf8");
 const css = readFileSync(join(process.cwd(), "src/app/kiosk-controls.css"), "utf8");
+const globals = readFileSync(join(process.cwd(), "src/app/globals.css"), "utf8");
 
 describe("kiosk-only interaction guards", () => {
   it("enables and cleans up guards only while a kiosk route is active", () => {
@@ -25,5 +26,9 @@ describe("kiosk-only interaction guards", () => {
     expect(statusBar).toContain('pathname === "/emergency"');
     expect(statusBar).toContain('emergency ? " emergency"');
     expect(statusBar).not.toContain("modal");
+  });
+  it("keeps the device status bar behind the full-screen idle screensaver", () => {
+    expect(css).toMatch(/\.kiosk-device-status-bar\s*\{[\s\S]*?z-index:\s*9990/);
+    expect(globals).toMatch(/\.idle-screensaver\{[\s\S]*?z-index:10000/);
   });
 });

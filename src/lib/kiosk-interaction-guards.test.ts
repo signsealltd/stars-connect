@@ -46,6 +46,13 @@ describe("kiosk-only interaction guards", () => {
     expect(globals).toContain(".idle-constellation,.idle-constellation circle,.idle-content{animation:none!important}");
   });
 
+  it("uses white stars and an occasional reduced-motion-safe shooting star", () => {
+    expect(globals).toContain(".idle-constellation circle{fill:#fff");
+    expect(idleController).toContain('className="shooting-star"');
+    expect(idleController).toContain('dur="23s" repeatCount="indefinite"');
+    expect(globals).toContain(".shooting-star{display:none}");
+  });
+
   it("keeps the device status bar behind the full-screen idle screensaver", () => {
     expect(css).toMatch(/\.kiosk-device-status-bar\s*\{[\s\S]*?z-index:\s*9990/);
     expect(globals).toMatch(/\.idle-screensaver\{[\s\S]*?z-index:10000/);

@@ -1,13 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { usePathname } from "next/navigation";
-import { Battery, BatteryCharging, TriangleAlert } from "lucide-react";
 import {
   BATTERY_STORAGE_KEY,
-  batterySeverity,
   type BatteryNavigatorLike,
-  type BatterySnapshot,
   watchBattery,
 } from "@/lib/battery-status";
 import { isKioskRoute } from "@/lib/kiosk-context";
@@ -15,17 +12,13 @@ import { isKioskRoute } from "@/lib/kiosk-context";
 export function KioskBatteryStatus() {
   const pathname = usePathname();
   const kiosk = isKioskRoute(pathname);
-  const [snapshot, setSnapshot] = useState<BatterySnapshot>();
 
   useEffect(() => {
-    if (!kiosk) {
-      setSnapshot(undefined);
-      return;
-    }
+    if (!kiosk) return;
     return watchBattery(navigator as Navigator & BatteryNavigatorLike, (next) => {
-      setSnapshot(next);
       if (next.available) localStorage.setItem(BATTERY_STORAGE_KEY, JSON.stringify(next));
       else localStorage.removeItem(BATTERY_STORAGE_KEY);
+      dispatchEvent(new CustomEvent("stars-connect-battery", { detail: next }));
     });
   }, [kiosk]);
 
@@ -45,30 +38,5 @@ export function KioskBatteryStatus() {
     };
   }, [kiosk]);
 
-  if (!kiosk || !snapshot) return null;
-  if (!snapshot.available) {
-    return <div className="kiosk-battery unavailable" role="status"><Battery aria-hidden="true"/>Battery unavailable</div>;
-  }
-
-  const severity = batterySeverity(snapshot);
-  const urgent = severity === "urgent";
-  const label = urgent
-    ? `Connect charger now — ${snapshot.level}% battery remaining`
-    : severity === "critical"
-      ? `Critical battery — ${snapshot.level}% remaining`
-      : severity === "low"
-        ? `Low battery — ${snapshot.level}% remaining`
-        : `${snapshot.level}%${snapshot.charging ? " · Charging" : ""}`;
-
-  return (
-    <div
-      className={`kiosk-battery ${severity} ${pathname === "/emergency" && severity !== "normal" ? "emergency-battery-banner" : ""}`}
-      role="status"
-      aria-live={severity === "critical" || urgent ? "assertive" : "polite"}
-      aria-label={`Battery ${snapshot.level} percent${snapshot.charging ? ", charging" : ""}`}
-    >
-      {urgent ? <TriangleAlert aria-hidden="true"/> : snapshot.charging ? <BatteryCharging aria-hidden="true"/> : <Battery aria-hidden="true"/>}
-      <span>{label}</span>
-    </div>
-  );
+  return null;
 }

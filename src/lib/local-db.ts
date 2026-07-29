@@ -261,6 +261,10 @@ async function performSync() {
     if (!response.ok){const body=await response.json().catch(()=>null),category=(body?.category as SyncRejectionCategory)||safeSyncRejection(response.status);throw Object.assign(new Error(body?.error||"Synchronisation was rejected"),{category});}
     const result = await response.json();
     await applyPulledBatch(result.events || []);
+    if (result.deviceConfiguration) {
+      await database.put("metadata", { key: "deviceConfiguration", value: result.deviceConfiguration });
+      dispatchEvent(new CustomEvent("stars-connect-device-config", { detail: result.deviceConfiguration }));
+    }
     for (const id of result.acknowledged || []) await database.delete("pending", id);
     const appliedCursor = String(result.events?.at(-1)?.sequence || cursor);
     await database.put("metadata", { key: "syncCursor", value: appliedCursor });

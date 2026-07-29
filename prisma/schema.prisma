@@ -52,6 +52,11 @@ enum DeviceStatus {
   REVOKED
 }
 
+enum DeviceType {
+  KIOSK_TABLET
+  MANAGER_DESKTOP
+}
+
 enum RollCallStatus {
   ACTIVE
   CLOSED
@@ -204,6 +209,8 @@ model Device {
   name              String                   @db.VarChar(120)
   tokenHash         String                   @unique @db.Char(64)
   status            DeviceStatus             @default(ACTIVE)
+  deviceType        DeviceType               @default(KIOSK_TABLET)
+  showBatteryStatus Boolean                  @default(true)
   appVersion        String?                  @db.VarChar(40)
   batteryLevel      Int?
   batteryCharging   Boolean?

@@ -4,6 +4,7 @@ import "./kiosk-controls.css";
 import { ServiceWorkerRegistration } from "@/components/service-worker-registration";
 import { KioskIdleController } from "@/components/kiosk-idle-controller";
 import { KioskBatteryStatus } from "@/components/kiosk-battery-status";
+import { KioskDeviceStatusBar } from "@/components/kiosk-device-status-bar";
 import { AppearanceController } from "@/components/appearance-controller";
 
 export const metadata: Metadata = {
@@ -29,5 +30,5 @@ export const viewport: Viewport = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return <html lang="en-GB"><body><AppearanceController/><ServiceWorkerRegistration /><KioskIdleController /><KioskBatteryStatus />{children}</body></html>;
+  return <html lang="en-GB"><body><AppearanceController/><ServiceWorkerRegistration /><KioskIdleController /><KioskBatteryStatus />{children}<KioskDeviceStatusBar/></body></html>;
 }

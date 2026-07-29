@@ -18,74 +18,40 @@ body.kiosk-route img {
   user-drag: none;
 }
 
-.kiosk-battery {
+body.has-kiosk-status-bar { padding-bottom: calc(54px + env(safe-area-inset-bottom)); }
+
+.kiosk-device-status-bar {
   position: fixed;
-  z-index: 11010;
-  top: max(10px, env(safe-area-inset-top));
-  right: max(12px, env(safe-area-inset-right));
-  display: inline-flex;
+  z-index: 10010;
+  left: 0;
+  right: 0;
+  bottom: 0;
   align-items: center;
-  gap: 7px;
-  min-height: 34px;
-  padding: 7px 11px;
-  border: 1px solid rgb(255 255 255 / 38%);
-  border-radius: 999px;
-  background: rgb(22 25 25 / 82%);
-  box-shadow: 0 4px 18px rgb(0 0 0 / 22%);
-  color: #fff;
+  gap: 7px 18px;
+  min-height: 48px;
+  padding: 9px max(16px, env(safe-area-inset-right)) calc(9px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  border-top: 1px solid var(--border);
+  background: color-mix(in srgb, var(--card) 94%, transparent);
+  color: var(--muted);
+  box-shadow: 0 -6px 22px rgb(30 14 34 / 9%);
   font-size: 13px;
-  font-weight: 800;
-  line-height: 1;
-  pointer-events: none;
-  backdrop-filter: blur(8px);
+  line-height: 1.2;
+  backdrop-filter: blur(10px);
 }
 
-.kiosk-battery svg {
-  width: 18px;
-  height: 18px;
-}
+.kiosk-status-item { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.kiosk-status-item svg { width: 17px; height: 17px; flex: 0 0 auto; }
+.kiosk-status-item.device-name { color: var(--ink); }
+.kiosk-status-item.app-version { margin-left: auto; }
+.kiosk-status-item.battery-inline.low { color: #996000; font-weight: 750; }
+.kiosk-status-item.battery-inline.critical,
+.kiosk-status-item.battery-inline.urgent { color: var(--danger, #a52020); font-weight: 800; }
+.kiosk-device-status-bar.emergency .battery-inline.low,
+.kiosk-device-status-bar.emergency .battery-inline.critical,
+.kiosk-device-status-bar.emergency .battery-inline.urgent { padding: 3px 7px; border-radius: 7px; background: #fff1dc; }
 
-.kiosk-battery.unavailable {
-  color: #f0edf1;
-  opacity: .82;
-}
-
-.kiosk-battery.low {
-  border-color: #ffd17b;
-  background: #9a5a00;
-  color: #fff8e8;
-}
-
-.kiosk-battery.critical {
-  border-color: #ffb0aa;
-  background: #a52020;
-  color: white;
-  font-size: 15px;
-  box-shadow: 0 4px 22px rgb(120 0 0 / 38%);
-}
-
-.kiosk-battery.urgent {
-  max-width: min(460px, calc(100vw - 24px));
-  border: 3px solid white;
-  border-radius: 12px;
-  background: #c51616;
-  color: white;
-  padding: 12px 16px;
-  font-size: 17px;
-  box-shadow: 0 6px 28px rgb(100 0 0 / 48%);
-}
-
-.kiosk-battery.emergency-battery-banner {
-  left: max(12px, env(safe-area-inset-left));
-  right: max(12px, env(safe-area-inset-right));
-  justify-content: center;
-  max-width: none;
-  border-radius: 10px;
-}
-
-@media (max-width: 680px) {
-  .kiosk-battery {
-    top: max(8px, env(safe-area-inset-top));
-    right: max(8px, env(safe-area-inset-right));
-  }
+@media (max-width: 760px) {
+  body.has-kiosk-status-bar { padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
+  .kiosk-device-status-bar { gap: 6px 12px; font-size: 12px; }
+  .kiosk-status-item.app-version { margin-left: 0; }
 }

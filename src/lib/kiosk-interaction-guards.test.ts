@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const component = readFileSync(join(process.cwd(), "src/components/kiosk-battery-status.tsx"), "utf8");
+const statusBar = readFileSync(join(process.cwd(), "src/components/kiosk-device-status-bar.tsx"), "utf8");
 const css = readFileSync(join(process.cwd(), "src/app/kiosk-controls.css"), "utf8");
 
 describe("kiosk-only interaction guards", () => {
@@ -21,8 +22,8 @@ describe("kiosk-only interaction guards", () => {
   });
 
   it("uses a persistent emergency battery banner rather than a modal", () => {
-    expect(component).toContain('pathname === "/emergency"');
-    expect(component).toContain("emergency-battery-banner");
-    expect(component).not.toContain("modal");
+    expect(statusBar).toContain('pathname === "/emergency"');
+    expect(statusBar).toContain('emergency ? " emergency"');
+    expect(statusBar).not.toContain("modal");
   });
 });

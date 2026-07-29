@@ -198,5 +198,6 @@ export async function POST(req: NextRequest) {
     acknowledged,
     cursor: String(cursor),
     events: updates.map((event) => ({ ...event, sequence: String(event.sequence) })),
+    deviceConfiguration: { deviceType: device.deviceType, showBatteryStatus: device.showBatteryStatus },
   });
 }

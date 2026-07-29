@@ -2,7 +2,7 @@
 import {useCallback,useEffect,useState} from "react";
 import {Pencil,Plus,Trash2} from "lucide-react";
 import {appConfirm} from "@/lib/app-dialog";
-type Capability="payroll.review"|"payroll.approve"|"billing.review"|"billing.approve"|"document.download"|"daily-report.view"|"report-settings.manage"|"visitor-contact.view";
+type Capability="payroll.review"|"payroll.approve"|"billing.review"|"billing.approve"|"document.download"|"daily-report.view"|"report-settings.manage"|"visitor-contact.view"|"visitor-signature.view";
 const capabilityOptions=[
   {key:"payroll.review" as Capability,label:"Review payroll",description:"View timesheets, corrections and payroll review data."},
   {key:"payroll.approve" as Capability,label:"Approve payroll",description:"Approve, lock and generate payroll documents."},
@@ -12,8 +12,9 @@ const capabilityOptions=[
   {key:"daily-report.view" as Capability,label:"View daily reports",description:"View generated daily attendance reports."},
   {key:"report-settings.manage" as Capability,label:"Manage reports and email",description:"Generate reports, configure delivery and manage email reporting."},
   {key:"visitor-contact.view" as Capability,label:"View visitor contact details",description:"View protected visitor telephone and contact information."},
+  {key:"visitor-signature.view" as Capability,label:"View visitor signatures",description:"View retained visitor acceptance signatures independently of contact details."},
 ];
-const roleDefaults:Record<Role,Set<Capability>>={RECEPTION:new Set(),MANAGER:new Set(["payroll.review","billing.review","document.download","daily-report.view","visitor-contact.view"]),DIRECTOR:new Set(capabilityOptions.map(x=>x.key)),ADMINISTRATOR:new Set(capabilityOptions.map(x=>x.key))};
+const roleDefaults:Record<Role,Set<Capability>>={RECEPTION:new Set(),MANAGER:new Set(["payroll.review","billing.review","document.download","daily-report.view","visitor-contact.view","visitor-signature.view"]),DIRECTOR:new Set(capabilityOptions.map(x=>x.key)),ADMINISTRATOR:new Set(capabilityOptions.map(x=>x.key))};
 const hasCapability=(role:Role,key:Capability)=>roleDefaults[role].has(key);
 type Role="ADMINISTRATOR"|"DIRECTOR"|"MANAGER"|"RECEPTION";
 type UserRow={id:string;name:string;email:string;role:Role;active:boolean;createdAt:string;permissionOverrides?:Record<string,boolean>|null};

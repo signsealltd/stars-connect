@@ -15,7 +15,8 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:bootstrap-visitors": "tsx scripts/bootstrap-visitor-config.ts",
     "db:prepare-live-test": "tsx scripts/prepare-live-test.ts",
-    "db:backup": "node scripts/backup-database.mjs"
+    "db:backup": "node scripts/backup-database.mjs",
+    "verify:deployment": "node scripts/verify-deployment-config.mjs"
   },
   "dependencies": {
     "@prisma/client": "^6.12.0",

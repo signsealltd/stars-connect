@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { AccessError, getSession } from "./security";
 export const CAPABILITIES = { PAYROLL_REVIEW:"payroll.review",PAYROLL_APPROVE:"payroll.approve",BILLING_REVIEW:"billing.review",BILLING_APPROVE:"billing.approve",DOCUMENT_DOWNLOAD:"document.download",DAILY_REPORT_VIEW:"daily-report.view",REPORT_SETTINGS_MANAGE:"report-settings.manage",VISITOR_CONTACT_VIEW:"visitor-contact.view",VISITOR_SIGNATURE_VIEW:"visitor-signature.view" } as const;
 export type Capability=typeof CAPABILITIES[keyof typeof CAPABILITIES];
-const grants:Record<Role,ReadonlySet<Capability>>={RECEPTION:new Set(),MANAGER:new Set([CAPABILITIES.PAYROLL_REVIEW,CAPABILITIES.BILLING_REVIEW,CAPABILITIES.DOCUMENT_DOWNLOAD,CAPABILITIES.DAILY_REPORT_VIEW,CAPABILITIES.VISITOR_CONTACT_VIEW]),DIRECTOR:new Set(Object.values(CAPABILITIES)),ADMINISTRATOR:new Set(Object.values(CAPABILITIES))};
+const grants:Record<Role,ReadonlySet<Capability>>={RECEPTION:new Set(),MANAGER:new Set([CAPABILITIES.PAYROLL_REVIEW,CAPABILITIES.BILLING_REVIEW,CAPABILITIES.DOCUMENT_DOWNLOAD,CAPABILITIES.DAILY_REPORT_VIEW,CAPABILITIES.VISITOR_CONTACT_VIEW,CAPABILITIES.VISITOR_SIGNATURE_VIEW]),DIRECTOR:new Set(Object.values(CAPABILITIES)),ADMINISTRATOR:new Set(Object.values(CAPABILITIES))};
 export const capabilityOptions=[
   {key:CAPABILITIES.PAYROLL_REVIEW,label:"Review payroll",description:"View timesheets, corrections and payroll review data."},
   {key:CAPABILITIES.PAYROLL_APPROVE,label:"Approve payroll",description:"Approve, lock and generate payroll documents."},

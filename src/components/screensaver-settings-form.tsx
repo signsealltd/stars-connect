@@ -1,4 +1,4 @@
-﻿/* eslint-disable @next/next/no-img-element */
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import { useEffect, useState } from "react";
@@ -31,6 +31,10 @@ export function ScreensaverSettingsForm() {
         <label className="form-label">Text colour<input className="field" type="color" value={settings.textColor} onChange={event => setSettings({ ...settings, textColor: event.target.value })}/></label>
         <label className="form-label">Accent/star colour<input className="field" type="color" value={settings.accentColor} onChange={event => setSettings({ ...settings, accentColor: event.target.value })}/></label>
         <div className="card" style={{ minHeight: 170, padding: 20, textAlign: "center", background: settings.backgroundColor, color: settings.textColor }}>{settings.showLogo && settings.logoUrl && <img src={settings.logoUrl} alt="" style={{ maxWidth: 110, maxHeight: 70 }}/>}<h3>{settings.headline}</h3><p>{settings.screensaverMessage}</p></div>
+      </section>
+      <section className="card" style={{ padding: 22 }}><h2>Weather</h2>
+        {check("screensaverWeatherEnabled", "Show current weather on screensaver")}
+        <label className="form-label">Weather location<input className="field" maxLength={120} placeholder="Enfield, London" value={settings.screensaverWeatherLocation} onChange={event => setSettings({ ...settings, screensaverWeatherLocation: event.target.value })}/><small className="muted">Town, city or UK postcode. Tablets do not request location permission.</small></label>
       </section>
       <section className="card" style={{ padding: 22 }}><h2>Background animation</h2>
         {check("constellationEnabled", "Enable constellation background")}

@@ -188,3 +188,15 @@ textarea.field { min-height: 110px; resize: vertical; }
 html[data-theme="dark"]{--ink:#f4eef5;--muted:#bcb1bf;--paper:#171319;--card:#241e27;--border:#443949;--primary-soft:#2c2230;--primary-light:#48354e;--shadow:0 7px 26px rgb(0 0 0 / 28%)}html[data-theme="dark"] .field,html[data-theme="dark"] .key,html[data-theme="dark"] .choice{background:#1c171f;color:var(--ink);border-color:var(--border)}html[data-theme="dark"] .secondary,html[data-theme="dark"] .tab,html[data-theme="dark"] .badge-neutral{background:#39303d;color:var(--ink)}
 .photo-filter{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr)) auto auto;gap:12px;align-items:end;padding:18px;margin-bottom:18px}.photo-review-modal{width:min(760px,calc(100vw - 32px));max-height:calc(100vh - 32px);overflow:auto}.clocking-photo{display:block;width:100%;max-height:65vh;object-fit:contain;border-radius:14px;background:#121014}@media(max-width:900px){.photo-filter{grid-template-columns:1fr 1fr}.photo-filter .btn{min-height:48px}}@media(max-width:560px){.photo-filter{grid-template-columns:1fr}}
 .student-record-modal{width:min(820px,calc(100vw - 32px));max-height:calc(100vh - 32px);overflow:auto}.student-record-modal>h3{display:flex;align-items:center;gap:7px;margin:24px 0 8px;color:var(--primary-dark)}.record-fieldset{border:1px solid var(--border);border-radius:12px;padding:14px}.check-list{display:flex;flex-wrap:wrap;gap:14px}.billing-inline{margin-top:14px;padding:16px;border-radius:14px;background:var(--primary-light)}
+.clock-pin-panel { text-align: center; margin-top: 20px; }
+@media (orientation: landscape) and (max-height: 900px) {
+  .clock-pin-page .topbar { min-height: 64px; padding-block: 8px; }
+  .clock-pin-content { padding-block: 12px; }
+  .clock-pin-panel { margin-top: 4px; }
+  .clock-pin-panel .page-title { font-size: 32px; }
+  .clock-pin-panel > p { margin: 5px 0 8px; }
+  .clock-pin-panel > .btn { min-height: 42px; padding-block: 7px; }
+  .clock-pin-panel .pin-dots { height: 36px; align-items: center; }
+  .clock-pin-panel .keypad { gap: 10px; margin: 8px auto 0; }
+  .clock-pin-panel .key { height: clamp(54px, 8.5vh, 68px); border-radius: 13px; font-size: 25px; }
+}

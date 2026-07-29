@@ -11,8 +11,7 @@ type BillingProfile = {
 };
 type Student = {
   id: string; firstName: string; lastName: string; displayName: string; active: boolean;
-  startDate: string; endDate?: string; expectedDays: number[]; fundingCategory?: string;
-  fundingOrganisation?: string; internalReference?: string; notes?: string;
+  startDate: string; endDate?: string; expectedDays: number[]; internalReference?: string; notes?: string;
   emergencyContactName?: string; emergencyContactRelationship?: string; emergencyContactPhone?: string;
   emergencyContactAlternativePhone?: string; emergencyContactEmail?: string; emergencyContactNotes?: string;
   billingProfile?: BillingProfile | null;
@@ -25,7 +24,7 @@ const emptyBilling = {
 };
 const blank = {
   firstName: "", lastName: "", displayName: "", startDate: "", endDate: "", expectedDays: [1, 2, 3, 4, 5],
-  fundingCategory: "", fundingOrganisation: "", internalReference: "", notes: "",
+  internalReference: "", notes: "",
   emergencyContactName: "", emergencyContactRelationship: "", emergencyContactPhone: "",
   emergencyContactAlternativePhone: "", emergencyContactEmail: "", emergencyContactNotes: "",
   billing: emptyBilling,
@@ -72,8 +71,7 @@ export function StudentManagerV2() {
     setForm(row ? {
       firstName: row.firstName, lastName: row.lastName, displayName: row.displayName,
       startDate: row.startDate.slice(0, 10), endDate: row.endDate?.slice(0, 10) || "",
-      expectedDays: (row.expectedDays || []).map(Number), fundingCategory: row.fundingCategory || "",
-      fundingOrganisation: row.fundingOrganisation || "", internalReference: row.internalReference || "", notes: row.notes || "",
+      expectedDays: (row.expectedDays || []).map(Number), internalReference: row.internalReference || "", notes: row.notes || "",
       emergencyContactName: row.emergencyContactName || "", emergencyContactRelationship: row.emergencyContactRelationship || "",
       emergencyContactPhone: row.emergencyContactPhone || "", emergencyContactAlternativePhone: row.emergencyContactAlternativePhone || "",
       emergencyContactEmail: row.emergencyContactEmail || "", emergencyContactNotes: row.emergencyContactNotes || "",
@@ -133,8 +131,6 @@ export function StudentManagerV2() {
         <label className="form-label">Start date<input className="field" type="date" required value={form.startDate} onChange={event => setForm({ ...form, startDate: event.target.value })}/></label>
         <label className="form-label">End date<input className="field" type="date" value={form.endDate} onChange={event => setForm({ ...form, endDate: event.target.value })}/></label>
         <fieldset className="full record-fieldset"><legend>Expected attendance days</legend><div className="check-list">{days.map(([number, label]) => <label key={number}><input type="checkbox" checked={form.expectedDays.includes(number)} onChange={event => setForm({ ...form, expectedDays: event.target.checked ? [...form.expectedDays, number].sort() : form.expectedDays.filter(value => value !== number) })}/> {label}</label>)}</div></fieldset>
-        <label className="form-label">Funding category<input autoComplete="off" className="field" value={form.fundingCategory} onChange={event => setForm({ ...form, fundingCategory: event.target.value })}/></label>
-        <label className="form-label">Funding organisation<input autoComplete="off" className="field" value={form.fundingOrganisation} onChange={event => setForm({ ...form, fundingOrganisation: event.target.value })}/></label>
       </div>
 
       <h3>Emergency contact</h3><p className="muted">Protected manager information. These details are not downloaded to kiosk tablets.</p><div className="form-grid">

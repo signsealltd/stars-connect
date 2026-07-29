@@ -39,6 +39,8 @@ describe("student emergency contacts and billing integration", () => {
     expect(component).toContain("Emergency contact");
     expect(component).toContain("not downloaded to kiosk tablets");
     expect(component).toContain("Set up billing when this student is saved");
+    expect(component).not.toContain("form.fundingCategory");
+    expect(component).not.toContain("form.fundingOrganisation");
   });
 
   it("omits the billing object when inline billing is disabled", () => {

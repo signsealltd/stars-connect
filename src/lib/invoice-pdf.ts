@@ -84,7 +84,7 @@ function pageHeader(input: InvoicePdfInput, page: number) {
   return commands;
 }
 
-function tableHeader(y: number) {
+function tableHeader(y: number, showVat: boolean) {
   return [
     rect(42, y - 4, 511, 24, PURPLE_SOFT, BORDER),
     text("ATTENDANCE DATE", 50, y + 5, 7, true, PURPLE),
@@ -92,12 +92,12 @@ function tableHeader(y: number) {
     text("DAYS", 260, y + 5, 7, true, PURPLE),
     text("DAY RATE", 306, y + 5, 7, true, PURPLE),
     text("NET", 374, y + 5, 7, true, PURPLE),
-    text("VAT", 433, y + 5, 7, true, PURPLE),
+    ...(showVat ? [text("VAT", 433, y + 5, 7, true, PURPLE)] : []),
     text("TOTAL", 487, y + 5, 7, true, PURPLE),
   ];
 }
 
-function tableRow(row: InvoicePdfRow, y: number, alternate: boolean) {
+function tableRow(row: InvoicePdfRow, y: number, alternate: boolean, showVat: boolean) {
   const commands = [];
   if (alternate) commands.push(rect(42, y - 17, 511, 26, "0.985 0.98 0.99"));
   commands.push(
@@ -106,7 +106,7 @@ function tableRow(row: InvoicePdfRow, y: number, alternate: boolean) {
     text(row.days, 260, y - 1, 7.5),
     text(row.rate, 306, y - 1, 7.5),
     text(row.net, 374, y - 1, 7.5),
-    text(row.vat, 433, y - 1, 7.5),
+    ...(showVat ? [text(row.vat, 433, y - 1, 7.5)] : []),
     text(row.total, 487, y - 1, 7.5, true),
     line(42, y - 17, 553, y - 17),
   );
@@ -114,6 +114,7 @@ function tableRow(row: InvoicePdfRow, y: number, alternate: boolean) {
 }
 
 export function invoicePdf(input: InvoicePdfInput) {
+  const showVat = Boolean(input.vatNumber?.trim()) || !/GBP\s+0(?:\.00)?$/.test(input.vatTotal.trim());
   const rows = input.rows.length ? input.rows : [{ date: "-", days: "0", rate: "GBP 0.00", net: "GBP 0.00", vat: "GBP 0.00", total: "GBP 0.00" }];
   const firstPageRows = 10;
   const continuedRows = 20;
@@ -144,8 +145,8 @@ export function invoicePdf(input: InvoicePdfInput) {
         ...addressBlock(input.payerAddress, 318, 651),
         text(`Invoice date: ${input.invoiceDate}`, 318, 586, 8),
         text(`Payment due: ${input.dueDate}`, 318, 571, 8, true),
-        text(`Company number: ${input.companyNumber || "Not supplied"}`, 42, 586, 8),
-        text(`VAT number: ${input.vatNumber || "Not applicable"}`, 42, 571, 8),
+        ...(input.companyNumber ? [text(`Company number: ${input.companyNumber}`, 42, 586, 8)] : []),
+        ...(showVat && input.vatNumber ? [text(`VAT number: ${input.vatNumber}`, 42, 571, 8)] : []),
         rect(42, 502, 511, 52, PURPLE_SOFT, BORDER),
         text("SERVICE USER", 54, 537, 6.5, true, MUTED),
         text(input.studentName, 54, 518, 11, true, PURPLE),
@@ -158,37 +159,46 @@ export function invoicePdf(input: InvoicePdfInput) {
         ["ATTENDANCE DAYS", input.attendanceDays],
         ["DAY RATE", input.dayRate],
         ["NET", input.netTotal],
-        ["VAT", input.vatTotal],
+        ...(showVat ? [["VAT", input.vatTotal]] : []),
         ["INVOICE TOTAL", input.grossTotal],
       ];
       summary.forEach((item, index) => {
-        const x = 42 + index * 103;
-        commands.push(rect(x, 438, 96, 48, index === 4 ? PURPLE : PURPLE_SOFT, index === 4 ? PURPLE : BORDER));
-        commands.push(text(item[0], x + 8, 469, 6.1, true, index === 4 ? "1 1 1" : MUTED));
-        commands.push(text(item[1], x + 8, 450, 10, true, index === 4 ? "1 1 1" : PURPLE));
+        const width = 511 / summary.length;
+        const x = 42 + index * width;
+        const total = index === summary.length - 1;
+        commands.push(rect(x, 438, width - 7, 48, total ? PURPLE : PURPLE_SOFT, total ? PURPLE : BORDER));
+        commands.push(text(item[0], x + 8, 469, 6.1, true, total ? "1 1 1" : MUTED));
+        commands.push(text(item[1], x + 8, 450, 10, true, total ? "1 1 1" : PURPLE));
       });
       commands.push(text("ATTENDANCE BREAKDOWN", 42, 414, 9, true, PURPLE));
       tableY = 386;
     }
-    commands.push(...tableHeader(tableY));
-    page.forEach((row, index) => commands.push(...tableRow(row, tableY - 27 - index * 26, index % 2 === 1)));
+    commands.push(...tableHeader(tableY, showVat));
+    page.forEach((row, index) => commands.push(...tableRow(row, tableY - 27 - index * 26, index % 2 === 1, showVat)));
 
     if (pageIndex === pageCount - 1) {
-      const detailsY = Math.max(82, tableY - 44 - page.length * 26 - 116);
+      const detailsY = Math.max(78, tableY - 44 - page.length * 26 - 138);
+      const bankLines = input.bankDetails.filter(Boolean).slice(0, 5);
+      const remittanceLines = input.remittanceInstructions.filter(Boolean).slice(0, 3);
       commands.push(
-        rect(42, detailsY, 511, 98, PURPLE_SOFT, BORDER),
-        text("PAYMENT AND DOCUMENT DETAILS", 54, detailsY + 78, 8, true, PURPLE),
-        text(fit(input.paymentTerms, 88), 54, detailsY + 60, 8),
-        ...input.bankDetails.filter(Boolean).slice(0, 2).map((value, index) => text(fit(value, 88), 54, detailsY + 43 - index * 14, 8)),
-        ...input.remittanceInstructions.filter(Boolean).slice(0, 1).map(value => text(fit(value, 88), 54, detailsY + 15, 8)),
-        text(`Approved: ${input.approvedAt}`, 330, detailsY + 43, 7.5, false, MUTED),
-        text(`Generated: ${input.generatedAt}`, 330, detailsY + 27, 7.5, false, MUTED),
+        rect(42, detailsY, 511, 122, PURPLE_SOFT, BORDER),
+        text("PAYMENT AND DOCUMENT DETAILS", 54, detailsY + 101, 8, true, PURPLE),
+        text("PAYMENT TERMS", 54, detailsY + 82, 6.5, true, MUTED),
+        text(fit(input.paymentTerms, 45), 54, detailsY + 66, 8),
+        text("REMITTANCE", 54, detailsY + 45, 6.5, true, MUTED),
+        ...remittanceLines.map((value, index) => text(fit(value, 45), 54, detailsY + 29 - index * 13, 7.5)),
+        text("PAYMENT DETAILS", 305, detailsY + 82, 6.5, true, MUTED),
+        ...bankLines.map((value, index) => text(fit(value, 45), 305, detailsY + 66 - index * 13, 7.5)),
       );
     }
     commands.push(
-      line(42, 48, 553, 48),
-      text("Generated securely by STARS Connect", 42, 29, 7.5, false, MUTED),
-      text(`Page ${pageIndex + 1} of ${pageCount}`, 503, 29, 7.5, false, MUTED),
+      line(42, 55, 553, 55),
+      ...(pageIndex === pageCount - 1 ? [
+        text(`Approved: ${input.approvedAt}`, 42, 39, 7, false, MUTED),
+        text(`Generated: ${input.generatedAt}`, 280, 39, 7, false, MUTED),
+      ] : []),
+      text("Generated securely by STARS Connect", 42, 21, 7, false, MUTED),
+      text(`Page ${pageIndex + 1} of ${pageCount}`, 503, 21, 7, false, MUTED),
     );
 
     const body = commands.join("\n");

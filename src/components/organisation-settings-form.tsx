@@ -1,64 +1,19 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
-
 import { useEffect, useState } from "react";
-import { Save } from "lucide-react";
+import { Save, Trash2, Upload } from "lucide-react";
 import { isThemePreset, themePresets, type ThemePresetId } from "@/lib/theme-presets";
-
-type Settings = {
-  organisationName: string; organisationLegalName: string; organisationAddress: string;
-  organisationRegistrationNumber: string; organisationLogoUrl: string;
-  themePreset: string; themePrimary: string; themePrimaryDark: string; themeAccent: string;
-};
-
-async function compressLogo(file: File) {
-  if (file.size > 12 * 1024 * 1024) throw new Error("Choose a logo smaller than 12 MB.");
-  const bitmap = await createImageBitmap(file);
-  const scale = Math.min(1, 700 / bitmap.width, 300 / bitmap.height);
-  const canvas = document.createElement("canvas");
-  canvas.width = Math.max(1, Math.round(bitmap.width * scale));
-  canvas.height = Math.max(1, Math.round(bitmap.height * scale));
-  canvas.getContext("2d")!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-  bitmap.close();
-  return canvas.toDataURL("image/png");
-}
-
-export function OrganisationSettingsForm() {
-  const [form, setForm] = useState<Settings>();
-  const [notice, setNotice] = useState("");
-  const [error, setError] = useState("");
-  useEffect(() => { fetch("/api/settings/organisation").then((r) => r.json()).then(setForm).catch(() => setError("Organisation settings could not be loaded.")); }, []);
-  if (!form) return <section className="card empty">{error || "Loading organisation settings…"}</section>;
-  async function save(event: React.FormEvent) {
-    event.preventDefault(); setError(""); setNotice("");
-    const response = await fetch("/api/settings/organisation", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(form) });
-    const result = await response.json();
-    if (!response.ok) return setError(result.error || "Organisation settings could not be saved.");
-    setForm(result);
-    setNotice("Organisation and theme settings saved.");
-    window.dispatchEvent(new CustomEvent("stars-branding", { detail: result }));
-  }
-  return <form className="card form-grid" style={{ padding: 24, marginBottom: 22 }} onSubmit={save} autoComplete="off">
-    <div className="full"><h2>Organisation and appearance</h2><p className="muted">Choose a consistent preset theme. Default restores the original STARS purple appearance.</p></div>
-    <label className="form-label">Display name<input className="field" value={form.organisationName} onChange={(e) => setForm({ ...form, organisationName: e.target.value })}/></label>
-    <label className="form-label">Legal/company name<input className="field" value={form.organisationLegalName} onChange={(e) => setForm({ ...form, organisationLegalName: e.target.value })}/></label>
-    <label className="form-label">Registration number<input className="field" value={form.organisationRegistrationNumber} onChange={(e) => setForm({ ...form, organisationRegistrationNumber: e.target.value })}/></label>
-    <label className="form-label full">Address<textarea className="field" value={form.organisationAddress} onChange={(e) => setForm({ ...form, organisationAddress: e.target.value })}/></label>
-    <label className="form-label full">Organisation logo<input className="field" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={async(e) => { const file=e.target.files?.[0]; if(file) setForm({...form,organisationLogoUrl:await compressLogo(file)}); }}/>{form.organisationLogoUrl&&<img src={form.organisationLogoUrl} alt="Organisation logo preview" style={{maxWidth:180,maxHeight:90,objectFit:"contain",marginTop:10}}/>}</label>
-    <fieldset className="full theme-picker">
-      <legend>Application theme</legend>
-      <div className="theme-options">
-        {Object.entries(themePresets).map(([id, preset]) => {
-          const selected = (isThemePreset(form.themePreset) ? form.themePreset : "default") === id;
-          return <label className={`theme-option${selected ? " selected" : ""}`} key={id}>
-            <input type="radio" name="themePreset" value={id} checked={selected} onChange={() => setForm({ ...form, themePreset: id as ThemePresetId })}/>
-            <span className="theme-swatches" aria-hidden="true"><i style={{ background: preset.header }}/><i style={{ background: preset.primary }}/><i style={{ background: preset.accent }}/></span>
-            <strong>{preset.label}</strong>
-          </label>;
-        })}
-      </div>
-    </fieldset>
-    {error&&<div className="alert alert-error full">{error}</div>}{notice&&<div className="alert alert-success full">{notice}</div>}
-    <div className="full"><button className="btn primary"><Save size={17}/>Save organisation settings</button></div>
-  </form>;
-}
+type Logo={id:string;name:string;url:string};
+type Settings={organisationName:string;organisationLegalName:string;organisationAddress:string;organisationLogoUrl:string;organisationLogos:Logo[];themePreset:string;themePrimary:string;themePrimaryDark:string;themeAccent:string};
+async function compressLogo(file:File){if(file.size>12*1024*1024)throw new Error("Choose a logo smaller than 12 MB.");const source=URL.createObjectURL(file);try{const image=new Image();image.src=source;await image.decode();const scale=Math.min(1,700/image.naturalWidth,300/image.naturalHeight),canvas=document.createElement("canvas");canvas.width=Math.max(1,Math.round(image.naturalWidth*scale));canvas.height=Math.max(1,Math.round(image.naturalHeight*scale));const context=canvas.getContext("2d");if(!context)throw new Error("The logo could not be prepared.");context.fillStyle="#ffffff";context.fillRect(0,0,canvas.width,canvas.height);context.drawImage(image,0,0,canvas.width,canvas.height);return canvas.toDataURL("image/jpeg",.88)}finally{URL.revokeObjectURL(source)}}
+export function OrganisationSettingsForm(){const[form,setForm]=useState<Settings>(),[notice,setNotice]=useState(""),[error,setError]=useState("");useEffect(()=>{fetch("/api/settings/organisation").then(r=>r.json()).then(setForm).catch(()=>setError("Organisation settings could not be loaded."))},[]);if(!form)return <section className="card empty">{error||"Loading organisation settings..."}</section>;
+async function save(event:React.FormEvent){event.preventDefault();setError("");setNotice("");const response=await fetch("/api/settings/organisation",{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify(form)}),result=await response.json();if(!response.ok)return setError(result.error||"Organisation settings could not be saved.");setForm(result);setNotice("Organisation, logo and theme settings saved.");window.dispatchEvent(new CustomEvent("stars-branding",{detail:result}))}
+return <form className="card form-grid" style={{padding:24,marginBottom:22}} onSubmit={save} autoComplete="off">
+<div className="full"><h2>Organisation and appearance</h2><p className="muted">The selected logo is used throughout the manager and kiosk interfaces.</p></div>
+<label className="form-label">Display name<input className="field" value={form.organisationName} onChange={e=>setForm({...form,organisationName:e.target.value})}/></label>
+<label className="form-label">Legal/company name<input className="field" value={form.organisationLegalName} onChange={e=>setForm({...form,organisationLegalName:e.target.value})}/></label>
+<label className="form-label full">Address<textarea className="field" value={form.organisationAddress} onChange={e=>setForm({...form,organisationAddress:e.target.value})}/></label>
+<fieldset className="full logo-library"><legend>Organisation logos</legend><p className="muted">Keep up to five logos. Select the one to use across STARS Connect.</p><div className="logo-library-grid">{form.organisationLogos.map(logo=><label className={`logo-library-item${form.organisationLogoUrl===logo.url?" selected":""}`} key={logo.id}><input type="radio" name="organisationLogo" checked={form.organisationLogoUrl===logo.url} onChange={()=>setForm({...form,organisationLogoUrl:logo.url})}/><img src={logo.url} alt=""/><strong>{logo.name}</strong>{logo.id!=="stars-default"&&<button type="button" className="btn danger compact" onClick={event=>{event.preventDefault();const remaining=form.organisationLogos.filter(item=>item.id!==logo.id);setForm({...form,organisationLogos:remaining,organisationLogoUrl:form.organisationLogoUrl===logo.url?remaining[0].url:form.organisationLogoUrl})}}><Trash2 size={15}/>Delete</button>}</label>)}</div>
+<label className="btn secondary logo-upload"><Upload size={17}/>{form.organisationLogos.length>=5?"Maximum of five logos reached":"Upload another logo"}<input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" hidden disabled={form.organisationLogos.length>=5} onChange={async event=>{const file=event.target.files?.[0];if(!file)return;setError("");try{const url=await compressLogo(file),logo={id:crypto.randomUUID(),name:file.name.replace(/\.[^.]+$/,"").slice(0,80)||"Organisation logo",url};setForm({...form,organisationLogos:[...form.organisationLogos,logo],organisationLogoUrl:url})}catch(reason){setError(reason instanceof Error?reason.message:"The logo could not be prepared.")}finally{event.target.value=""}}}/></label></fieldset>
+<fieldset className="full theme-picker"><legend>Application theme</legend><div className="theme-options">{Object.entries(themePresets).map(([id,preset])=>{const selected=(isThemePreset(form.themePreset)?form.themePreset:"default")===id;return <label className={`theme-option${selected?" selected":""}`} key={id}><input type="radio" name="themePreset" value={id} checked={selected} onChange={()=>setForm({...form,themePreset:id as ThemePresetId})}/><span className="theme-swatches" aria-hidden="true"><i style={{background:preset.header}}/><i style={{background:preset.primary}}/><i style={{background:preset.accent}}/></span><strong>{preset.label}</strong></label>})}</div></fieldset>
+{error&&<div className="alert alert-error full">{error}</div>}{notice&&<div className="alert alert-success full">{notice}</div>}<div className="full"><button className="btn primary"><Save size={17}/>Save organisation settings</button></div></form>}

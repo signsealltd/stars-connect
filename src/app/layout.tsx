@@ -6,6 +6,7 @@ import { KioskIdleController } from "@/components/kiosk-idle-controller";
 import { KioskBatteryStatus } from "@/components/kiosk-battery-status";
 import { KioskDeviceStatusBar } from "@/components/kiosk-device-status-bar";
 import { AppearanceController } from "@/components/appearance-controller";
+import { CliveAssistant } from "@/components/clive-assistant";
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.APP_URL || "https://app.starsconnect.co.uk"),
@@ -30,5 +31,5 @@ export const viewport: Viewport = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return <html lang="en-GB"><body><AppearanceController/><ServiceWorkerRegistration /><KioskIdleController /><KioskBatteryStatus />{children}<KioskDeviceStatusBar/></body></html>;
+  return <html lang="en-GB"><body><AppearanceController/><ServiceWorkerRegistration /><KioskIdleController /><KioskBatteryStatus />{children}<KioskDeviceStatusBar/><CliveAssistant/></body></html>;
 }

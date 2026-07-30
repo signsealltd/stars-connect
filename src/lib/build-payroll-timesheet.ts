@@ -76,6 +76,9 @@ export async function buildPayrollTimesheet(input: {
       const finish = eventsForDay[index + 1];
       const complete = start.type === "CLOCK_IN" && finish?.type === "CLOCK_OUT";
       const minutes = complete ? Math.max(0, Math.round((finish.at.getTime() - start.at.getTime()) / 60_000)) : 0;
+      const transportMinutes =
+        (start.type === "CLOCK_IN" && start.transportDuty ? transportSettings.clockInAllowanceMinutes : 0) +
+        (finish?.type === "CLOCK_OUT" && finish.transportDuty ? transportSettings.clockOutAllowanceMinutes : 0);
       const corrections = [start.correction, finish?.correction].filter(
         (value): value is NonNullable<typeof value> => Boolean(value),
       );
@@ -88,8 +91,8 @@ export async function buildPayrollTimesheet(input: {
           ? corrections
               .map(item => `${item.reason} (${item.managerName}, ${dateTimeLabel(item.createdAt)})`)
               .join("; ")
-          : start.transportDuty || finish?.transportDuty
-            ? `+${hours(transportSettings.clockInAllowanceMinutes + transportSettings.clockOutAllowanceMinutes)} transport`
+          : transportMinutes
+            ? `+${hours(transportMinutes)} transport`
             : "No correction",
       });
     }

@@ -39,8 +39,7 @@ export default async function Timesheets() {
     <div className="content">
       <h1 className="page-title">Timesheets</h1>
       <p className="muted">
-        Today&apos;s calculated hours. Managers, directors and administrators can close a
-        forgotten shift; every manual entry is audited.
+        Today&apos;s calculated hours. Managers, directors and administrators can record a forgotten clock-in or clock-out; every manual entry is audited.
       </p>
       <TimesheetManager initialRows={rows}/>
     </div>

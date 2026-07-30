@@ -10,7 +10,7 @@ export const visitorSignInSchema = z.object({
   referenceCode: z.string().regex(/^[A-Z0-9]{6,12}$/),
   fullName: safeText(120),
   company: z.string().trim().max(191).refine((value) => !/[<>]/.test(value)).optional().default(""),
-  host: safeText(120),
+  host: z.string().trim().max(120).refine((value) => !/[<>]/.test(value)).optional().default(""),
   reasonId: z.uuid(),
   reasonLabel: safeText(100),
   otherReason: z.string().trim().max(250).refine((value) => !/[<>]/.test(value)).optional(),
@@ -36,6 +36,10 @@ export const visitorSignOutSchema = z.object({
 
 export type VisitorSignIn = z.infer<typeof visitorSignInSchema>;
 export type SignatureStrokeData = z.infer<typeof signatureSchema>;
+
+export function appendSignatureStroke(existing: SignatureStrokeData, stroke: SignatureStrokeData[number]) {
+  return [...existing, stroke];
+}
 
 export function normalizeVisitorName(value: string) { return value.trim().toLocaleLowerCase("en-GB").replace(/\s+/g, " "); }
 export function createVisitReference() { return crypto.randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase(); }

@@ -48,8 +48,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     } });
     const rule = before.chargeRules[0];
     if (rule) await tx.chargeRule.update({ where: { id: rule.id }, data: {
-      rate: new Prisma.Decimal(data.rate), activeFrom, vatTreatment: data.vatTreatment,
-      vatRate: new Prisma.Decimal(data.vatRate),
+      rate: new Prisma.Decimal(data.rate), activeFrom, activeTo: null, active: true,
+      attendanceDependency: "ATTENDED", applicableWeekdays: [1, 2, 3, 4, 5],
+      vatTreatment: data.vatTreatment, vatRate: new Prisma.Decimal(data.vatRate),
+    } });
+    else await tx.chargeRule.create({ data: {
+      billingProfileId: id, chargeType: "FULL_DAY", description: "Attended day", unitType: "DAY",
+      rate: new Prisma.Decimal(data.rate), attendanceDependency: "ATTENDED",
+      applicableWeekdays: [1, 2, 3, 4, 5], activeFrom,
+      vatTreatment: data.vatTreatment, vatRate: new Prisma.Decimal(data.vatRate),
     } });
     return tx.billingProfile.findUniqueOrThrow({ where: { id }, include: { chargeRules: true } });
   });

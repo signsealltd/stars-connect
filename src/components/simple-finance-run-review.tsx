@@ -10,8 +10,10 @@ type Entry = {
   sourceSnapshot: { exceptions?: string[] };
 };
 type Charge = {
-  id: string; studentId: string; studentName: string; payerName: string; description: string; netAmount: string | number;
+  id: string; billingProfileId: string; studentId: string; studentName: string; payerName: string; description: string;
+  quantity: string | number; unitRate: string | number; netAmount: string | number; vatRate: string | number;
   vatAmount: string | number; grossAmount: string | number; exceptionCode?: string; excluded: boolean;
+  manuallyAdjusted?: boolean; adjustmentReason?: string;
 };
 type Run = {
   id: string; status: string; version: number; periodStart: string; periodEnd: string; updatedAt: string;
@@ -20,7 +22,7 @@ type Run = {
 };
 
 const hours = (minutes: number) => `${(minutes / 60).toFixed(2)}h`;
-const money = (value: string | number) => `Â£${Number(value).toFixed(2)}`;
+const money = (value: string | number) => `£${Number(value).toFixed(2)}`;
 
 export function SimpleFinanceRunReview({ mode, id }: { mode: "payroll" | "billing"; id: string }) {
   const endpoint = mode === "payroll" ? `/api/payroll/periods/${id}` : `/api/billing/runs/${id}`;
@@ -32,6 +34,9 @@ export function SimpleFinanceRunReview({ mode, id }: { mode: "payroll" | "billin
   const [filter, setFilter] = useState("ALL");
   const [payItemEntry, setPayItemEntry] = useState<Entry | null>(null);
   const [payItem, setPayItem] = useState({ category: "HOLIDAY", date: "", hours: "8", reason: "APPROVED_ANNUAL_LEAVE" });
+  const [billingAdjustment, setBillingAdjustment] = useState<Charge | null>(null);
+  const [billingTotal, setBillingTotal] = useState("");
+  const [billingReason, setBillingReason] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -125,6 +130,37 @@ export function SimpleFinanceRunReview({ mode, id }: { mode: "payroll" | "billin
     finally { setWorking(false); }
   }
 
+  function openBillingAdjustment(charge: Charge) {
+    setError("");
+    setBillingTotal(Number(charge.netAmount).toFixed(2));
+    setBillingReason("");
+    setBillingAdjustment(charge);
+  }
+
+  async function saveBillingAdjustment(event: React.FormEvent) {
+    event.preventDefault();
+    if (!billingAdjustment) return;
+    const netAmount = Number(billingTotal);
+    if (!Number.isFinite(netAmount) || netAmount < 0) {
+      setError("Enter a valid total of £0.00 or more.");
+      return;
+    }
+    if (billingReason.trim().length < 5) {
+      setError("Enter a reason of at least five characters.");
+      return;
+    }
+    setWorking(true); setError(""); setSuccess("");
+    try {
+      await action("adjust-charge", { chargeId: billingAdjustment.id, netAmount, reason: billingReason.trim() });
+      setSuccess(`Billing total changed from ${money(billingAdjustment.netAmount)} to ${money(netAmount)}. The original value and reason were recorded.`);
+      setBillingAdjustment(null);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Unable to adjust the billing total.");
+    } finally {
+      setWorking(false);
+    }
+  }
+
   async function approveAndCreate() {
     if (!run || exceptions.length || !records.length) return;
     if (!await appConfirm(`Approve the totals shown and create the final ${mode === "payroll" ? "payroll files" : "invoices"}?`)) return;
@@ -170,7 +206,7 @@ export function SimpleFinanceRunReview({ mode, id }: { mode: "payroll" | "billin
 
   return <>
     <div className="page-head"><div><h1 className="page-title">{mode === "payroll" ? "Payroll" : "Billing"} review</h1>
-      <p className="muted">{new Date(run.periodStart).toLocaleDateString("en-GB")} â€“ {new Date(run.periodEnd).toLocaleDateString("en-GB")}</p></div>
+      <p className="muted">{new Date(run.periodStart).toLocaleDateString("en-GB")} – {new Date(run.periodEnd).toLocaleDateString("en-GB")}</p></div>
       <span className="status-pill">{complete ? "COMPLETE" : exceptions.length ? "ACTION NEEDED" : "READY"}</span>
     </div>
     <div className={styles.steps}>
@@ -207,7 +243,7 @@ export function SimpleFinanceRunReview({ mode, id }: { mode: "payroll" | "billin
         return <tr key={entry.id}><td><button className="btn ghost" disabled={working || complete || isExcluded} onClick={() => openPayItem(entry)}>{entry.staffName}</button></td><td>{entry.payrollNumber || "Not configured"}</td><td>{hours(entry.ordinaryMinutes)}</td><td>{hours(entry.overtimeMinutes)}</td><td>{hours(entry.adjustmentMinutes)}<small style={{display:"block"}}>Holiday {hours(entry.holidayMinutes)} | Sickness {hours(entry.sicknessMinutes)} | Training {hours(entry.trainingMinutes)} | Unpaid {hours(entry.unpaidMinutes)}<br/>Original {hours(entry.originalMinutes)} | Bus +{hours(entry.transportMinutes)} | Before rounding {hours(entry.preRoundedMinutes)} | Rounding {entry.roundingMinutes>=0?"+":""}{hours(entry.roundingMinutes)}</small></td><td>{hours(entry.totalPayableMinutes)}</td><td>{entry.exceptionCount ? (isExcluded ? "EXCLUDED" : entry.exceptionStatus) : "CLEAR"}</td><td><div className="table-actions">{!complete && !isExcluded && <button className="btn secondary" disabled={working} onClick={() => openPayItem(entry)}>Add pay item</button>}{entry.exceptionCount > 0 && !isExcluded && <button className="btn primary" disabled={working} onClick={() => resolve(entry)}>Resolve warning</button>}<button className="btn secondary" disabled={working || complete} onClick={() => exclude(entry, isExcluded)}>{isExcluded ? "Restore" : "Exclude"}</button></div></td></tr>;
       })() : (() => {
         const charge = record as Charge; const missing = charge.exceptionCode === "MISSING_BILLING_PROFILE";
-        return <tr key={charge.id}><td>{charge.studentName}</td><td>{missing ? "Not set up" : charge.payerName}</td><td>{missing ? "Billing details required" : charge.description}</td><td>{money(charge.netAmount)}</td><td>{money(charge.vatAmount)}</td><td>{money(charge.grossAmount)}</td><td>{charge.excluded ? "EXCLUDED" : missing ? "SETUP REQUIRED" : charge.exceptionCode || "CLEAR"}</td><td><div className="table-actions">{missing ? <a className="btn primary" href={`/dashboard/billing/profiles?studentId=${charge.studentId}&returnTo=${encodeURIComponent(`/dashboard/billing/runs/${id}`)}`}>Set up billing</a> : charge.exceptionCode && <button className="btn primary" disabled={working} onClick={() => resolve(charge)}>Resolve warning</button>}<button className="btn secondary" disabled={working} onClick={() => exclude(charge, charge.excluded)}>{charge.excluded ? "Restore" : "Exclude"}</button></div></td></tr>;
+        return <tr key={charge.id}><td>{charge.studentName}</td><td>{missing ? "Not set up" : charge.payerName}</td><td>{missing ? "Billing details required" : <>{charge.description}{charge.manuallyAdjusted && <small className="muted" style={{display:"block"}}>Adjusted with reason recorded</small>}</>}</td><td>{money(charge.netAmount)}</td><td>{money(charge.vatAmount)}</td><td><b>{money(charge.grossAmount)}</b></td><td>{charge.excluded ? "EXCLUDED" : missing ? "SETUP REQUIRED" : charge.exceptionCode || (charge.manuallyAdjusted ? "ADJUSTED" : "CLEAR")}</td><td><div className="table-actions">{missing ? <a className="btn primary" href={`/dashboard/billing/profiles?studentId=${charge.studentId}&returnTo=${encodeURIComponent(`/dashboard/billing/runs/${id}`)}`}>Set up billing</a> : <button className="btn primary" disabled={working || complete || charge.excluded} onClick={() => openBillingAdjustment(charge)}>{charge.exceptionCode ? "Set total" : "Adjust total"}</button>}<button className="btn secondary" disabled={working || complete} onClick={() => exclude(charge, charge.excluded)}>{charge.excluded ? "Restore" : "Exclude"}</button></div></td></tr>;
       })())}</tbody>
     </table>{!visible.length && <div className="empty">No records match this filter.</div>}</section>
     {(run.invoices || []).length > 0 && <section className="card"><h2>Generated invoices</h2>{run.invoices!.map(invoice => <p key={invoice.id}>{invoice.invoiceNumber} Â· {money(invoice.grossTotal)} {invoice.documentId && <a className="btn secondary" href={`/api/documents/${invoice.documentId}/download`}>Download</a>}</p>)}</section>}
@@ -220,6 +256,15 @@ export function SimpleFinanceRunReview({ mode, id }: { mode: "payroll" | "billin
         <label className="form-label">Hours<input className="field" type="number" min="0.25" max="24" step="0.25" required value={payItem.hours} onChange={event => setPayItem({...payItem, hours:event.target.value})}/></label>
       </div>
       <div className="modal-actions"><button type="button" className="btn secondary" disabled={working} onClick={() => setPayItemEntry(null)}>Cancel</button><button className="btn primary" disabled={working}>{working?"Saving…":"Add and recalculate"}</button></div>
+    </form></div>}
+    {billingAdjustment && <div className="modal-backdrop"><form className="modal" onSubmit={saveBillingAdjustment}>
+      <h2>Adjust billing total</h2>
+      <p><b>{billingAdjustment.studentName}</b> · {billingAdjustment.payerName}</p>
+      <div className="card" style={{padding: "14px", marginBottom: "16px"}}><span className="muted">Calculated net total</span><b style={{display: "block", fontSize: "24px"}}>{money(billingAdjustment.netAmount)}</b></div>
+      <label className="form-label">Correct net total (£)<input className="field" type="number" min="0" step="0.01" required value={billingTotal} onChange={event => setBillingTotal(event.target.value)}/></label>
+      <p className="muted">VAT is recalculated from the saved billing profile. The original amount is retained in the audit log.</p>
+      <label className="form-label">Reason for correction<textarea className="field" minLength={5} maxLength={1000} required value={billingReason} onChange={event => setBillingReason(event.target.value)} placeholder="For example: agreed attendance charge confirmed by manager"/></label>
+      <div className="modal-actions"><button type="button" className="btn secondary" disabled={working} onClick={() => setBillingAdjustment(null)}>Cancel</button><button className="btn primary" disabled={working}>{working ? "Saving…" : "Save corrected total"}</button></div>
     </form></div>}
   </>;
 }

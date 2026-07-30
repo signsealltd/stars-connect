@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authenticateDevice } from "@/lib/device-auth";
+import { ensureVisitorConfiguration } from "@/lib/visitor-defaults";
 
 export async function GET(req: NextRequest) {
   const device = await authenticateDevice(req);
   if (!device) return NextResponse.json({ error: "This tablet is not authorised." }, { status: 401 });
+  await ensureVisitorConfiguration(prisma);
   const [reasons, rules, settings] = await Promise.all([
     prisma.visitorReason.findMany({ where: { active: true }, orderBy: [{ sortOrder: "asc" }, { label: "asc" }] }),
     prisma.visitorRuleSet.findFirst({ where: { active: true }, orderBy: { version: "desc" } }),

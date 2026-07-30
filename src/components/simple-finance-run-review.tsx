@@ -24,7 +24,7 @@ type Run = {
 };
 
 const hours = (minutes: number) => `${(minutes / 60).toFixed(2)}h`;
-const money = (value: string | number) => `Â£${Number(value).toFixed(2)}`;
+const money = (value: string | number) => `£${Number(value).toFixed(2)}`;
 
 export function SimpleFinanceRunReview({ mode, id }: { mode: "payroll" | "billing"; id: string }) {
   const endpoint = mode === "payroll" ? `/api/payroll/periods/${id}` : `/api/billing/runs/${id}`;
@@ -201,7 +201,7 @@ function openBillingAdjustment(charge: Charge) {
     } finally { setWorking(false); }
   }
 
-  if (loading) return <div className="empty">Loading calculated recordsÃ¢â‚¬Â¦</div>;
+  if (loading) return <div className="empty">Loading calculated records...</div>;
   if (!run) return <div className="alert alert-error">{error || "Run not found."}</div>;
   const complete = ["EXPORTED", "INVOICES_GENERATED"].includes(run.status);
   const gross = mode === "billing" ? (run.charges || []).filter(charge => !charge.excluded).reduce((sum, charge) => sum + Number(charge.grossAmount), 0) : 0;
@@ -209,7 +209,7 @@ function openBillingAdjustment(charge: Charge) {
 
   return <>
     <div className="page-head"><div><h1 className="page-title">{mode === "payroll" ? "Payroll" : "Billing"} review</h1>
-      <p className="muted">{new Date(run.periodStart).toLocaleDateString("en-GB")} â€“ {new Date(run.periodEnd).toLocaleDateString("en-GB")}</p></div>
+      <p className="muted">{new Date(run.periodStart).toLocaleDateString("en-GB")} to {new Date(run.periodEnd).toLocaleDateString("en-GB")}</p></div>
       <span className="status-pill">{complete ? "COMPLETE" : exceptions.length ? "ACTION NEEDED" : "READY"}</span>
     </div>
     <div className={styles.steps}>
@@ -220,7 +220,7 @@ function openBillingAdjustment(charge: Charge) {
     {error && <div className="alert alert-error">{error}</div>}
     {success && <div className="alert alert-success">{success}</div>}
     {mode === "billing" && (run.charges || []).some(charge => charge.exceptionCode === "MISSING_BILLING_PROFILE") && <div className={`card ${styles.callout}`}>
-      <div><b>Some service users have no billing setup</b><p>A billing profile records who receives their invoice and the agreed day rate. Select Ã¢â‚¬Å“Set up billingÃ¢â‚¬Â beside each affected person, then refresh calculations.</p></div>
+      <div><b>Some service users have no billing setup</b><p>A billing profile records who receives their invoice and the agreed day rate. Select &quot;Set up billing&quot; beside each affected person, then refresh calculations.</p></div>
       <a className="btn secondary" href="/dashboard/billing/profiles">View all billing profiles</a>
     </div>}
     <div className={styles.summary}>
@@ -231,7 +231,7 @@ function openBillingAdjustment(charge: Charge) {
     </div>
     <div className={styles.actions}>
       <select className="field" value={filter} onChange={event => setFilter(event.target.value)}><option value="ALL">All records</option><option value="WARNINGS">Warnings only</option><option value="EXCLUDED">Excluded</option></select>
-      {!complete && <button className="btn primary" disabled={working || exceptions.length > 0 || records.length === 0} onClick={approveAndCreate}>{working ? "WorkingÃ¢â‚¬Â¦" : `Approve and create ${mode === "payroll" ? "payroll files" : "invoices"}`}</button>}
+      {!complete && <button className="btn primary" disabled={working || exceptions.length > 0 || records.length === 0} onClick={approveAndCreate}>{working ? "Working..." : `Approve and create ${mode === "payroll" ? "payroll files" : "invoices"}`}</button>}
       {!complete && <button className="btn secondary" disabled={working} onClick={refreshCalculations}>Refresh calculations</button>}
       {mode === "billing" && complete && <button className="btn primary" onClick={async () => {
         const response = await fetch(`/api/billing/runs/${id}/documents`, { method: "POST" }); const body = await response.json();
@@ -249,7 +249,7 @@ function openBillingAdjustment(charge: Charge) {
         return <tr key={charge.id}><td>{charge.studentName}</td><td>{missing ? "Not set up" : charge.payerName}</td><td>{missing ? "Billing details required" : <>{charge.description}{charge.manuallyAdjusted && <small className="muted" style={{display:"block"}}>Adjusted with reason recorded</small>}</>}</td><td>{money(charge.netAmount)}</td><td>{money(charge.vatAmount)}</td><td><b>{money(charge.grossAmount)}</b></td><td>{charge.excluded ? "EXCLUDED" : missing ? "SETUP REQUIRED" : charge.exceptionCode || (charge.manuallyAdjusted ? "ADJUSTED" : "CLEAR")}</td><td><div className="table-actions">{missing ? <a className="btn primary" href={`/dashboard/billing/profiles?studentId=${charge.studentId}&returnTo=${encodeURIComponent(`/dashboard/billing/runs/${id}`)}`}>Set up billing</a> : <button className="btn primary" disabled={working || complete || charge.excluded} onClick={() => openBillingAdjustment(charge)}>Add service</button>}<button className="btn secondary" disabled={working || complete} onClick={() => exclude(charge, charge.excluded)}>{charge.excluded ? "Restore" : "Exclude"}</button></div></td></tr>;
       })())}</tbody>
     </table>{!visible.length && <div className="empty">No records match this filter.</div>}</section>
-    {(run.invoices || []).length > 0 && <section className="card"><h2>Generated invoices</h2>{run.invoices!.map(invoice => <p key={invoice.id}>{invoice.invoiceNumber} Ã‚Â· {money(invoice.grossTotal)} {invoice.documentId && <a className="btn secondary" href={`/api/documents/${invoice.documentId}/download`}>Download</a>}</p>)}</section>}
+    {(run.invoices || []).length > 0 && <section className="card"><h2>Generated invoices</h2>{run.invoices!.map(invoice => <p key={invoice.id}>{invoice.invoiceNumber} | {money(invoice.grossTotal)} {invoice.documentId && <a className="btn secondary" href={`/api/documents/${invoice.documentId}/download`}>Download</a>}</p>)}</section>}
     {payItemEntry && <div className="modal-backdrop"><form className="modal" onSubmit={addPayItem}>
       <h2>Add pay item for {payItemEntry.staffName}</h2>
       <div className="form-grid">
@@ -258,7 +258,7 @@ function openBillingAdjustment(charge: Charge) {
         <label className="form-label">Date<input className="field" type="date" required value={payItem.date} onChange={event => setPayItem({...payItem, date:event.target.value})}/></label>
         <label className="form-label">Hours<input className="field" type="number" min="0.25" max="24" step="0.25" required value={payItem.hours} onChange={event => setPayItem({...payItem, hours:event.target.value})}/></label>
       </div>
-      <div className="modal-actions"><button type="button" className="btn secondary" disabled={working} onClick={() => setPayItemEntry(null)}>Cancel</button><button className="btn primary" disabled={working}>{working?"Savingâ€¦":"Add and recalculate"}</button></div>
+      <div className="modal-actions"><button type="button" className="btn secondary" disabled={working} onClick={() => setPayItemEntry(null)}>Cancel</button><button className="btn primary" disabled={working}>{working?"Saving...":"Add and recalculate"}</button></div>
     </form></div>}
     {billingAdjustment && <div className="modal-backdrop"><form className="modal" onSubmit={saveBillingAdjustment}>
       <h2>Add an invoice service</h2>

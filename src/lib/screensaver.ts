@@ -73,5 +73,7 @@ export function visualPeriod(now: Date, settings: ScreensaverSettings) {
 }
 
 export function screensaverAllowedOnRoute(pathname: string) {
-  return pathname === "/" || pathname === "/live" || pathname === "/offline";
+  return ["/", "/clock", "/register", "/visitors", "/live", "/offline"].some((route) =>
+    route === "/" ? pathname === "/" : pathname === route || pathname.startsWith(`${route}/`),
+  );
 }

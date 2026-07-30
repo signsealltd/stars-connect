@@ -92,15 +92,15 @@ export function SimpleFinanceConsole({ mode }: { mode: Mode }) {
     <div className="toolbar">
       <label>From<input autoComplete="off" className="field" type="date" value={from} onChange={event => setFrom(event.target.value)}/></label>
       <label>To<input autoComplete="off" className="field" type="date" value={to} onChange={event => setTo(event.target.value)}/></label>
-      <button className="btn primary" disabled={working || !from || !to} onClick={prepare}>{working ? "Preparingâ€¦" : `Prepare ${mode}`}</button>
+      <button className="btn primary" disabled={working || !from || !to} onClick={prepare}>{working ? "Preparing..." : `Prepare ${mode}`}</button>
       {mode === "billing" && <a className="btn secondary" href="/dashboard/billing/profiles">Manage billing setup</a>}
     </div>
     {error && <div className="alert alert-error">{error}</div>}
     <section className="card table-wrap">
-      {loading ? <div className="empty">Loadingâ€¦</div> : items.length ? <table className="table">
+      {loading ? <div className="empty">Loading...</div> : items.length ? <table className="table">
         <thead><tr><th>Period</th><th>Status</th><th>Records</th><th>Next action</th></tr></thead>
         <tbody>{items.map(item => <tr key={item.id}>
-          <td>{new Date(item.periodStart).toLocaleDateString("en-GB")} â€“ {new Date(item.periodEnd).toLocaleDateString("en-GB")}</td>
+          <td>{new Date(item.periodStart).toLocaleDateString("en-GB")} to {new Date(item.periodEnd).toLocaleDateString("en-GB")}</td>
           <td><span className="status-pill">{label(item.status)}</span></td>
           <td>{item._count?.entries ?? item._count?.charges ?? 0}</td>
           <td><div className="table-actions">

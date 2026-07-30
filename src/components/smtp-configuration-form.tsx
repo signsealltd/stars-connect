@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 
@@ -32,7 +32,7 @@ export function SmtpConfigurationForm() {
       const response = await fetch("/api/email/config", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(form) });
       const body = await response.json();
       if (!response.ok) throw new Error(body.error || "SMTP settings could not be saved.");
-      setNotice({ ok: true, text: "SMTP settings saved. Run â€œCheck connectionâ€ below before sending a test email." });
+      setNotice({ ok: true, text: "SMTP settings saved. Run \"Check connection\" below before sending a test email." });
       setUsernameConfigured(!form.clearCredentials && (usernameConfigured || Boolean(form.username)));
       setPasswordConfigured(!form.clearCredentials && (passwordConfigured || Boolean(form.password)));
       setForm({ ...form, username: "", password: "", clearCredentials: false });
@@ -58,7 +58,7 @@ export function SmtpConfigurationForm() {
       <label className="form-label">Sender email<input autoComplete="off" className="field" type="email" required value={form.fromEmail} onChange={event => setForm({ ...form, fromEmail: event.target.value })}/><small className="muted">Many providers require this to match the authenticated mailbox.</small></label>
       <label className="check-row"><input type="checkbox" checked={form.clearCredentials} onChange={event => setForm({ ...form, clearCredentials: event.target.checked })}/><span>Remove the saved username and password</span></label>
     </div>
-    <button className="btn primary" disabled={busy}>{busy ? "Savingâ€¦" : "Save SMTP settings"}</button>
+    <button className="btn primary" disabled={busy}>{busy ? "Saving..." : "Save SMTP settings"}</button>
   </form>;
 }
 

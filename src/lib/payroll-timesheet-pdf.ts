@@ -88,12 +88,17 @@ function tableHeader(y: number) {
   ];
 }
 
+function busIcon(x: number, y: number) {
+  return [`${PURPLE} RG 1 w ${x} ${y} 13 8 re S`, `${PURPLE} RG ${x+2} ${y+5} 3 2 re S`, `${PURPLE} RG ${x+8} ${y+5} 3 2 re S`, `${PURPLE} rg ${x+3} ${y-1} 2 2 re f`, `${PURPLE} rg ${x+9} ${y-1} 2 2 re f`];
+}
+
 function tableRow(row: TimesheetRow, y: number, alternate: boolean) {
   const commands = [];
   if (alternate) commands.push(rect(42, y - 17, 511, 26, "0.985 0.98 0.99"));
+  commands.push(text(fit(row.date, 11), 50, y - 1, 7.5));
+  if (row.entry === "Transport") commands.push(...busIcon(112, y - 5), text("Transport", 130, y - 1, 7.5, true));
+  else commands.push(text(fit(row.entry, 16), 112, y - 1, 7.5, true));
   commands.push(
-    text(fit(row.date, 11), 50, y - 1, 7.5),
-    text(fit(row.entry, 16), 112, y - 1, 7.5, true),
     text(fit(row.details, 29), 196, y - 1, 7.5),
     text(fit(row.hours, 8), 352, y - 1, 7.5, true),
     text(fit(row.notes, 28), 405, y - 1, 7.2, false, MUTED),

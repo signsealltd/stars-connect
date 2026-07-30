@@ -1,2 +1,2 @@
-import{describe,expect,it}from"vitest";import{roundNearest}from"./transport-settings";
-describe("nearest interval payroll rounding",()=>{it("rounds 7 down",()=>expect(roundNearest(7)).toBe(0));it("rounds 8 up",()=>expect(roundNearest(8)).toBe(15));it("keeps exact intervals",()=>expect(roundNearest(30)).toBe(30))});
+import{describe,expect,it}from"vitest";import{roundNearest,roundPayroll}from"./transport-settings";
+describe("nearest interval payroll rounding",()=>{it("rounds 7 down",()=>expect(roundNearest(7)).toBe(0));it("rounds 8 up",()=>expect(roundNearest(8)).toBe(15));it("keeps exact intervals",()=>expect(roundNearest(30)).toBe(30))});it("supports configurable payroll rounding",()=>{expect(roundPayroll(61,15,"NONE")).toBe(61);expect(roundPayroll(61,15,"UP")).toBe(75);expect(roundPayroll(74,15,"DOWN")).toBe(60);expect(roundPayroll(68,15,"NEAREST")).toBe(75)});

@@ -5,6 +5,7 @@ import type { PayrollAdjustment, PayrollEntry, PayrollPeriod } from "@prisma/cli
 import { APP_TIME_ZONE } from "./dates";
 import { prisma } from "./prisma";
 import { payrollTimesheetPdf } from "./payroll-timesheet-pdf";
+import { getTransportSettings } from "./transport-settings";
 
 const dateLabel = (value: Date) => formatInTimeZone(value, APP_TIME_ZONE, "dd/MM/yyyy");
 const dateTimeLabel = (value: Date | null | undefined) =>
@@ -27,6 +28,7 @@ export async function buildPayrollTimesheet(input: {
   generatedBy: string;
   generatedAt: Date;
 }) {
+  const transportSettings = await getTransportSettings();
   const events = await prisma.clockEvent.findMany({
     where: {
       staffId: input.entry.staffId,
@@ -79,7 +81,7 @@ export async function buildPayrollTimesheet(input: {
       );
       rows.push({
         date: dateLabel(start.at),
-        entry: start.transportDuty || finish?.transportDuty ? "Clocked - transport" : "Clocked hours",
+        entry: start.transportDuty || finish?.transportDuty ? "Transport" : "Clocked hours",
         details: complete ? `${timeLabel(start.at)} - ${timeLabel(finish.at)}` : `${timeLabel(start.at)} - missing clock-out`,
         hours: (minutes / 60).toFixed(2),
         notes: corrections.length
@@ -87,7 +89,7 @@ export async function buildPayrollTimesheet(input: {
               .map(item => `${item.reason} (${item.managerName}, ${dateTimeLabel(item.createdAt)})`)
               .join("; ")
           : start.transportDuty || finish?.transportDuty
-            ? "Student transport tagged"
+            ? `+${hours(transportSettings.clockInAllowanceMinutes + transportSettings.clockOutAllowanceMinutes)} transport`
             : "No correction",
       });
     }

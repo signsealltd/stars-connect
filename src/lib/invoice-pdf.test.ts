@@ -22,6 +22,7 @@ const fixture = (rows = 1) => ({
   studentReference: "TEST1",
   rows: Array.from({ length: rows }, (_, index) => ({
     date: `${String(index + 1).padStart(2, "0")}/07/2026`,
+    service: index === 0 ? "Day trip" : "Attendance",
     days: "1.000",
     rate: "GBP 100.00",
     net: "GBP 100.00",
@@ -50,10 +51,18 @@ describe("official invoice PDF", () => {
     expect(text).toContain("(TEST1)");
     expect(text).toContain("(ATTENDANCE BREAKDOWN)");
     expect(text).toContain("(01/07/2026)");
+    expect(text).toContain("(Day trip)");
     expect(text).not.toContain("Manager confirmed");
     expect(text).toContain("/Subtype /Image");
   });
 
+  it("normalises unsupported punctuation instead of printing replacement symbols", () => {
+    const input = fixture();
+    input.paymentTerms = "Payment is due – quote £100 “reference”.";
+    const text = invoicePdf(input).toString("latin1");
+    expect(text).toContain('(Payment is due - quote GBP 100 "reference".)');
+    expect(text).not.toContain("(Payment is due ?");
+  });
   it("paginates a full attendance month and repeats invoice context", () => {
     const text = invoicePdf(fixture(31)).toString("latin1");
     expect(text).toContain("/Count 3");

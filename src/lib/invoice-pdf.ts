@@ -1,5 +1,6 @@
 export type InvoicePdfRow = {
   date: string;
+  service?: string;
   days: string;
   rate: string;
   net: string;
@@ -43,7 +44,16 @@ const MUTED = "0.40 0.37 0.41";
 const BORDER = "0.87 0.84 0.88";
 
 function esc(value: string) {
-  return value.replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)").replace(/[^\x20-\x7E]/g, "?");
+  return value
+    .replace(/[–—]/g, "-")
+    .replace(/[‘’]/g, "'")
+    .replace(/[“”]/g, '"')
+    .replace(/£/g, "GBP ")
+    .normalize("NFKD")
+    .replace(/[^\x20-\x7E]/g, "")
+    .replace(/\\/g, "\\\\")
+    .replace(/\(/g, "\\(")
+    .replace(/\)/g, "\\)");
 }
 
 function text(value: string, x: number, y: number, size = 9, bold = false, colour = INK) {
@@ -102,7 +112,7 @@ function tableRow(row: InvoicePdfRow, y: number, alternate: boolean, showVat: bo
   if (alternate) commands.push(rect(42, y - 17, 511, 26, "0.985 0.98 0.99"));
   commands.push(
     text(row.date, 50, y - 1, 7.5),
-    text("Attendance", 149, y - 1, 7.5, true),
+    text(fit(row.service || "Attendance", 22), 149, y - 1, 7.5, true),
     text(row.days, 260, y - 1, 7.5),
     text(row.rate, 306, y - 1, 7.5),
     text(row.net, 374, y - 1, 7.5),
@@ -115,7 +125,7 @@ function tableRow(row: InvoicePdfRow, y: number, alternate: boolean, showVat: bo
 
 export function invoicePdf(input: InvoicePdfInput) {
   const showVat = Boolean(input.vatNumber?.trim()) || !/GBP\s+0(?:\.00)?$/.test(input.vatTotal.trim());
-  const rows = input.rows.length ? input.rows : [{ date: "-", days: "0", rate: "GBP 0.00", net: "GBP 0.00", vat: "GBP 0.00", total: "GBP 0.00" }];
+  const rows = input.rows.length ? input.rows : [{ date: "-", service: "Attendance", days: "0", rate: "GBP 0.00", net: "GBP 0.00", vat: "GBP 0.00", total: "GBP 0.00" }];
   const firstPageRows = 10;
   const continuedRows = 20;
   const pageRows = [rows.slice(0, firstPageRows)];

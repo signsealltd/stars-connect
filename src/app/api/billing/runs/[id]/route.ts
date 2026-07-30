@@ -12,6 +12,7 @@ payerName:profile.payerName,payerAddress:profile.billingAddress.split(/\r?\n/),
 studentName:group[0].studentName,studentReference:student?.internalReference||"Not supplied",
 rows:[...group].sort((a,b)=>a.sourceDate.getTime()-b.sourceDate.getTime()).map(charge=>({
 date:formatInTimeZone(charge.sourceDate,APP_TIME_ZONE,"dd/MM/yyyy"),
+service:charge.description,
 days:Number(charge.quantity).toFixed(2),
 rate:`GBP ${Number(charge.unitRate).toFixed(2)}`,
 net:`GBP ${Number(charge.netAmount).toFixed(2)}`,

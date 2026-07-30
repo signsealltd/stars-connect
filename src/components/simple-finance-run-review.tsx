@@ -1,8 +1,9 @@
-"use client";import{appConfirm,appPrompt}from"@/lib/app-dialog";
+"use client";import{appConfirm,appReasonPrompt}from"@/lib/app-dialog";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import styles from "./finance-workflow.module.css";
 import { defaultPayrollReason, payrollAdjustmentForReason, payrollAdjustmentOptions } from "@/lib/payroll-adjustment-options";
+import { financeCorrectionReasons, resolvedReason } from "@/lib/operational-reasons";
 
 type Entry = {
   id: string; staffId: string; staffName: string; payrollNumber?: string; ordinaryMinutes: number; overtimeMinutes: number;
@@ -37,6 +38,7 @@ export function SimpleFinanceRunReview({ mode, id }: { mode: "payroll" | "billin
   const [billingAdjustment, setBillingAdjustment] = useState<Charge | null>(null);
   const [billingTotal, setBillingTotal] = useState("");
   const [billingReason, setBillingReason] = useState("");
+  const [billingOtherReason, setBillingOtherReason] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -76,7 +78,7 @@ export function SimpleFinanceRunReview({ mode, id }: { mode: "payroll" | "billin
   }
 
   async function resolve(record: Entry | Charge) {
-    const reason = await appPrompt("Briefly explain how this warning was checked or corrected:");
+    const reason = await appReasonPrompt("How was this warning checked or corrected?", financeCorrectionReasons);
     if (!reason || reason.trim().length < 5) return;
     setWorking(true); setError("");
     try {
@@ -88,7 +90,7 @@ export function SimpleFinanceRunReview({ mode, id }: { mode: "payroll" | "billin
   }
 
   async function exclude(record: Entry | Charge, isExcluded: boolean) {
-    const reason = await appPrompt(`Reason for ${isExcluded ? "restoring" : "excluding"} this record:`);
+    const reason = await appReasonPrompt(`Why are you ${isExcluded ? "restoring" : "excluding"} this record?`, financeCorrectionReasons);
     if (!reason || reason.trim().length < 5) return;
     setWorking(true); setError("");
     try {
@@ -134,6 +136,7 @@ export function SimpleFinanceRunReview({ mode, id }: { mode: "payroll" | "billin
     setError("");
     setBillingTotal(Number(charge.netAmount).toFixed(2));
     setBillingReason("");
+    setBillingOtherReason("");
     setBillingAdjustment(charge);
   }
 
@@ -145,13 +148,14 @@ export function SimpleFinanceRunReview({ mode, id }: { mode: "payroll" | "billin
       setError("Enter a valid total of £0.00 or more.");
       return;
     }
-    if (billingReason.trim().length < 5) {
-      setError("Enter a reason of at least five characters.");
+    const correctionReason = resolvedReason(financeCorrectionReasons, billingReason, billingOtherReason);
+    if (correctionReason.length < 5) {
+      setError("Choose a reason. If you select Other, enter at least five characters.");
       return;
     }
     setWorking(true); setError(""); setSuccess("");
     try {
-      await action("adjust-charge", { chargeId: billingAdjustment.id, netAmount, reason: billingReason.trim() });
+      await action("adjust-charge", { chargeId: billingAdjustment.id, netAmount, reason: correctionReason });
       setSuccess(`Billing total changed from ${money(billingAdjustment.netAmount)} to ${money(netAmount)}. The original value and reason were recorded.`);
       setBillingAdjustment(null);
     } catch (caught) {
@@ -263,7 +267,7 @@ export function SimpleFinanceRunReview({ mode, id }: { mode: "payroll" | "billin
       <div className="card" style={{padding: "14px", marginBottom: "16px"}}><span className="muted">Calculated net total</span><b style={{display: "block", fontSize: "24px"}}>{money(billingAdjustment.netAmount)}</b></div>
       <label className="form-label">Correct net total (£)<input className="field" type="number" min="0" step="0.01" required value={billingTotal} onChange={event => setBillingTotal(event.target.value)}/></label>
       <p className="muted">VAT is recalculated from the saved billing profile. The original amount is retained in the audit log.</p>
-      <label className="form-label">Reason for correction<textarea className="field" minLength={5} maxLength={1000} required value={billingReason} onChange={event => setBillingReason(event.target.value)} placeholder="For example: agreed attendance charge confirmed by manager"/></label>
+      <label className="form-label">Reason for correction<select className="field" required value={billingReason} onChange={event=>setBillingReason(event.target.value)}><option value="">Choose a reason</option>{financeCorrectionReasons.map(option=><option key={option.value} value={option.value}>{option.label}</option>)}</select></label>{billingReason==="OTHER"&&<label className="form-label">Other reason<textarea className="field" minLength={5} maxLength={1000} required value={billingOtherReason} onChange={event=>setBillingOtherReason(event.target.value)}/></label>}
       <div className="modal-actions"><button type="button" className="btn secondary" disabled={working} onClick={() => setBillingAdjustment(null)}>Cancel</button><button className="btn primary" disabled={working}>{working ? "Saving…" : "Save corrected total"}</button></div>
     </form></div>}
   </>;

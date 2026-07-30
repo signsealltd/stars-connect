@@ -1,5 +1,6 @@
-"use client";import{appConfirm,appPrompt}from"@/lib/app-dialog";
+"use client";import{appConfirm,appPrompt,appReasonPrompt}from"@/lib/app-dialog";
 
+import { financeCorrectionReasons } from "@/lib/operational-reasons";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { workflowActions } from "@/lib/finance-workflow";
 
@@ -101,7 +102,7 @@ export function FinanceRunReview({ mode, id }: { mode: "payroll" | "billing"; id
     return body;
   }
   async function reasoned(action: string, recordId: string) {
-    const reason = await appPrompt("Enter the required internal reason (at least 5 characters):");
+    const reason = await appReasonPrompt("Choose the internal reason for this action.", financeCorrectionReasons);
     if (!reason) return;
     await act(action, { [mode === "payroll" ? "entryId" : "chargeId"]: recordId, reason });
   }
@@ -142,7 +143,7 @@ export function FinanceRunReview({ mode, id }: { mode: "payroll" | "billing"; id
     if (!Number.isFinite(minutes)) return;
     const category = await appPrompt("Category: HOLIDAY, SICKNESS, TRAINING or MANUAL", "MANUAL");
     const date = await appPrompt("Attendance date (YYYY-MM-DD)", run?.periodStart.slice(0, 10));
-    const reason = await appPrompt("Required adjustment reason:");
+    const reason = await appReasonPrompt("Choose the reason for this payroll adjustment.", financeCorrectionReasons);
     if (!category || !date || !reason) return;
     await act("add-adjustment", { staffId: entry.staffId, date, category, minutes, paid: true, reason });
     setSuccess("Adjustment recorded. Recalculate the run to apply it.");

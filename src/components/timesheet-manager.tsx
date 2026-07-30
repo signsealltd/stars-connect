@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { clockCorrectionReasons, resolvedReason } from "@/lib/operational-reasons";
 
 type Row = {
   id: string;
@@ -18,6 +19,7 @@ export function TimesheetManager({ initialRows }: { initialRows: Row[] }) {
   const [action, setAction] = useState<Action>("clock-out");
   const [eventAt, setEventAt] = useState("");
   const [reason, setReason] = useState("");
+  const [otherReason, setOtherReason] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
@@ -28,6 +30,7 @@ export function TimesheetManager({ initialRows }: { initialRows: Row[] }) {
     setEventAt(now.toISOString().slice(0, 16));
     setAction(nextAction);
     setReason("");
+    setOtherReason("");
     setError("");
     setEditing(row);
   }
@@ -45,7 +48,7 @@ export function TimesheetManager({ initialRows }: { initialRows: Row[] }) {
       body: JSON.stringify({
         staffId: editing.id,
         [timestampKey]: new Date(eventAt).toISOString(),
-        reason,
+        reason: resolvedReason(clockCorrectionReasons, reason, otherReason),
       }),
     });
     const body = await response.json();
@@ -111,16 +114,14 @@ export function TimesheetManager({ initialRows }: { initialRows: Row[] }) {
           />
         </label>
         <label className="form-label">Reason
-          <textarea
-            className="field"
-            required
-            minLength={5}
-            maxLength={1000}
-            value={reason}
-            onChange={event => setReason(event.target.value)}
-            placeholder={`For example: Staff member forgot to clock ${action === "clock-in" ? "in" : "out"}`}
-          />
+          <select className="field" required value={reason} onChange={event => setReason(event.target.value)}>
+            <option value="">Choose a reason</option>
+            {clockCorrectionReasons.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+          </select>
         </label>
+        {reason === "OTHER" && <label className="form-label">Other reason
+          <textarea className="field" required minLength={5} maxLength={1000} value={otherReason} onChange={event => setOtherReason(event.target.value)} />
+        </label>}
         <div className="modal-actions">
           <button type="button" className="btn secondary" onClick={() => setEditing(undefined)} disabled={busy}>
             Cancel

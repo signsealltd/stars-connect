@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { Pencil, Plus, Square, Trash2 } from "lucide-react";
-import { appConfirm, appPrompt } from "@/lib/app-dialog";
+import { appConfirm, appReasonPrompt } from "@/lib/app-dialog";
+import { billingProfileReasons } from "@/lib/operational-reasons";
 
 type Student = { id: string; displayName: string };
 type Profile = {
@@ -48,7 +49,7 @@ export function SimpleBillingProfilesV2({ initialStudentId = "", returnTo = "" }
 
   async function save(event: React.FormEvent) {
     event.preventDefault(); setSaving(true); setError(""); setSuccess("");
-    const reason = editingId ? await appPrompt("Reason for changing this billing profile", "Billing details corrected") : null;
+    const reason = editingId ? await appReasonPrompt("Why are these billing details being changed?", billingProfileReasons) : null;
     if (editingId && (!reason || reason.trim().length < 5)) { setSaving(false); return setError("Enter a reason of at least five characters."); }
     const common = {
       payerType: form.payerType, payerName: form.payerName, billingAddress: form.billingAddress,
@@ -74,7 +75,7 @@ export function SimpleBillingProfilesV2({ initialStudentId = "", returnTo = "" }
   }
 
   async function end(profile: Profile) {
-    const reason = await appPrompt(`Reason for ending ${profile.payerName}'s billing profile`, "Funding arrangement ended");
+    const reason = await appReasonPrompt(`Why is ${profile.payerName}'s billing profile being ended?`, billingProfileReasons);
     if (!reason || reason.trim().length < 5) return;
     const activeTo = new Date().toISOString().slice(0, 10);
     const response = await fetch(`/api/billing/profiles/${profile.id}/manage`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "end", activeTo, reason }) });
@@ -85,7 +86,7 @@ export function SimpleBillingProfilesV2({ initialStudentId = "", returnTo = "" }
 
   async function remove(profile: Profile) {
     if (!await appConfirm(`Delete the unused billing profile for ${profile.payerName}? Profiles already used by a billing run cannot be deleted.`)) return;
-    const reason = await appPrompt("Reason for deleting this billing profile", "Created in error");
+    const reason = await appReasonPrompt("Why is this unused billing profile being deleted?", billingProfileReasons);
     if (!reason || reason.trim().length < 5) return;
     const response = await fetch(`/api/billing/profiles/${profile.id}/manage`, { method: "DELETE", headers: { "content-type": "application/json" }, body: JSON.stringify({ reason }) });
     const result = await response.json();

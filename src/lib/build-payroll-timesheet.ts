@@ -126,6 +126,7 @@ export async function buildPayrollTimesheet(input: {
     ? await prisma.user.findUnique({ where: { id: input.entry.reviewedById }, select: { name: true } })
     : null;
   const logoJpeg = await readFile(path.join(process.cwd(), "public", "branding", "stars-logo-pdf.jpg"));
+  const overtimeRate = input.entry.overtimeHourlyRate ?? input.entry.hourlyRate;
   return payrollTimesheetPdf({
     logoJpeg,
     employeeName: input.entry.staffName,
@@ -136,7 +137,7 @@ export async function buildPayrollTimesheet(input: {
     estimatedGrossPay: input.entry.grossPay ? `GBP ${Number(input.entry.grossPay).toFixed(2)}` : "Not configured",
     summary: [
       { label: "Ordinary", value: hours(input.entry.ordinaryMinutes) },
-      { label: "Overtime", value: hours(input.entry.overtimeMinutes) },
+      { label: "Overtime", value: `${hours(input.entry.overtimeMinutes)} @ ${overtimeRate ? `GBP${Number(overtimeRate).toFixed(2)}/h` : "rate not set"}` },
       { label: "Holiday", value: hours(input.entry.holidayMinutes) },
       { label: "Sickness", value: hours(input.entry.sicknessMinutes) },
       { label: "Total payable", value: hours(input.entry.totalPayableMinutes) },

@@ -141,7 +141,7 @@ export function payrollTimesheetPdf(input: PayrollTimesheetPdfInput) {
       );
       const summary = [
         ...input.summary,
-        { label: "Hourly rate", value: input.hourlyRate },
+        { label: "Standard rate", value: input.hourlyRate },
         { label: "Estimated gross", value: input.estimatedGrossPay },
       ];
       summary.slice(0, 10).forEach((item, index) => {
@@ -152,7 +152,7 @@ export function payrollTimesheetPdf(input: PayrollTimesheetPdfInput) {
         commands.push(
           rect(x, y, 96, 48, PURPLE_SOFT, BORDER),
           text(fit(item.label.toUpperCase(), 18), x + 8, y + 31, 6.2, true, MUTED),
-          text(item.value, x + 8, y + 12, 11, true, PURPLE),
+          text(item.value, x + 8, y + 12, item.label === "Overtime" ? 8.5 : 11, true, PURPLE),
         );
       });
       commands.push(text("DAILY BREAKDOWN", 42, 482, 10, true, PURPLE));

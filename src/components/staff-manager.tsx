@@ -9,13 +9,13 @@ type Staff = {
   id: string; firstName: string; lastName: string; displayName: string; email: string;
   phone?: string; jobRole: string; active: boolean; clockingEnabled: boolean; cameraRequired: boolean;
   startDate: string; endDate?: string; notes?: string; pinEnabled: boolean;
-  payrollNumber?: string; contractedWeeklyHours?: number; hourlyRate?: number; profilePhotoUrl?: string;
+  payrollNumber?: string; contractedWeeklyHours?: number; hourlyRate?: number; overtimeHourlyRate?: number; profilePhotoUrl?: string;
 };
 
 const blank = {
   firstName: "", lastName: "", displayName: "", email: "", phone: "", jobRole: "",
   startDate: "", endDate: "", notes: "", clockingEnabled: true, cameraRequired: false, pin: "",
-  payrollNumber: "", contractedWeeklyHours: "", hourlyRate: "", profilePhotoUrl: "",
+  payrollNumber: "", contractedWeeklyHours: "", hourlyRate: "", overtimeHourlyRate: "", profilePhotoUrl: "",
 };
 
 async function compressStaffPhoto(file:File){if(file.size>12*1024*1024)throw new Error("Choose an image smaller than 12 MB.");const bitmap=await createImageBitmap(file),size=320,canvas=document.createElement("canvas");canvas.width=size;canvas.height=size;const context=canvas.getContext("2d")!;const scale=Math.max(size/bitmap.width,size/bitmap.height),width=bitmap.width*scale,height=bitmap.height*scale;context.drawImage(bitmap,(size-width)/2,(size-height)/2,width,height);bitmap.close();const value=canvas.toDataURL("image/jpeg",0.72);if(value.length>250000)throw new Error("The compressed photograph is still too large. Choose a simpler image.");return value}
@@ -47,14 +47,14 @@ export function StaffManager() {
       email: row.email, phone: row.phone || "", jobRole: row.jobRole,
       startDate: row.startDate.slice(0, 10), endDate: row.endDate?.slice(0, 10) || "",
       notes: row.notes || "", clockingEnabled: row.clockingEnabled, cameraRequired: row.cameraRequired, pin: "",
-      payrollNumber: row.payrollNumber || "", contractedWeeklyHours: row.contractedWeeklyHours?.toString() || "", hourlyRate: row.hourlyRate?.toString() || "", profilePhotoUrl: row.profilePhotoUrl || "",
+      payrollNumber: row.payrollNumber || "", contractedWeeklyHours: row.contractedWeeklyHours?.toString() || "", hourlyRate: row.hourlyRate?.toString() || "", overtimeHourlyRate: row.overtimeHourlyRate?.toString() || "", profilePhotoUrl: row.profilePhotoUrl || "",
     } : blank);
   }
 
   async function save(event: React.FormEvent) {
     event.preventDefault();
     setError("");
-    const payload = { ...form, pin: form.pin || undefined, payrollNumber: form.payrollNumber || null, contractedWeeklyHours: form.contractedWeeklyHours === "" ? null : Number(form.contractedWeeklyHours), hourlyRate: form.hourlyRate === "" ? null : Number(form.hourlyRate) };
+    const payload = { ...form, pin: form.pin || undefined, payrollNumber: form.payrollNumber || null, contractedWeeklyHours: form.contractedWeeklyHours === "" ? null : Number(form.contractedWeeklyHours), hourlyRate: form.hourlyRate === "" ? null : Number(form.hourlyRate), overtimeHourlyRate: form.overtimeHourlyRate === "" ? null : Number(form.overtimeHourlyRate) };
     const isNew = editing === "new";
     const res = await fetch(isNew ? "/api/staff" : `/api/staff/${(editing as Staff).id}`, {
       method: isNew ? "POST" : "PATCH",
@@ -111,7 +111,7 @@ export function StaffManager() {
           <label className="form-label">End date<input autoComplete="off" className="field" type="date" value={form.endDate} onChange={(e) => setForm({ ...form, endDate: e.target.value })} /></label>
           <label className="form-label">Payroll number<input className="field" autoComplete="off" value={form.payrollNumber} onChange={(e) => setForm({ ...form, payrollNumber: e.target.value })} /></label>
           <label className="form-label">Contracted hours per week<input autoComplete="off" className="field" type="number" min="0" max="168" step="0.25" value={form.contractedWeeklyHours} onChange={(e) => setForm({ ...form, contractedWeeklyHours: e.target.value })} /></label>
-          <label className="form-label">Hourly rate (Â£)<input autoComplete="off" className="field" type="number" min="0" step="0.01" value={form.hourlyRate} onChange={(e) => setForm({ ...form, hourlyRate: e.target.value })} /></label>
+          <label className="form-label">Standard hourly rate (£)<input autoComplete="off" className="field" type="number" min="0" step="0.01" value={form.hourlyRate} onChange={(e) => setForm({ ...form, hourlyRate: e.target.value })} /></label><label className="form-label">Overtime hourly rate (£)<input autoComplete="off" className="field" type="number" min="0" step="0.01" value={form.overtimeHourlyRate} onChange={(e) => setForm({ ...form, overtimeHourlyRate: e.target.value })} /><small className="muted">Leave blank to use the standard hourly rate.</small></label>
           <label className="form-label full"><span><KeyRound size={16} /> {editing === "new" ? "Initial PIN" : "Reset PIN"}</span><input autoComplete="off" name="staff-pin-entry" data-lpignore="true" data-1p-ignore="true" className="field pin-entry-secure" type="text" inputMode="numeric" pattern="\d{4,8}" placeholder={editing === "new" ? "4â€“8 digits (optional)" : "Leave blank to keep current PIN"} value={form.pin} onChange={(e) => setForm({ ...form, pin: e.target.value })} /></label>
           <label className="form-label full">Restricted manager notes<textarea autoComplete="off" className="field" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></label>
           <label className="full"><input autoComplete="off" type="checkbox" checked={form.clockingEnabled} onChange={(e) => setForm({ ...form, clockingEnabled: e.target.checked })} /> Allow this staff member to clock in and out</label><label className="full"><input autoComplete="off" type="checkbox" checked={form.cameraRequired} onChange={(e) => setForm({ ...form, cameraRequired: e.target.checked })} /> Require a front-camera confirmation when camera mode is “Required for selected staff”</label>

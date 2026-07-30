@@ -119,6 +119,7 @@ model StaffMember {
   profilePhotoUrl       String?               @db.Text
   contractedWeeklyHours Decimal?              @db.Decimal(5, 2)
   hourlyRate            Decimal?              @db.Decimal(10, 2)
+  overtimeHourlyRate    Decimal?              @db.Decimal(10, 2)
   payrollNumber         String?               @unique @db.VarChar(80)
   active                Boolean               @default(true)
   clockingEnabled       Boolean               @default(true)
@@ -576,6 +577,7 @@ model PayrollEntry {
   staffName           String        @db.VarChar(120)
   payrollNumber       String?       @db.VarChar(80)
   hourlyRate          Decimal?      @db.Decimal(10, 2)
+  overtimeHourlyRate  Decimal?      @db.Decimal(10, 2)
   grossPay            Decimal?      @db.Decimal(12, 2)
   ordinaryMinutes     Int           @default(0)
   overtimeMinutes     Int           @default(0)

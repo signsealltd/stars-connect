@@ -19,6 +19,7 @@ const staffSchema = z.object({
   notes: z.string().trim().max(5000).optional().or(z.literal("")),
   contractedWeeklyHours: z.number().min(0).max(168).nullable().optional(),
   hourlyRate: z.number().min(0).max(10000).nullable().optional(),
+  overtimeHourlyRate: z.number().min(0).max(10000).nullable().optional(),
   payrollNumber: z.string().trim().max(80).nullable().optional().or(z.literal("")),
   clockingEnabled: z.boolean().default(true),
   cameraRequired: z.boolean().default(false),

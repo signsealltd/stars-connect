@@ -3,7 +3,7 @@ import { readFileSync } from "fs";
 import { screensaverSchema } from "./screensaver";
 
 describe("seasonal screensaver and managed backups", () => {
-  it.each(["constellation", "halloween", "christmas", "st-patricks", "celebration"])("accepts the %s animation preset", (style) => {
+  it.each(["constellation", "halloween", "christmas", "st-patricks"])("accepts the %s animation preset", (style) => {
     const defaults = JSON.parse(JSON.stringify({
       screensaverEnabled: true, idleTimeoutSeconds: 30, showLogo: true, logoUrl: "/branding/stars-logo.svg",
       headline: "STARS", showClock: true, showDate: true, showOnSiteCount: false, screensaverMessage: "Touch",

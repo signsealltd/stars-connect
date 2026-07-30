@@ -46,7 +46,7 @@ export const screensaverSchema = z.object({
   screensaverWeatherLocation: z.string().trim().min(2).max(120),
   constellationEnabled: z.boolean(),
   constellationIntensity: z.number().int().min(0).max(100),
-  backgroundAnimationStyle: z.enum(["constellation", "halloween", "christmas", "st-patricks", "celebration"]),
+  backgroundAnimationStyle: z.enum(["constellation", "halloween", "christmas", "st-patricks"]),
   wakeTransitionSeconds: z.number().min(0).max(5),
   backgroundColor: colour,
   textColor: colour,

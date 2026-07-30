@@ -59,7 +59,7 @@ export function SimpleBillingProfilesV2({ initialStudentId = "", returnTo = "" }
       studentId: form.studentId, ...common, paymentTermsDays: 30, consolidatedByPayer: false,
       chargeRules: [{
         chargeType: "FULL_DAY", description: "Attended day", unitType: "DAY", rate: Number(form.rate),
-        attendanceDependency: "ATTENDED", applicableWeekdays: [1, 2, 3, 4, 5],
+        attendanceDependency: "ATTENDED", applicableWeekdays: [1, 2, 3, 4, 5, 6, 7],
         vatTreatment: form.vatTreatment, vatRate: Number(form.vatRate),
       }],
     };

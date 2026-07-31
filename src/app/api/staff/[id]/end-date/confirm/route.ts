@@ -1,0 +1,3 @@
+import { NextRequest, NextResponse } from "next/server";import{z}from"zod";import{withCapability,jsonError}from"@/lib/api";import{CAPABILITIES}from"@/lib/permissions";import{confirmStaffEndDate}from"@/lib/operations-service";
+type Params={params:Promise<{id:string}>};const schema=z.object({endDate:z.iso.date(),confirm:z.literal(true)});
+export async function POST(req:NextRequest,{params}:Params){return withCapability(req,CAPABILITIES.STAFF_SCHEDULE_APPROVE,async user=>{const p=schema.safeParse(await req.json().catch(()=>null));if(!p.success)return jsonError("Explicit confirmation and a valid end date are required.",422);return NextResponse.json(await confirmStaffEndDate(user,(await params).id,p.data.endDate));});}

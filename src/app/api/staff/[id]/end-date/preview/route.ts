@@ -1,0 +1,3 @@
+import { NextRequest, NextResponse } from "next/server";import{z}from"zod";import{withCapability,jsonError}from"@/lib/api";import{CAPABILITIES}from"@/lib/permissions";import{previewStaffEndDate}from"@/lib/operations-service";
+type Params={params:Promise<{id:string}>};const schema=z.object({endDate:z.iso.date()});
+export async function POST(req:NextRequest,{params}:Params){return withCapability(req,CAPABILITIES.STAFF_SCHEDULE_MANAGE,async user=>{const p=schema.safeParse(await req.json().catch(()=>null));if(!p.success)return jsonError("Please provide a valid end date.",422);return NextResponse.json(await previewStaffEndDate(user,(await params).id,p.data.endDate));});}

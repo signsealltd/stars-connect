@@ -33,6 +33,84 @@ enum AttendanceStatus {
   CANCELLED
 }
 
+enum ScheduleOccurrenceStatus {
+  SCHEDULED
+  CHANGED
+  LEAVE
+  SICKNESS
+  TRAINING
+  CANCELLED
+}
+
+enum ScheduleExceptionType {
+  ANNUAL_LEAVE
+  SICKNESS
+  TRAINING
+  UNPAID_LEAVE
+  TEMPORARY_HOURS
+  OVERTIME
+  ADDITIONAL_SHIFT
+  SHIFT_SWAP
+  NON_WORKING_DAY
+  APPOINTMENT
+  OTHER
+}
+
+enum ScheduleApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum OperationStatus {
+  DRAFT
+  PLANNING
+  AWAITING_APPROVAL
+  STAFFING_INCOMPLETE
+  COMPLIANCE_INCOMPLETE
+  CHECKS_INCOMPLETE
+  READY
+  ACTIVE
+  COMPLETED
+  CANCELLED
+  POST_OPERATION_REVIEW
+}
+
+enum OperationAssignmentStatus {
+  ASSIGNED
+  REPLACEMENT_REQUIRED
+  REMOVED
+}
+
+enum OperationAttendeeStatus {
+  PLANNED
+  CONFIRMED
+  WAITLISTED
+  ABSENT
+  PRESENT
+  CANCELLED
+}
+
+enum ReadinessLevel {
+  READY
+  ACTION_REQUIRED
+  BLOCKED
+  CANCELLED
+}
+
+enum ReconciliationState {
+  EXPECTED
+  CLOCKED_IN
+  LATE
+  ABSENT_APPROVED
+  MISSING_CLOCK_IN
+  MISSING_CLOCK_OUT
+  CLOCKED_OUT
+  NOT_SCHEDULED
+  REVIEW_REQUIRED
+  RESOLVED
+}
+
 enum PhotoStatus {
   NOT_REQUIRED
   CAPTURED
@@ -144,30 +222,36 @@ model Session {
 }
 
 model StaffMember {
-  id                    String                @id @default(uuid()) @db.Char(36)
-  firstName             String                @db.VarChar(80)
-  lastName              String                @db.VarChar(80)
-  displayName           String                @db.VarChar(120)
-  email                 String                @unique @db.VarChar(191)
-  phone                 String?               @db.VarChar(40)
-  jobRole               String                @db.VarChar(100)
-  profilePhotoUrl       String?               @db.Text
-  contractedWeeklyHours Decimal?              @db.Decimal(5, 2)
-  hourlyRate            Decimal?              @db.Decimal(10, 2)
-  overtimeHourlyRate    Decimal?              @db.Decimal(10, 2)
-  payrollNumber         String?               @unique @db.VarChar(80)
-  active                Boolean               @default(true)
-  clockingEnabled       Boolean               @default(true)
-  sortOrder             Int                   @default(0)
-  cameraRequired        Boolean               @default(false)
-  startDate             DateTime              @db.Date
-  endDate               DateTime?             @db.Date
-  notes                 String?               @db.Text
+  id                    String                     @id @default(uuid()) @db.Char(36)
+  firstName             String                     @db.VarChar(80)
+  lastName              String                     @db.VarChar(80)
+  displayName           String                     @db.VarChar(120)
+  email                 String                     @unique @db.VarChar(191)
+  phone                 String?                    @db.VarChar(40)
+  jobRole               String                     @db.VarChar(100)
+  profilePhotoUrl       String?                    @db.Text
+  contractedWeeklyHours Decimal?                   @db.Decimal(5, 2)
+  hourlyRate            Decimal?                   @db.Decimal(10, 2)
+  overtimeHourlyRate    Decimal?                   @db.Decimal(10, 2)
+  payrollNumber         String?                    @unique @db.VarChar(80)
+  active                Boolean                    @default(true)
+  clockingEnabled       Boolean                    @default(true)
+  sortOrder             Int                        @default(0)
+  cameraRequired        Boolean                    @default(false)
+  startDate             DateTime                   @db.Date
+  endDate               DateTime?                  @db.Date
+  notes                 String?                    @db.Text
   credentials           StaffCredential[]
   clockEvents           ClockEvent[]
   trainingRecords       StaffTrainingRecord[]
-  createdAt             DateTime              @default(now())
-  updatedAt             DateTime              @updatedAt
+  workingPatterns       StaffWorkingPattern[]
+  scheduleOccurrences   StaffScheduleOccurrence[]
+  scheduleExceptions    StaffScheduleException[]   @relation("ScheduleExceptionStaff")
+  replacementExceptions StaffScheduleException[]   @relation("ScheduleExceptionReplacement")
+  operationAssignments  OperationStaffAssignment[]
+  expectedAttendances   ExpectedStaffAttendance[]
+  createdAt             DateTime                   @default(now())
+  updatedAt             DateTime                   @updatedAt
   archivedAt            DateTime?
 
   @@index([active, displayName])
@@ -233,6 +317,7 @@ model Student {
   emergencyContactNotes            String?             @db.Text
   notes                            String?             @db.Text
   attendance                       StudentAttendance[]
+  operationAttendances             OperationAttendee[]
   createdAt                        DateTime            @default(now())
   updatedAt                        DateTime            @updatedAt
   archivedAt                       DateTime?
@@ -962,22 +1047,33 @@ model PremisesDocument {
 }
 
 model Organisation {
-  id                 String                        @id @default(uuid()) @db.Char(36)
-  name               String                        @db.VarChar(191)
-  slug               String                        @unique @db.VarChar(120)
-  active             Boolean                       @default(true)
-  users              User[]
-  complianceRecords  ComplianceRecord[]
-  categories         ComplianceCategory[]
-  riskMatrices       RiskMatrixConfiguration[]
-  templates          ComplianceTemplate[]
-  actions            ComplianceAction[]
-  notificationEvents ComplianceNotificationEvent[]
-  assignments        ComplianceAssignment[]
-  acknowledgements   ComplianceAcknowledgement[]
-  attachments        ComplianceAttachment[]
-  createdAt          DateTime                      @default(now())
-  updatedAt          DateTime                      @updatedAt
+  id                        String                        @id @default(uuid()) @db.Char(36)
+  name                      String                        @db.VarChar(191)
+  slug                      String                        @unique @db.VarChar(120)
+  active                    Boolean                       @default(true)
+  users                     User[]
+  complianceRecords         ComplianceRecord[]
+  categories                ComplianceCategory[]
+  riskMatrices              RiskMatrixConfiguration[]
+  templates                 ComplianceTemplate[]
+  actions                   ComplianceAction[]
+  notificationEvents        ComplianceNotificationEvent[]
+  assignments               ComplianceAssignment[]
+  acknowledgements          ComplianceAcknowledgement[]
+  attachments               ComplianceAttachment[]
+  workingPatterns           StaffWorkingPattern[]
+  scheduleOccurrences       StaffScheduleOccurrence[]
+  scheduleExceptions        StaffScheduleException[]
+  operations                Operation[]
+  operationSeries           OperationSeries[]
+  operationOccurrences      OperationOccurrence[]
+  operationAssignments      OperationStaffAssignment[]
+  operationAttendees        OperationAttendee[]
+  expectedStaffAttendances  ExpectedStaffAttendance[]
+  attendanceReconciliations AttendanceReconciliation[]
+  readinessSnapshots        OperationReadinessSnapshot[]
+  createdAt                 DateTime                      @default(now())
+  updatedAt                 DateTime                      @updatedAt
 }
 
 model ComplianceCategory {
@@ -1277,4 +1373,264 @@ model ComplianceNotificationEvent {
 
   @@index([organisationId, status, createdAt])
   @@index([organisationId, recordType, recordId])
+}
+
+model StaffWorkingPattern {
+  id             String                        @id @default(uuid()) @db.Char(36)
+  organisationId String                        @db.Char(36)
+  organisation   Organisation                  @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  staffId        String                        @db.Char(36)
+  staff          StaffMember                   @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  name           String                        @db.VarChar(120)
+  effectiveStart DateTime                      @db.Date
+  effectiveEnd   DateTime?                     @db.Date
+  timezone       String                        @default("Europe/London") @db.VarChar(80)
+  cycleWeeks     Int                           @default(1)
+  active         Boolean                       @default(true)
+  version        Int                           @default(1)
+  notes          String?                       @db.Text
+  createdById    String                        @db.Char(36)
+  approvedById   String?                       @db.Char(36)
+  intervals      StaffWorkingPatternInterval[]
+  occurrences    StaffScheduleOccurrence[]
+  createdAt      DateTime                      @default(now())
+  updatedAt      DateTime                      @updatedAt
+
+  @@unique([organisationId, staffId, version])
+  @@index([organisationId, staffId, active, effectiveStart])
+}
+
+model StaffWorkingPatternInterval {
+  id           String                    @id @default(uuid()) @db.Char(36)
+  patternId    String                    @db.Char(36)
+  pattern      StaffWorkingPattern       @relation(fields: [patternId], references: [id], onDelete: Cascade)
+  weekIndex    Int                       @default(1)
+  dayOfWeek    Int
+  startTime    String                    @db.VarChar(5)
+  endTime      String                    @db.VarChar(5)
+  breakMinutes Int                       @default(0)
+  premisesName String?                   @db.VarChar(191)
+  defaultRole  String?                   @db.VarChar(100)
+  notes        String?                   @db.Text
+  occurrences  StaffScheduleOccurrence[]
+
+  @@unique([patternId, weekIndex, dayOfWeek, startTime, endTime])
+  @@index([patternId, dayOfWeek])
+}
+
+model StaffScheduleOccurrence {
+  id                    String                       @id @default(uuid()) @db.Char(36)
+  organisationId        String                       @db.Char(36)
+  organisation          Organisation                 @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  staffId               String                       @db.Char(36)
+  staff                 StaffMember                  @relation(fields: [staffId], references: [id], onDelete: Restrict)
+  patternId             String?                      @db.Char(36)
+  pattern               StaffWorkingPattern?         @relation(fields: [patternId], references: [id], onDelete: SetNull)
+  patternIntervalId     String?                      @db.Char(36)
+  patternInterval       StaffWorkingPatternInterval? @relation(fields: [patternIntervalId], references: [id], onDelete: SetNull)
+  date                  DateTime                     @db.Date
+  startAt               DateTime
+  endAt                 DateTime
+  expectedClockInFrom   DateTime
+  expectedClockInUntil  DateTime
+  expectedClockOutFrom  DateTime
+  expectedClockOutUntil DateTime
+  premisesName          String?                      @db.VarChar(191)
+  role                  String?                      @db.VarChar(100)
+  status                ScheduleOccurrenceStatus     @default(SCHEDULED)
+  manuallyModified      Boolean                      @default(false)
+  generationKey         String                       @unique @db.VarChar(191)
+  expectedAttendance    ExpectedStaffAttendance?
+  createdAt             DateTime                     @default(now())
+  updatedAt             DateTime                     @updatedAt
+
+  @@index([organisationId, date, status])
+  @@index([organisationId, staffId, startAt, endAt])
+}
+
+model StaffScheduleException {
+  id                 String                 @id @default(uuid()) @db.Char(36)
+  organisationId     String                 @db.Char(36)
+  organisation       Organisation           @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  staffId            String                 @db.Char(36)
+  staff              StaffMember            @relation("ScheduleExceptionStaff", fields: [staffId], references: [id], onDelete: Restrict)
+  replacementStaffId String?                @db.Char(36)
+  replacementStaff   StaffMember?           @relation("ScheduleExceptionReplacement", fields: [replacementStaffId], references: [id], onDelete: SetNull)
+  startDate          DateTime               @db.Date
+  endDate            DateTime               @db.Date
+  startTime          String?                @db.VarChar(5)
+  endTime            String?                @db.VarChar(5)
+  type               ScheduleExceptionType
+  paid               Boolean                @default(false)
+  approvalStatus     ScheduleApprovalStatus @default(PENDING)
+  notes              String?                @db.Text
+  createdById        String                 @db.Char(36)
+  approvedById       String?                @db.Char(36)
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+
+  @@index([organisationId, staffId, startDate, endDate])
+  @@index([organisationId, approvalStatus, type])
+}
+
+model Operation {
+  id             String                @id @default(uuid()) @db.Char(36)
+  organisationId String                @db.Char(36)
+  organisation   Organisation          @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  title          String                @db.VarChar(191)
+  type           String                @db.VarChar(80)
+  description    String?               @db.Text
+  internalNotes  String?               @db.Text
+  createdById    String                @db.Char(36)
+  series         OperationSeries?
+  occurrences    OperationOccurrence[]
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+
+  @@index([organisationId, type, createdAt])
+}
+
+model OperationSeries {
+  id             String                @id @default(uuid()) @db.Char(36)
+  organisationId String                @db.Char(36)
+  organisation   Organisation          @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  operationId    String                @unique @db.Char(36)
+  operation      Operation             @relation(fields: [operationId], references: [id], onDelete: Cascade)
+  recurrenceRule Json
+  timezone       String                @default("Europe/London") @db.VarChar(80)
+  active         Boolean               @default(true)
+  occurrences    OperationOccurrence[]
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+
+  @@index([organisationId, active])
+}
+
+model OperationOccurrence {
+  id                 String                       @id @default(uuid()) @db.Char(36)
+  organisationId     String                       @db.Char(36)
+  organisation       Organisation                 @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  operationId        String                       @db.Char(36)
+  operation          Operation                    @relation(fields: [operationId], references: [id], onDelete: Cascade)
+  seriesId           String?                      @db.Char(36)
+  series             OperationSeries?             @relation(fields: [seriesId], references: [id], onDelete: SetNull)
+  startAt            DateTime
+  endAt              DateTime
+  allDay             Boolean                      @default(false)
+  timezone           String                       @default("Europe/London") @db.VarChar(80)
+  location           String?                      @db.VarChar(191)
+  premisesName       String?                      @db.VarChar(191)
+  roomName           String?                      @db.VarChar(120)
+  requiredStaffCount Int                          @default(0)
+  requiresCompliance Boolean                      @default(false)
+  status             OperationStatus              @default(DRAFT)
+  readiness          ReadinessLevel               @default(ACTION_REQUIRED)
+  leadManagerId      String?                      @db.Char(36)
+  leadStaffId        String?                      @db.Char(36)
+  cancelledAt        DateTime?
+  completedAt        DateTime?
+  assignments        OperationStaffAssignment[]
+  attendees          OperationAttendee[]
+  readinessSnapshots OperationReadinessSnapshot[]
+  createdAt          DateTime                     @default(now())
+  updatedAt          DateTime                     @updatedAt
+
+  @@index([organisationId, startAt, endAt, status])
+  @@index([organisationId, readiness, startAt])
+}
+
+model OperationStaffAssignment {
+  id             String                    @id @default(uuid()) @db.Char(36)
+  organisationId String                    @db.Char(36)
+  organisation   Organisation              @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  occurrenceId   String                    @db.Char(36)
+  occurrence     OperationOccurrence       @relation(fields: [occurrenceId], references: [id], onDelete: Cascade)
+  staffId        String                    @db.Char(36)
+  staff          StaffMember               @relation(fields: [staffId], references: [id], onDelete: Restrict)
+  responsibility String?                   @db.VarChar(120)
+  lead           Boolean                   @default(false)
+  status         OperationAssignmentStatus @default(ASSIGNED)
+  createdById    String                    @db.Char(36)
+  createdAt      DateTime                  @default(now())
+  updatedAt      DateTime                  @updatedAt
+
+  @@unique([occurrenceId, staffId])
+  @@index([organisationId, staffId, status])
+}
+
+model OperationAttendee {
+  id               String                  @id @default(uuid()) @db.Char(36)
+  organisationId   String                  @db.Char(36)
+  organisation     Organisation            @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  occurrenceId     String                  @db.Char(36)
+  occurrence       OperationOccurrence     @relation(fields: [occurrenceId], references: [id], onDelete: Cascade)
+  studentId        String                  @db.Char(36)
+  student          Student                 @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  status           OperationAttendeeStatus @default(PLANNED)
+  transportMode    String?                 @db.VarChar(80)
+  supportLevel     String?                 @db.VarChar(80)
+  operationalNotes String?                 @db.VarChar(500)
+  createdById      String                  @db.Char(36)
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+
+  @@unique([occurrenceId, studentId])
+  @@index([organisationId, studentId, status])
+}
+
+model ExpectedStaffAttendance {
+  id                   String                    @id @default(uuid()) @db.Char(36)
+  organisationId       String                    @db.Char(36)
+  organisation         Organisation              @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  staffId              String                    @db.Char(36)
+  staff                StaffMember               @relation(fields: [staffId], references: [id], onDelete: Restrict)
+  scheduleOccurrenceId String                    @unique @db.Char(36)
+  scheduleOccurrence   StaffScheduleOccurrence   @relation(fields: [scheduleOccurrenceId], references: [id], onDelete: Cascade)
+  date                 DateTime                  @db.Date
+  expectedStartAt      DateTime
+  expectedEndAt        DateTime
+  state                ReconciliationState       @default(EXPECTED)
+  reconciliation       AttendanceReconciliation?
+  createdAt            DateTime                  @default(now())
+  updatedAt            DateTime                  @updatedAt
+
+  @@index([organisationId, date, state])
+  @@index([organisationId, staffId, expectedStartAt])
+}
+
+model AttendanceReconciliation {
+  id                   String                  @id @default(uuid()) @db.Char(36)
+  organisationId       String                  @db.Char(36)
+  organisation         Organisation            @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  expectedAttendanceId String                  @unique @db.Char(36)
+  expectedAttendance   ExpectedStaffAttendance @relation(fields: [expectedAttendanceId], references: [id], onDelete: Cascade)
+  clockInEventId       String?                 @db.Char(36)
+  clockOutEventId      String?                 @db.Char(36)
+  state                ReconciliationState
+  minutesLate          Int                     @default(0)
+  minutesShort         Int                     @default(0)
+  resolutionReason     String?                 @db.VarChar(500)
+  resolvedById         String?                 @db.Char(36)
+  resolvedAt           DateTime?
+  calculatedAt         DateTime                @default(now())
+  createdAt            DateTime                @default(now())
+  updatedAt            DateTime                @updatedAt
+
+  @@index([organisationId, state, calculatedAt])
+}
+
+model OperationReadinessSnapshot {
+  id             String              @id @default(uuid()) @db.Char(36)
+  organisationId String              @db.Char(36)
+  organisation   Organisation        @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  occurrenceId   String              @db.Char(36)
+  occurrence     OperationOccurrence @relation(fields: [occurrenceId], references: [id], onDelete: Cascade)
+  level          ReadinessLevel
+  blockers       Json
+  warnings       Json
+  calculatedById String?             @db.Char(36)
+  calculatedAt   DateTime            @default(now())
+
+  @@index([organisationId, occurrenceId, calculatedAt])
+  @@index([organisationId, level, calculatedAt])
 }

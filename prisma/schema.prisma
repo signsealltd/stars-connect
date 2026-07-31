@@ -81,6 +81,37 @@ enum EmailStatus {
   FAILED
 }
 
+enum ComplianceRecordType {
+  RISK_ASSESSMENT
+  RAMS
+  COSHH
+  POLICY
+}
+
+enum ComplianceWorkflowStatus {
+  DRAFT
+  UNDER_REVIEW
+  AWAITING_APPROVAL
+  APPROVED
+  PUBLISHED
+  SUPERSEDED
+  ARCHIVED
+}
+
+enum ComplianceApprovalDecision {
+  APPROVED
+  REJECTED
+}
+
+enum ComplianceActionStatus {
+  OPEN
+  IN_PROGRESS
+  AWAITING_EVIDENCE
+  AWAITING_VERIFICATION
+  COMPLETED
+  CANCELLED
+}
+
 model User {
   id                  String            @id @default(uuid()) @db.Char(36)
   email               String            @unique @db.VarChar(191)
@@ -89,11 +120,15 @@ model User {
   role                Role
   active              Boolean           @default(true)
   permissionOverrides Json?
+  organisationId      String?           @db.Char(36)
+  organisation        Organisation?     @relation(fields: [organisationId], references: [id], onDelete: SetNull)
   sessions            Session[]
   corrections         ClockCorrection[]
   visitorSignOuts     VisitorVisit[]    @relation("VisitorSignedOutBy")
   createdAt           DateTime          @default(now())
   updatedAt           DateTime          @updatedAt
+
+  @@index([organisationId, active])
 }
 
 model Session {
@@ -924,4 +959,322 @@ model PremisesDocument {
 
   @@index([documentType, active])
   @@index([expiryDate, active])
+}
+
+model Organisation {
+  id                 String                        @id @default(uuid()) @db.Char(36)
+  name               String                        @db.VarChar(191)
+  slug               String                        @unique @db.VarChar(120)
+  active             Boolean                       @default(true)
+  users              User[]
+  complianceRecords  ComplianceRecord[]
+  categories         ComplianceCategory[]
+  riskMatrices       RiskMatrixConfiguration[]
+  templates          ComplianceTemplate[]
+  actions            ComplianceAction[]
+  notificationEvents ComplianceNotificationEvent[]
+  assignments        ComplianceAssignment[]
+  acknowledgements   ComplianceAcknowledgement[]
+  attachments        ComplianceAttachment[]
+  createdAt          DateTime                      @default(now())
+  updatedAt          DateTime                      @updatedAt
+}
+
+model ComplianceCategory {
+  id             String                    @id @default(uuid()) @db.Char(36)
+  organisationId String                    @db.Char(36)
+  organisation   Organisation              @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  recordType     ComplianceRecordType
+  name           String                    @db.VarChar(120)
+  description    String?                   @db.VarChar(500)
+  active         Boolean                   @default(true)
+  sortOrder      Int                       @default(0)
+  versions       ComplianceRecordVersion[]
+  templates      ComplianceTemplate[]
+  createdAt      DateTime                  @default(now())
+  updatedAt      DateTime                  @updatedAt
+
+  @@unique([organisationId, recordType, name])
+  @@index([organisationId, recordType, active])
+}
+
+model RiskMatrixConfiguration {
+  id             String       @id @default(uuid()) @db.Char(36)
+  organisationId String       @db.Char(36)
+  organisation   Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  name           String       @db.VarChar(120)
+  size           Int          @default(5)
+  likelihood     Json
+  severity       Json
+  thresholds     Json
+  active         Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([organisationId, name])
+  @@index([organisationId, active])
+}
+
+model ComplianceRecord {
+  id                     String                    @id @default(uuid()) @db.Char(36)
+  organisationId         String                    @db.Char(36)
+  organisation           Organisation              @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  recordType             ComplianceRecordType
+  reference              String                    @db.VarChar(80)
+  publishedVersionNumber Int?
+  archivedAt             DateTime?
+  versions               ComplianceRecordVersion[]
+  createdById            String                    @db.Char(36)
+  createdAt              DateTime                  @default(now())
+  updatedAt              DateTime                  @updatedAt
+
+  @@unique([organisationId, reference])
+  @@index([organisationId, recordType, archivedAt])
+  @@index([organisationId, publishedVersionNumber])
+}
+
+model ComplianceRecordVersion {
+  id                   String                      @id @default(uuid()) @db.Char(36)
+  organisationId       String                      @db.Char(36)
+  recordId             String                      @db.Char(36)
+  record               ComplianceRecord            @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  version              Int
+  status               ComplianceWorkflowStatus    @default(DRAFT)
+  title                String                      @db.VarChar(191)
+  categoryId           String?                     @db.Char(36)
+  category             ComplianceCategory?         @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  description          String?                     @db.Text
+  scope                String?                     @db.Text
+  premisesLocation     String?                     @db.VarChar(191)
+  relatedActivity      String?                     @db.VarChar(191)
+  relatedAssetId       String?                     @db.Char(36)
+  assessorId           String?                     @db.Char(36)
+  responsibleManagerId String?                     @db.Char(36)
+  assessmentDate       DateTime?                   @db.Date
+  reviewDate           DateTime?                   @db.Date
+  overallResidualRisk  Int?
+  structuredContent    Json?
+  internalNotes        String?                     @db.Text
+  revisionNotes        String?                     @db.Text
+  tags                 Json?
+  submittedAt          DateTime?
+  approvedAt           DateTime?
+  approvedById         String?                     @db.Char(36)
+  publishedAt          DateTime?
+  publishedById        String?                     @db.Char(36)
+  supersedesVersionId  String?                     @db.Char(36)
+  supersedes           ComplianceRecordVersion?    @relation("ComplianceVersionHistory", fields: [supersedesVersionId], references: [id], onDelete: SetNull)
+  supersededBy         ComplianceRecordVersion[]   @relation("ComplianceVersionHistory")
+  hazards              RiskAssessmentHazard[]
+  methodSteps          RamsMethodStep[]
+  checklistItems       RamsChecklistItem[]
+  approvals            ComplianceApproval[]
+  acknowledgements     ComplianceAcknowledgement[]
+  attachments          ComplianceAttachment[]
+  createdById          String                      @db.Char(36)
+  createdAt            DateTime                    @default(now())
+  updatedAt            DateTime                    @updatedAt
+
+  @@unique([recordId, version])
+  @@index([organisationId, status, reviewDate])
+  @@index([organisationId, categoryId, status])
+  @@index([relatedAssetId])
+}
+
+model RiskAssessmentHazard {
+  id                 String                  @id @default(uuid()) @db.Char(36)
+  versionId          String                  @db.Char(36)
+  version            ComplianceRecordVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  sortOrder          Int                     @default(0)
+  hazard             String                  @db.Text
+  whoMayBeHarmed     String                  @db.Text
+  howTheyMayBeHarmed String                  @db.Text
+  existingControls   String                  @db.Text
+  initialLikelihood  Int
+  initialSeverity    Int
+  initialRiskScore   Int
+  furtherControls    String?                 @db.Text
+  actionOwnerId      String?                 @db.Char(36)
+  targetDate         DateTime?               @db.Date
+  residualLikelihood Int
+  residualSeverity   Int
+  residualRiskScore  Int
+  actionStatus       ComplianceActionStatus  @default(OPEN)
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+
+  @@index([versionId, sortOrder])
+  @@index([actionOwnerId, targetDate])
+}
+
+model RamsMethodStep {
+  id                 String                  @id @default(uuid()) @db.Char(36)
+  versionId          String                  @db.Char(36)
+  version            ComplianceRecordVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  stepNumber         Int
+  stage              String                  @db.VarChar(191)
+  method             String                  @db.Text
+  responsibleRole    String?                 @db.VarChar(120)
+  equipmentRequired  String?                 @db.Text
+  protectiveMeasures String?                 @db.Text
+  safetyChecks       String?                 @db.Text
+  stopWorkConditions String?                 @db.Text
+  emergencyResponse  String?                 @db.Text
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+
+  @@unique([versionId, stepNumber])
+}
+
+model RamsChecklistItem {
+  id            String                  @id @default(uuid()) @db.Char(36)
+  versionId     String                  @db.Char(36)
+  version       ComplianceRecordVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  sortOrder     Int                     @default(0)
+  label         String                  @db.VarChar(191)
+  required      Boolean                 @default(true)
+  completed     Boolean                 @default(false)
+  completedById String?                 @db.Char(36)
+  completedAt   DateTime?
+
+  @@index([versionId, sortOrder])
+}
+
+model ComplianceApproval {
+  id        String                     @id @default(uuid()) @db.Char(36)
+  versionId String                     @db.Char(36)
+  version   ComplianceRecordVersion    @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  decision  ComplianceApprovalDecision
+  actorId   String                     @db.Char(36)
+  comments  String?                    @db.Text
+  createdAt DateTime                   @default(now())
+
+  @@index([versionId, createdAt])
+  @@index([actorId, createdAt])
+}
+
+model ComplianceAssignment {
+  id             String       @id @default(uuid()) @db.Char(36)
+  organisationId String       @db.Char(36)
+  versionId      String       @db.Char(36)
+  userId         String?      @db.Char(36)
+  staffRole      String?      @db.VarChar(100)
+  location       String?      @db.VarChar(191)
+  allStaff       Boolean      @default(false)
+  assignedById   String       @db.Char(36)
+  assignedAt     DateTime     @default(now())
+  organisation   Organisation @relation(fields: [organisationId], references: [id])
+
+  @@index([organisationId, versionId])
+  @@index([organisationId, userId])
+}
+
+model ComplianceAcknowledgement {
+  id               String                  @id @default(uuid()) @db.Char(36)
+  organisationId   String                  @db.Char(36)
+  versionId        String                  @db.Char(36)
+  version          ComplianceRecordVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  userId           String                  @db.Char(36)
+  statementVersion String                  @default("v1") @db.VarChar(20)
+  ipAddress        String?                 @db.VarChar(64)
+  userAgent        String?                 @db.VarChar(500)
+  sessionReference String?                 @db.VarChar(120)
+  deviceId         String?                 @db.Char(36)
+  acknowledgedAt   DateTime                @default(now())
+  organisation     Organisation            @relation(fields: [organisationId], references: [id])
+
+  @@unique([organisationId, versionId, userId])
+  @@index([organisationId, userId, acknowledgedAt])
+}
+
+model ComplianceAttachment {
+  id             String                   @id @default(uuid()) @db.Char(36)
+  organisationId String                   @db.Char(36)
+  versionId      String?                  @db.Char(36)
+  version        ComplianceRecordVersion? @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  actionId       String?                  @db.Char(36)
+  action         ComplianceAction?        @relation(fields: [actionId], references: [id], onDelete: Cascade)
+  originalName   String                   @db.VarChar(191)
+  storagePath    String                   @db.VarChar(500)
+  mimeType       String                   @db.VarChar(120)
+  fileSize       Int
+  sha256Hash     String                   @db.Char(64)
+  uploadedById   String                   @db.Char(36)
+  createdAt      DateTime                 @default(now())
+  organisation   Organisation             @relation(fields: [organisationId], references: [id])
+
+  @@index([organisationId, versionId])
+  @@index([organisationId, actionId])
+}
+
+model ComplianceAction {
+  id                   String                 @id @default(uuid()) @db.Char(36)
+  organisationId       String                 @db.Char(36)
+  organisation         Organisation           @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  reference            String                 @db.VarChar(80)
+  title                String                 @db.VarChar(191)
+  description          String?                @db.Text
+  sourceType           String?                @db.VarChar(60)
+  sourceId             String?                @db.Char(36)
+  premisesLocation     String?                @db.VarChar(191)
+  assignedUserId       String?                @db.Char(36)
+  priority             String                 @db.VarChar(20)
+  dueDate              DateTime?              @db.Date
+  status               ComplianceActionStatus @default(OPEN)
+  completionNotes      String?                @db.Text
+  verificationRequired Boolean                @default(false)
+  completedById        String?                @db.Char(36)
+  completedAt          DateTime?
+  verifiedById         String?                @db.Char(36)
+  verifiedAt           DateTime?
+  createdById          String                 @db.Char(36)
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+  attachments          ComplianceAttachment[]
+
+  @@unique([organisationId, reference])
+  @@index([organisationId, status, dueDate])
+  @@index([organisationId, assignedUserId, status])
+  @@index([organisationId, sourceType, sourceId])
+}
+
+model ComplianceTemplate {
+  id                     String               @id @default(uuid()) @db.Char(36)
+  organisationId         String               @db.Char(36)
+  organisation           Organisation         @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  recordType             ComplianceRecordType
+  categoryId             String?              @db.Char(36)
+  category               ComplianceCategory?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  name                   String               @db.VarChar(191)
+  defaultContent         Json
+  defaultReviewDays      Int?
+  requiredFields         Json?
+  optionalFields         Json?
+  active                 Boolean              @default(true)
+  requiresApprovalNotice Boolean              @default(true)
+  createdById            String               @db.Char(36)
+  createdAt              DateTime             @default(now())
+  updatedAt              DateTime             @updatedAt
+
+  @@unique([organisationId, recordType, name])
+  @@index([organisationId, recordType, active])
+}
+
+model ComplianceNotificationEvent {
+  id             String       @id @default(uuid()) @db.Char(36)
+  organisationId String       @db.Char(36)
+  organisation   Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  idempotencyKey String       @unique @db.VarChar(191)
+  eventType      String       @db.VarChar(60)
+  recordType     String       @db.VarChar(60)
+  recordId       String       @db.Char(36)
+  versionId      String?      @db.Char(36)
+  recipientId    String?      @db.Char(36)
+  dueDate        DateTime?    @db.Date
+  status         String       @default("PENDING") @db.VarChar(30)
+  createdAt      DateTime     @default(now())
+  deliveredAt    DateTime?
+
+  @@index([organisationId, status, createdAt])
+  @@index([organisationId, recordType, recordId])
 }

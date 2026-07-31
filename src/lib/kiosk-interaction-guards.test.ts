@@ -35,6 +35,12 @@ describe("kiosk-only interaction guards", () => {
     expect(idleController).toContain('onClick={e=>{e.preventDefault();e.stopPropagation();onWake()}}');
   });
 
+  it("keeps the screensaver active after the idle timer fires", () => {
+    expect(idleController).toContain("activeRef=useRef(false)");
+    expect(idleController).toContain("activeRef.current=true;setActive(true)");
+    expect(idleController).toContain("if(!activeRef.current)reset()");
+    expect(idleController).not.toContain("[active,eligible,reset,settings.screensaverEnabled]");
+  });
   it("layers the constellation above the screensaver background and behind its content", () => {
     expect(globals).toMatch(/\.idle-constellation\{[\s\S]*?z-index:0/);
     expect(globals).toMatch(/\.idle-content\{position:relative;z-index:1/);

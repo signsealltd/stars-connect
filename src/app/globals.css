@@ -235,3 +235,7 @@ html[data-theme="dark"]{--ink:#f4eef5;--muted:#bcb1bf;--paper:#171319;--card:#24
 html[data-page-visibility="hidden"] .monthly-scene *{animation-play-state:paused!important}
 @media(max-width:760px){.monthly-scene-picker-head{display:block}.scene-selection-summary{display:inline-block;margin-top:8px;white-space:normal}.monthly-scene-options{grid-template-columns:repeat(2,minmax(0,1fr))}.screensaver-preview,.screensaver-preview .preview-content{min-height:220px}}
 @media(prefers-reduced-motion:reduce){.monthly-scene *{animation:none!important}.idle-screensaver{transition:none!important}}
+
+.placeholder-star{transform-box:fill-box;transform-origin:center;animation:placeholder-star-twinkle 3.2s ease-in-out infinite alternate;opacity:.26;filter:drop-shadow(0 0 2px #fff)}
+@keyframes placeholder-star-twinkle{0%{opacity:.18;transform:scale(.72)}55%{opacity:.95;transform:scale(1.18);filter:drop-shadow(0 0 7px #d7e8ff)}100%{opacity:.38;transform:scale(.86)}}
+@media(prefers-reduced-motion:reduce){.placeholder-star{animation:none!important;opacity:.72}}

@@ -63,6 +63,15 @@ export const screensaverSchema = z.object({
 export type ScreensaverSettings = z.infer<typeof screensaverSchema>;
 export const screensaverKeys = Object.keys(screensaverDefaults) as Array<keyof ScreensaverSettings>;
 
+/** Merge legacy kiosk caches with current defaults before validating them. */
+export function normaliseScreensaverSettings(value: unknown): ScreensaverSettings {
+  const candidate = value && typeof value === "object"
+    ? { ...screensaverDefaults, ...(value as Record<string, unknown>) }
+    : screensaverDefaults;
+  const parsed = screensaverSchema.safeParse(candidate);
+  return parsed.success ? parsed.data : screensaverDefaults;
+}
+
 export function visualPeriod(now: Date, settings: ScreensaverSettings) {
   const minutes = now.getHours() * 60 + now.getMinutes();
   const parse = (value: string) => Number(value.slice(0, 2)) * 60 + Number(value.slice(3));

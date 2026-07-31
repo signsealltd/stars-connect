@@ -41,26 +41,12 @@ describe("kiosk-only interaction guards", () => {
     expect(idleController).toContain("if(!activeRef.current)reset()");
     expect(idleController).not.toContain("[active,eligible,reset,settings.screensaverEnabled]");
   });
-  it("layers the constellation above the screensaver background and behind its content", () => {
-    expect(globals).toMatch(/\.idle-constellation\{[\s\S]*?z-index:0/);
-    expect(globals).toMatch(/\.idle-content\{position:relative;z-index:1/);
-    expect(globals).not.toContain(".idle-constellation{position:absolute;inset:-8%;width:116%;height:116%;z-index:-1");
+  it("renders monthly artwork behind content with accessible motion", () => {
+    expect(idleController).toContain("MonthlyScreensaverScene");
+    expect(globals).toContain(".monthly-scene-layer");
+    expect(globals).toContain("prefers-reduced-motion:reduce");
+    expect(globals).toContain("animation-play-state:paused");
   });
-
-  it("uses perceptible constellation drift and twinkling with reduced-motion support", () => {
-    expect(globals).toContain("animation:constellation-layer-drift 24s");
-    expect(globals).toContain("opacity:calc(.25 + (.75 * var(--star-intensity)))");
-    expect(globals).toContain("animation:constellation-twinkle 4.8s");
-    expect(globals).toContain(".idle-constellation,.idle-constellation circle,.idle-content{animation:none!important}");
-  });
-
-  it("uses white stars and an occasional reduced-motion-safe shooting star", () => {
-    expect(globals).toContain(".idle-constellation circle{fill:#fff");
-    expect(idleController).toContain('className="shooting-star"');
-    expect(idleController).toContain('dur="23s" repeatCount="indefinite"');
-    expect(globals).toContain(".shooting-star{display:none}");
-  });
-
   it("uses kiosk-safe weather requests and bounded transient retry", () => {
     expect(appearance).toContain("shouldLoadManagerPreferences(pathname)");
     expect(weatherClient).toContain('fetch("/api/kiosk/weather"');

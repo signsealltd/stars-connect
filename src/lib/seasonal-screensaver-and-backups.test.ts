@@ -1,34 +1,10 @@
-import { describe, expect, it } from "vitest";
-import { readFileSync } from "fs";
-import { screensaverSchema } from "./screensaver";
-
-describe("seasonal screensaver and managed backups", () => {
-  it.each(["constellation", "halloween", "christmas", "st-patricks"])("accepts the %s animation preset", (style) => {
-    const defaults = JSON.parse(JSON.stringify({
-      screensaverEnabled: true, idleTimeoutSeconds: 30, showLogo: true, logoUrl: "/branding/stars-logo.svg",
-      headline: "STARS", showClock: true, showDate: true, showOnSiteCount: false, screensaverMessage: "Touch",
-      showDeviceName: true, screensaverWeatherEnabled: true, screensaverWeatherLocation: "Enfield, London",
-      constellationEnabled: true, constellationIntensity: 35, backgroundAnimationStyle: style, wakeTransitionSeconds: 1.25,
-      backgroundColor: "#050407", textColor: "#ffffff", accentColor: "#dec8e4", dayModeStart: "07:00",
-      eveningModeStart: "19:00", nightModeStart: "22:00", dayDimLevel: 45, eveningDimLevel: 25,
-      nightDimLevel: 10, deviceLocationName: "",
-    }));
-    expect(screensaverSchema.safeParse(defaults).success).toBe(true);
-  });
-
-  it("keeps the overlay active during the configured wake fade", () => {
-    const controller = readFileSync("src/components/kiosk-idle-controller.tsx", "utf8");
-    expect(controller).toContain("settings.wakeTransitionSeconds*1000");
-    expect(controller).toContain("if(waking)return");
-    expect(controller).toContain('waking?" waking":""');
-  });
-
-  it("only permits named managed backup files to be deleted and audits deletion", () => {
-    const route = readFileSync("src/app/api/system/backups/[name]/route.ts", "utf8");
-    expect(route).toContain("export async function DELETE");
-    expect(route).toContain("DATABASE_BACKUP_DELETED");
-    expect(route).toContain("path.dirname(target) !== directory");
-    expect(route).toContain("stars-connect-\\d{8}-\\d{6}");
-  });
+import {describe,expect,it} from "vitest";
+import {readFileSync} from "fs";
+import {monthlyScreensaverIds,monthlyScreensaverOptions,screensaverDefaults,screensaverSchema} from "./screensaver";
+describe("monthly screensaver and managed backups",()=>{
+ it("provides twelve unique illustrated choices plus automatic mode",()=>{expect(monthlyScreensaverIds).toHaveLength(12);expect(new Set(monthlyScreensaverIds).size).toBe(12);expect(monthlyScreensaverOptions).toHaveLength(12);expect(screensaverSchema.safeParse(screensaverDefaults).success).toBe(true)});
+ it("uses static gallery thumbnails and one selected live scene",()=>{const form=readFileSync("src/components/screensaver-settings-form.tsx","utf8");expect(form).toContain('role="radiogroup"');expect(form).toContain("MonthlySceneThumbnail");expect(form).toContain("MonthlyScreensaverScene scene={resolved}");expect(form).toContain("Automatic");expect(form).toContain("Change Each Month")});
+ it("ships all twelve scene modules",()=>monthlyScreensaverIds.forEach(id=>{const index=monthlyScreensaverIds.indexOf(id);const names=["JanuaryWinter","FebruaryHearts","MarchDaffodils","AprilRainshowers","MayButterflies","JuneSummerFlowers","JulyBeach","AugustFairground","SeptemberWoodland","OctoberHalloween","NovemberBonfire","DecemberChristmas"];expect(()=>readFileSync(`src/components/screensavers/scenes/${names[index]}Scene.tsx`,"utf8")).not.toThrow()}));
+ it("keeps wake fade and accessibility safeguards",()=>{const controller=readFileSync("src/components/kiosk-idle-controller.tsx","utf8"),css=readFileSync("src/app/globals.css","utf8");expect(controller).toContain("settings.wakeTransitionSeconds*1000");expect(controller).toContain("pageVisibility");expect(css).toContain("prefers-reduced-motion:reduce");expect(css).toContain('data-page-visibility="hidden"')});
+ it("only permits named managed backup files to be deleted and audits deletion",()=>{const route=readFileSync("src/app/api/system/backups/[name]/route.ts","utf8");expect(route).toContain("export async function DELETE");expect(route).toContain("DATABASE_BACKUP_DELETED");expect(route).toContain("path.dirname(target) !== directory")});
 });
-

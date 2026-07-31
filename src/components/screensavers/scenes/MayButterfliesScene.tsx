@@ -1,0 +1,2 @@
+import{Butterfly,Flowers,SceneFrame,Tree}from"./shared";
+export function MayButterfliesScene(){return <SceneFrame id="may-butterflies" sky={["#58acd2","#d7eff2"]} horizon="#7fbd69" ground="#3d8148"><path d="M690 1000q80-330 290-450" fill="none" stroke="#e8d4a0" strokeWidth="100"/><Tree x={30} y={510} scale={.82}/><Flowers y={850} colours={["#ff7896","#ffd756","#a987d6","#f7f2dd"]}/><Butterfly x={230} y={280}/><Butterfly x={1280} y={340} colour="#5d76d8" delay={2}/><Butterfly x={1110} y={180} colour="#f2a836" delay={4}/></SceneFrame>}

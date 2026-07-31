@@ -2,6 +2,49 @@ import { z } from "zod";
 
 const colour = z.string().regex(/^#[0-9a-fA-F]{6}$/);
 
+export const monthlyScreensaverIds = [
+  "january-winter", "february-hearts", "march-daffodils", "april-rainshowers",
+  "may-butterflies", "june-summer-flowers", "july-beach", "august-fairground",
+  "september-woodland", "october-halloween", "november-bonfire", "december-christmas",
+] as const;
+export type MonthlyScreensaverId = typeof monthlyScreensaverIds[number];
+export const screensaverAnimationIds = ["automatic-monthly", ...monthlyScreensaverIds] as const;
+export type ScreensaverAnimationId = typeof screensaverAnimationIds[number];
+
+export const monthlyScreensaverOptions: ReadonlyArray<{ id: MonthlyScreensaverId; month: string; name: string; palette: string }> = [
+  { id: "january-winter", month: "January", name: "January \u2013 Winter Village", palette: "#17335c" },
+  { id: "february-hearts", month: "February", name: "February \u2013 Hearts", palette: "#ad5e8d" },
+  { id: "march-daffodils", month: "March", name: "March \u2013 Daffodils", palette: "#74a86a" },
+  { id: "april-rainshowers", month: "April", name: "April \u2013 Rain Showers", palette: "#638eb1" },
+  { id: "may-butterflies", month: "May", name: "May \u2013 Butterflies", palette: "#63add0" },
+  { id: "june-summer-flowers", month: "June", name: "June \u2013 Summer Flowers", palette: "#43a8d4" },
+  { id: "july-beach", month: "July", name: "July \u2013 Beach", palette: "#e8b468" },
+  { id: "august-fairground", month: "August", name: "August \u2013 Fairground", palette: "#75437e" },
+  { id: "september-woodland", month: "September", name: "September \u2013 Woodland", palette: "#a85c32" },
+  { id: "october-halloween", month: "October", name: "October \u2013 Halloween", palette: "#351747" },
+  { id: "november-bonfire", month: "November", name: "November \u2013 Bonfire Night", palette: "#24304b" },
+  { id: "december-christmas", month: "December", name: "December \u2013 Christmas Village", palette: "#173654" },
+];
+
+export const legacyScreensaverMap: Readonly<Record<string, MonthlyScreensaverId>> = {
+  constellation: "january-winter",
+  halloween: "october-halloween",
+  christmas: "december-christmas",
+  "st-patricks": "march-daffodils",
+  celebration: "november-bonfire",
+};
+
+export function normaliseScreensaverAnimationId(value: unknown): ScreensaverAnimationId {
+  if (typeof value !== "string") return "automatic-monthly";
+  if ((screensaverAnimationIds as readonly string[]).includes(value)) return value as ScreensaverAnimationId;
+  return legacyScreensaverMap[value] ?? "automatic-monthly";
+}
+
+export function resolveScreensaverScene(value: unknown, date = new Date()): MonthlyScreensaverId {
+  const id = normaliseScreensaverAnimationId(value);
+  return id === "automatic-monthly" ? monthlyScreensaverIds[date.getMonth()] : id;
+}
+
 export const screensaverDefaults = {
   screensaverEnabled: true,
   idleTimeoutSeconds: 30,
@@ -17,7 +60,7 @@ export const screensaverDefaults = {
   screensaverWeatherLocation: "Enfield, London",
   constellationEnabled: true,
   constellationIntensity: 35,
-  backgroundAnimationStyle: "constellation" as const,
+  backgroundAnimationStyle: "automatic-monthly" as ScreensaverAnimationId,
   wakeTransitionSeconds: 1.25,
   backgroundColor: "#050407",
   textColor: "#ffffff",
@@ -46,7 +89,7 @@ export const screensaverSchema = z.object({
   screensaverWeatherLocation: z.string().trim().min(2).max(120),
   constellationEnabled: z.boolean(),
   constellationIntensity: z.number().int().min(0).max(100),
-  backgroundAnimationStyle: z.enum(["constellation", "halloween", "christmas", "st-patricks"]),
+  backgroundAnimationStyle: z.enum(screensaverAnimationIds),
   wakeTransitionSeconds: z.number().min(0).max(5),
   backgroundColor: colour,
   textColor: colour,
@@ -63,11 +106,14 @@ export const screensaverSchema = z.object({
 export type ScreensaverSettings = z.infer<typeof screensaverSchema>;
 export const screensaverKeys = Object.keys(screensaverDefaults) as Array<keyof ScreensaverSettings>;
 
-/** Merge legacy kiosk caches with current defaults before validating them. */
+/** Merge legacy kiosk caches with current defaults and migrate retired scene IDs. */
 export function normaliseScreensaverSettings(value: unknown): ScreensaverSettings {
-  const candidate = value && typeof value === "object"
-    ? { ...screensaverDefaults, ...(value as Record<string, unknown>) }
-    : screensaverDefaults;
+  const raw = value && typeof value === "object" ? value as Record<string, unknown> : {};
+  const candidate = {
+    ...screensaverDefaults,
+    ...raw,
+    backgroundAnimationStyle: normaliseScreensaverAnimationId(raw.backgroundAnimationStyle),
+  };
   const parsed = screensaverSchema.safeParse(candidate);
   return parsed.success ? parsed.data : screensaverDefaults;
 }

@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { execFile } from "child_process";
-import { mkdir, readdir, stat } from "fs/promises";
+import { mkdir, readdir, stat, unlink } from "fs/promises";
 import path from "path";
 import { promisify } from "util";
 import packageInfo from "../../../../../package.json";
@@ -8,10 +8,11 @@ import { withRole, requestContext } from "@/lib/api";
 import { audit } from "@/lib/audit";
 
 const run = promisify(execFile);
+const managedBackupName = /^stars-connect-\d{8}-\d{6}\.sql$/;
 const backupDirectory = () => path.resolve(process.env.DATABASE_BACKUP_PATH || path.join(process.cwd(), "storage", "backups"));
 async function backups() {
   await mkdir(backupDirectory(), { recursive: true });
-  const names = (await readdir(backupDirectory())).filter((name) => /^stars-connect-\d{8}-\d{6}\.sql$/.test(name));
+  const names = (await readdir(backupDirectory())).filter((name) => managedBackupName.test(name));
   return Promise.all(names.map(async (name) => { const info = await stat(path.join(backupDirectory(), name)); return { name, size: info.size, createdAt: info.birthtime.toISOString() }; }));
 }
 
@@ -43,6 +44,24 @@ export async function POST(req: NextRequest) {
     } catch {
       await audit("DATABASE_BACKUP_FAILED", { actorType: "USER", actorId: user.id, afterValue: { category: "DUMP_COMMAND_FAILED" }, ...requestContext(req) });
       return NextResponse.json({ error: "The database backup could not be created. Check the MariaDB dump path and backup directory permissions." }, { status: 500 });
+    }
+  });
+}
+
+export async function DELETE(req: NextRequest) {
+  return withRole(req, "ADMINISTRATOR", async (user) => {
+    const name = req.nextUrl.searchParams.get("name") || "";
+    if (!managedBackupName.test(name)) return NextResponse.json({ error: "Backup not found." }, { status: 404 });
+    const directory = backupDirectory();
+    const target = path.resolve(directory, name);
+    if (path.dirname(target) !== directory) return NextResponse.json({ error: "Backup not found." }, { status: 404 });
+    try {
+      await unlink(target);
+      await audit("DATABASE_BACKUP_DELETED", { actorType: "USER", actorId: user.id, entityType: "DatabaseBackup", entityId: name, ...requestContext(req) });
+      return NextResponse.json({ ok: true, name });
+    } catch (error) {
+      const category = error && typeof error === "object" && "code" in error && error.code === "ENOENT" ? "NOT_FOUND" : "DELETE_FAILED";
+      return NextResponse.json({ error: category === "NOT_FOUND" ? "Backup not found." : "The backup could not be deleted. Check the backup directory permissions." }, { status: category === "NOT_FOUND" ? 404 : 500 });
     }
   });
 }

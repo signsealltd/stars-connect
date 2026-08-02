@@ -6,8 +6,8 @@ import { createUserSchema, updateUserSchema } from "./user-input";
 const source=(path:string)=>readFileSync(join(process.cwd(),path),"utf8");
 describe("administrator user management",()=>{
   it("enforces strong passwords and valid roles",()=>{
-    expect(createUserSchema.safeParse({name:"Test Manager",email:"manager@example.org",role:"MANAGER",password:"StrongPassword1"}).success).toBe(true);
-    expect(createUserSchema.safeParse({name:"Test Manager",email:"manager@example.org",role:"OWNER",password:"weak"}).success).toBe(false);
+    expect(createUserSchema.safeParse({name:"Test Manager",username:"test.manager",email:"manager@example.org",role:"MANAGER",password:"StrongPassword1"}).success).toBe(true);
+    expect(createUserSchema.safeParse({name:"Test Manager",username:"test.manager",email:"manager@example.org",role:"OWNER",password:"weak"}).success).toBe(false);
     expect(updateUserSchema.safeParse({password:"AnotherStrong2"}).success).toBe(true);
   });
   it("protects self access, the final administrator and invalidates sessions",()=>{

@@ -192,7 +192,8 @@ enum ComplianceActionStatus {
 
 model User {
   id                  String            @id @default(uuid()) @db.Char(36)
-  email               String            @unique @db.VarChar(191)
+  username            String            @unique @db.VarChar(32)
+  email               String?           @unique @db.VarChar(191)
   name                String            @db.VarChar(120)
   passwordHash        String
   role                Role

@@ -17,7 +17,7 @@ export default async function AuditPage() {
   const userIds = [...new Set(rows.filter(row => row.actorType === "USER" && row.actorId).map(row => row.actorId!))];
   const deviceIds = [...new Set(rows.map(row => row.deviceId).filter((id): id is string => Boolean(id)))];
   const [users, devices] = await Promise.all([
-    prisma.user.findMany({ where: { id: { in: userIds } }, select: { id: true, name: true, email: true, role: true } }),
+    prisma.user.findMany({ where: { id: { in: userIds } }, select: { id: true, name: true, username:true, role: true } }),
     prisma.device.findMany({ where: { id: { in: deviceIds } }, select: { id: true, name: true } }),
   ]);
   const userMap = new Map(users.map(user => [user.id, user]));
@@ -34,7 +34,7 @@ export default async function AuditPage() {
       <div className="card table-wrap"><table className="table"><thead><tr><th>Time</th><th>Action</th><th>Actor</th><th>Target</th><th>Device and connection</th></tr></thead>
         <tbody>{dayRows.map(row => {
           const user = row.actorId ? userMap.get(row.actorId) : undefined;
-          const actor = user ? <><b>{user.name}</b><small className="muted" style={{ display: "block" }}>{user.role.replaceAll("_", " ").toLowerCase()} · {user.email}</small></> : row.actorType === "DEVICE" ? <><b>{row.deviceId ? deviceMap.get(row.deviceId) || "Unknown device" : "Device"}</b><small className="muted" style={{ display: "block" }}>Device action</small></> : <><b>{row.actorType === "USER" ? "Unknown user" : row.actorType}</b>{row.actorId && <small className="muted" style={{ display: "block" }}>{row.actorId}</small>}</>;
+          const actor = user ? <><b>{user.name}</b><small className="muted" style={{ display: "block" }}>{user.role.replaceAll("_", " ").toLowerCase()} · @{user.username}</small></> : row.actorType === "DEVICE" ? <><b>{row.deviceId ? deviceMap.get(row.deviceId) || "Unknown device" : "Device"}</b><small className="muted" style={{ display: "block" }}>Device action</small></> : <><b>{row.actorType === "USER" ? "Unknown user" : row.actorType}</b>{row.actorId && <small className="muted" style={{ display: "block" }}>{row.actorId}</small>}</>;
           return <tr key={row.id}><td>{row.createdAt.toLocaleTimeString("en-GB", { timeZone: "Europe/London", hour: "2-digit", minute: "2-digit", second: "2-digit" })}</td><td><b>{row.action.replaceAll("_", " ")}</b></td><td>{actor}</td><td>{row.entityType || "—"}{row.entityId && <small className="muted" style={{ display: "block" }}>{row.entityId}</small>}</td><td>{row.deviceId && <b>{deviceMap.get(row.deviceId) || "Unknown device"}</b>}<span style={{ display: "block" }}>{clientName(row.userAgent)}</span><small className="muted">{row.ipAddress || "IP not recorded"}</small></td></tr>;
         })}</tbody>
       </table></div>

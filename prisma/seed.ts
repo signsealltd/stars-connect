@@ -19,7 +19,7 @@ async function main() {
     await prisma.user.upsert({
       where:{email},
       update:{name,role,active:true},
-      create:{email,name,role,passwordHash:await bcrypt.hash(seedContext.generatedPassword,12)},
+      create:{username:email.split("@")[0],email,name,role,passwordHash:await bcrypt.hash(seedContext.generatedPassword,12)},
     });
   }
 

@@ -14,6 +14,10 @@ describe("username management",()=>{
     if(result.success)expect(result.data.email).toBeNull();
   });
   it("allows administrators to change a username",()=>expect(updateUserSchema.safeParse({username:"new.name"}).success).toBe(true));
+  it("accepts the partial permission overrides submitted by the account editor",()=>{
+    const result=updateUserSchema.safeParse({name:"Daniel Seal",username:"daniel.seal",email:"sealdan5@gmail.com",role:"ADMINISTRATOR",active:true,permissionOverrides:{"payroll.review":true,"billing.review":true,"visitor-signature.view":true}});
+    expect(result.success).toBe(true);
+  });
   it("uses username or legacy email without exposing which account exists",()=>{
     const route=readFileSync("src/app/api/auth/login/route.ts","utf8");
     expect(route).toContain("OR:[{username:identifier},{email:identifier}]");

@@ -25,10 +25,10 @@ export const updateUserSchema = z.object({
   email: optionalEmail.optional(),
   role: z.enum(roles).optional(),
   active: z.boolean().optional(),
-  password: z.string().min(12).max(128)
-    .regex(/[a-z]/)
-    .regex(/[A-Z]/)
-    .regex(/\d/)
+  password: z.string().min(12, "Password must be at least 12 characters.").max(128)
+    .regex(/[a-z]/, "Password needs a lowercase letter.")
+    .regex(/[A-Z]/, "Password needs an uppercase letter.")
+    .regex(/\d/, "Password needs a number.")
     .optional(),
   permissionOverrides,
 });

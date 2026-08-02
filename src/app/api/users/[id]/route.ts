@@ -11,7 +11,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const before = await prisma.user.findUnique({ where: { id } });
     if (!before) return jsonError("Account not found.", 404);
     const parsed = updateUserSchema.safeParse(await req.json().catch(() => null));
-    if (!parsed.success) return jsonError("Check the account details and password requirements.", 422);
+    if (!parsed.success) return jsonError(parsed.error.issues[0]?.message || "Check the account details and password requirements.", 422);
     if (id === actor.id && (parsed.data.active === false || (parsed.data.role && parsed.data.role !== "ADMINISTRATOR"))) {
       return jsonError("You cannot remove your own administrator access.", 409);
     }

@@ -19,6 +19,12 @@ describe("username management",()=>{
     expect(route).toContain("OR:[{username:identifier},{email:identifier}]");
     expect(route).toContain('error:"Invalid credentials"');
   });
+  it("does not expose an editable password field until reset is deliberately selected",()=>{
+    const manager=readFileSync("src/components/user-manager.tsx","utf8");
+    expect(manager).toContain('editing==="new"||resetPassword');
+    expect(manager).toContain('Reset password');
+    expect(manager).toContain('password:(isNew||resetPassword)');
+  });
   it("migrates existing accounts to unique non-null usernames",()=>{
     const sql=readFileSync("prisma/migrations/202608020001_username_login/migration.sql","utf8");
     expect(sql).toContain("UPDATE `User`");

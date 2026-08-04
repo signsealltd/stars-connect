@@ -8,7 +8,7 @@ import styles from "./finance-workflow.module.css";
 type Mode = "payroll" | "billing";
 type Item = { id: string; label?: string; status: string; version: number; periodStart: string; periodEnd: string; _count?: { entries?: number; charges?: number } };
 
-type Student = { id: string; displayName: string; internalReference?: string | null; billingProfile?: { payerName: string } | null };
+type Student = { id: string; displayName: string; internalReference?: string | null; startDate: string; endDate?: string | null; billingProfile?: { payerName: string } | null };
 
 const label = (status: string) => ({
   DRAFT: "Not prepared", REQUIRES_REVIEW: "Check required", REVIEWED: "Ready",
@@ -44,7 +44,13 @@ export function SimpleFinanceConsole({ mode }: { mode: Mode }) {
   useEffect(() => { load(); }, [load]);
   useEffect(() => { if (mode !== "billing") return; fetch("/api/students/records?status=active", { cache: "no-store" }).then(async response => { const body = await response.json(); if (!response.ok) throw new Error(body.error || "Unable to load students."); setStudents(Array.isArray(body) ? body : []); }).catch(caught => setError(caught instanceof Error ? caught.message : "Unable to load students.")); }, [mode]);
   const payers = [...new Set(students.map(student => student.billingProfile?.payerName).filter((value): value is string => Boolean(value)))].sort();
-  const visibleStudents = students.filter(student => (payerFilter === "ALL" || student.billingProfile?.payerName === payerFilter) && (!studentSearch.trim() || (student.displayName + " " + (student.internalReference || "")).toLowerCase().includes(studentSearch.trim().toLowerCase())));
+  const eligibleStudents = students.filter(student => student.startDate.slice(0, 10) <= to && (!student.endDate || student.endDate.slice(0, 10) >= from));
+  const visibleStudents = eligibleStudents.filter(student => (payerFilter === "ALL" || student.billingProfile?.payerName === payerFilter) && (!studentSearch.trim() || (student.displayName + " " + (student.internalReference || "")).toLowerCase().includes(studentSearch.trim().toLowerCase())));
+  const hiddenSelectedCount = selectedStudentIds.filter(id => !visibleStudents.some(student => student.id === id)).length;
+  useEffect(() => {
+    const eligibleIds = new Set(students.filter(student => student.startDate.slice(0, 10) <= to && (!student.endDate || student.endDate.slice(0, 10) >= from)).map(student => student.id));
+    setSelectedStudentIds(current => { const next = current.filter(id => eligibleIds.has(id)); return next.length === current.length ? current : next; });
+  }, [students, from, to]);
 
   async function prepare() {
     if (mode === "billing" && (!runLabel.trim() || !selectedStudentIds.length)) { setError("Enter a billing run label and select at least one student."); return; }
@@ -108,7 +114,7 @@ export function SimpleFinanceConsole({ mode }: { mode: Mode }) {
         <label className="form-label">Find student<input className="field" placeholder="Name or student reference" value={studentSearch} onChange={event=>setStudentSearch(event.target.value)}/></label>
         <label className="form-label" style={{alignSelf:"end"}}><span><input type="checkbox" checked={historicalMode} onChange={event=>setHistoricalMode(event.target.checked)}/> Historical attendance (enter attended days manually)</span></label>
       </div>
-      <div className="table-actions" style={{margin:"12px 0"}}><button type="button" className="btn secondary" onClick={()=>setSelectedStudentIds([...new Set([...selectedStudentIds,...visibleStudents.map(student=>student.id)])])}>Select shown</button><button type="button" className="btn secondary" onClick={()=>setSelectedStudentIds(selectedStudentIds.filter(id=>!visibleStudents.some(student=>student.id===id)))}>Clear shown</button><span className="muted">{selectedStudentIds.length} student{selectedStudentIds.length===1?"":"s"} selected</span></div>
+      <div className="table-actions" style={{margin:"12px 0"}}><button type="button" className="btn secondary" onClick={()=>setSelectedStudentIds(visibleStudents.map(student=>student.id))}>Select shown only</button><button type="button" className="btn secondary" onClick={()=>setSelectedStudentIds([])}>Clear all</button><span className="muted">{selectedStudentIds.length} student{selectedStudentIds.length===1?"":"s"} selected{hiddenSelectedCount>0?` (${hiddenSelectedCount} hidden by the current filter)`:""}</span></div>
       <div style={{maxHeight:"260px",overflow:"auto",border:"1px solid var(--border)",borderRadius:"12px",padding:"8px"}}>{visibleStudents.length?visibleStudents.map(student=><label key={student.id} style={{display:"flex",gap:"10px",alignItems:"center",padding:"9px"}}><input type="checkbox" checked={selectedStudentIds.includes(student.id)} onChange={event=>setSelectedStudentIds(event.target.checked?[...selectedStudentIds,student.id]:selectedStudentIds.filter(id=>id!==student.id))}/><span><b>{student.displayName}</b>{student.internalReference&&<small className="muted" style={{display:"block"}}>{student.internalReference}</small>}</span><span className="muted" style={{marginLeft:"auto"}}>{student.billingProfile?.payerName||"Billing not configured"}</span></label>):<div className="empty">No students match this filter.</div>}</div>
     </section>}
     <div className="toolbar">
@@ -132,6 +138,6 @@ export function SimpleFinanceConsole({ mode }: { mode: Mode }) {
         </tr>)}</tbody>
       </table> : <div className="empty"><b>No {mode} runs yet</b><p>Choose dates above to prepare the first one.</p></div>}
     </section>
-    {deleteItem&&<div className="modal-backdrop"><form className="modal" onSubmit={deleteRun}><h2>Delete {mode} run?</h2><p>This permanently removes the selected run and its generated records. The deletion itself remains in the audit log.</p><label className="form-label">Enter your password to confirm<input autoComplete="current-password" className="field" type="password" required value={deletePassword} onChange={event=>setDeletePassword(event.target.value)}/></label><div className="modal-actions"><button type="button" className="btn secondary" onClick={()=>setDeleteItem(null)}>Cancel</button><button className="btn danger" disabled={working||!deletePassword}>{working?"Deleting…":"Delete permanently"}</button></div></form></div>}
+    {deleteItem&&<div className="modal-backdrop"><form className="modal" onSubmit={deleteRun}><h2>Delete {mode} run?</h2><p>This permanently removes the selected run and its generated records. The deletion itself remains in the audit log.</p><label className="form-label">Enter your password to confirm<input autoComplete="current-password" className="field" type="password" required value={deletePassword} onChange={event=>setDeletePassword(event.target.value)}/></label><div className="modal-actions"><button type="button" className="btn secondary" onClick={()=>setDeleteItem(null)}>Cancel</button><button className="btn danger" disabled={working||!deletePassword}>{working?"Deleting...":"Delete permanently"}</button></div></form></div>}
   </>;
 }

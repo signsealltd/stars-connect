@@ -794,24 +794,27 @@ model ChargeRule {
 }
 
 model BillingRun {
-  id              String          @id @default(uuid()) @db.Char(36)
-  periodStart     DateTime        @db.Date
-  periodEnd       DateTime        @db.Date
-  status          String          @default("DRAFT") @db.VarChar(30)
-  version         Int             @default(1)
-  notes           String?         @db.Text
-  revisionReason  String?         @db.Text
-  supersedesRunId String?         @db.Char(36)
-  createdById     String          @db.Char(36)
-  reviewedById    String?         @db.Char(36)
-  approvedById    String?         @db.Char(36)
-  reviewedAt      DateTime?
-  approvedAt      DateTime?
-  lockedAt        DateTime?
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-  charges         BillingCharge[]
-  invoices        Invoice[]
+  id                 String          @id @default(uuid()) @db.Char(36)
+  periodStart        DateTime        @db.Date
+  periodEnd          DateTime        @db.Date
+  status             String          @default("DRAFT") @db.VarChar(30)
+  version            Int             @default(1)
+  notes              String?         @db.Text
+  label              String?         @db.VarChar(191)
+  selectedStudentIds Json?
+  historicalMode     Boolean         @default(false)
+  revisionReason     String?         @db.Text
+  supersedesRunId    String?         @db.Char(36)
+  createdById        String          @db.Char(36)
+  reviewedById       String?         @db.Char(36)
+  approvedById       String?         @db.Char(36)
+  reviewedAt         DateTime?
+  approvedAt         DateTime?
+  lockedAt           DateTime?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  charges            BillingCharge[]
+  invoices           Invoice[]
 
   @@unique([periodStart, periodEnd, version])
   @@index([status, periodStart])

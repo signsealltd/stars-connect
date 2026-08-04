@@ -6,7 +6,9 @@ import { localDateKey } from "@/lib/dates";
 import styles from "./finance-workflow.module.css";
 
 type Mode = "payroll" | "billing";
-type Item = { id: string; status: string; version: number; periodStart: string; periodEnd: string; _count?: { entries?: number; charges?: number } };
+type Item = { id: string; label?: string; status: string; version: number; periodStart: string; periodEnd: string; _count?: { entries?: number; charges?: number } };
+
+type Student = { id: string; displayName: string; internalReference?: string | null; billingProfile?: { payerName: string } | null };
 
 const label = (status: string) => ({
   DRAFT: "Not prepared", REQUIRES_REVIEW: "Check required", REVIEWED: "Ready",
@@ -24,6 +26,12 @@ export function SimpleFinanceConsole({ mode }: { mode: Mode }) {
   const [error, setError] = useState("");
   const [deleteItem, setDeleteItem] = useState<Item | null>(null);
   const [deletePassword, setDeletePassword] = useState("");
+  const [runLabel, setRunLabel] = useState("");
+  const [historicalMode, setHistoricalMode] = useState(false);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
+  const [studentSearch, setStudentSearch] = useState("");
+  const [payerFilter, setPayerFilter] = useState("ALL");
 
   const load = useCallback(async () => {
     setLoading(true); setError("");
@@ -34,13 +42,17 @@ export function SimpleFinanceConsole({ mode }: { mode: Mode }) {
     setLoading(false);
   }, [endpoint, mode]);
   useEffect(() => { load(); }, [load]);
+  useEffect(() => { if (mode !== "billing") return; fetch("/api/students/records?status=active", { cache: "no-store" }).then(async response => { const body = await response.json(); if (!response.ok) throw new Error(body.error || "Unable to load students."); setStudents(Array.isArray(body) ? body : []); }).catch(caught => setError(caught instanceof Error ? caught.message : "Unable to load students.")); }, [mode]);
+  const payers = [...new Set(students.map(student => student.billingProfile?.payerName).filter((value): value is string => Boolean(value)))].sort();
+  const visibleStudents = students.filter(student => (payerFilter === "ALL" || student.billingProfile?.payerName === payerFilter) && (!studentSearch.trim() || (student.displayName + " " + (student.internalReference || "")).toLowerCase().includes(studentSearch.trim().toLowerCase())));
 
   async function prepare() {
+    if (mode === "billing" && (!runLabel.trim() || !selectedStudentIds.length)) { setError("Enter a billing run label and select at least one student."); return; }
     setWorking(true); setError("");
     try {
       const created = await fetch(endpoint, {
         method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ periodStart: from, periodEnd: to }),
+        body: JSON.stringify({ periodStart: from, periodEnd: to, ...(mode === "billing" ? { label: runLabel.trim(), studentIds: selectedStudentIds, historicalMode } : {}) }),
       });
       const run = await created.json();
       if (!created.ok) throw new Error(run.error || `Unable to create ${mode}.`);
@@ -89,10 +101,20 @@ export function SimpleFinanceConsole({ mode }: { mode: Mode }) {
     {mode === "billing" && <div className={`alert alert-warning ${styles.help}`}>
       <b>What are payer and billing profiles?</b> The payer is the council, organisation, family member or other party receiving the invoice. A billing profile links that payer and the agreed rate to one service user. It is configured once per service user.
     </div>}
+    {mode === "billing" && <section className="card" style={{padding:"18px",marginBottom:"16px"}}>
+      <div className="form-grid">
+        <label className="form-label">Billing run label<input className="field" maxLength={191} placeholder="For example: LBE - 29 June to 26 July 2026" value={runLabel} onChange={event=>setRunLabel(event.target.value)}/></label>
+        <label className="form-label">Payer filter<select className="field" value={payerFilter} onChange={event=>setPayerFilter(event.target.value)}><option value="ALL">All payers</option>{payers.map(payer=><option key={payer} value={payer}>{payer}</option>)}</select></label>
+        <label className="form-label">Find student<input className="field" placeholder="Name or student reference" value={studentSearch} onChange={event=>setStudentSearch(event.target.value)}/></label>
+        <label className="form-label" style={{alignSelf:"end"}}><span><input type="checkbox" checked={historicalMode} onChange={event=>setHistoricalMode(event.target.checked)}/> Historical attendance (enter attended days manually)</span></label>
+      </div>
+      <div className="table-actions" style={{margin:"12px 0"}}><button type="button" className="btn secondary" onClick={()=>setSelectedStudentIds([...new Set([...selectedStudentIds,...visibleStudents.map(student=>student.id)])])}>Select shown</button><button type="button" className="btn secondary" onClick={()=>setSelectedStudentIds(selectedStudentIds.filter(id=>!visibleStudents.some(student=>student.id===id)))}>Clear shown</button><span className="muted">{selectedStudentIds.length} student{selectedStudentIds.length===1?"":"s"} selected</span></div>
+      <div style={{maxHeight:"260px",overflow:"auto",border:"1px solid var(--border)",borderRadius:"12px",padding:"8px"}}>{visibleStudents.length?visibleStudents.map(student=><label key={student.id} style={{display:"flex",gap:"10px",alignItems:"center",padding:"9px"}}><input type="checkbox" checked={selectedStudentIds.includes(student.id)} onChange={event=>setSelectedStudentIds(event.target.checked?[...selectedStudentIds,student.id]:selectedStudentIds.filter(id=>id!==student.id))}/><span><b>{student.displayName}</b>{student.internalReference&&<small className="muted" style={{display:"block"}}>{student.internalReference}</small>}</span><span className="muted" style={{marginLeft:"auto"}}>{student.billingProfile?.payerName||"Billing not configured"}</span></label>):<div className="empty">No students match this filter.</div>}</div>
+    </section>}
     <div className="toolbar">
       <label>From<input autoComplete="off" className="field" type="date" value={from} onChange={event => setFrom(event.target.value)}/></label>
       <label>To<input autoComplete="off" className="field" type="date" value={to} onChange={event => setTo(event.target.value)}/></label>
-      <button className="btn primary" disabled={working || !from || !to} onClick={prepare}>{working ? "Preparing..." : `Prepare ${mode}`}</button>
+      <button className="btn primary" disabled={working || !from || !to || (mode === "billing" && (!runLabel.trim() || !selectedStudentIds.length))} onClick={prepare}>{working ? "Preparing..." : `Prepare ${mode}`}</button>
       {mode === "billing" && <a className="btn secondary" href="/dashboard/billing/profiles">Manage billing setup</a>}
     </div>
     {error && <div className="alert alert-error">{error}</div>}
@@ -100,7 +122,7 @@ export function SimpleFinanceConsole({ mode }: { mode: Mode }) {
       {loading ? <div className="empty">Loading...</div> : items.length ? <table className="table">
         <thead><tr><th>Period</th><th>Status</th><th>Records</th><th>Next action</th></tr></thead>
         <tbody>{items.map(item => <tr key={item.id}>
-          <td>{new Date(item.periodStart).toLocaleDateString("en-GB")} to {new Date(item.periodEnd).toLocaleDateString("en-GB")}</td>
+          <td>{mode === "billing" && item.label && <b style={{display:"block"}}>{item.label}</b>}{new Date(item.periodStart).toLocaleDateString("en-GB")} to {new Date(item.periodEnd).toLocaleDateString("en-GB")}</td>
           <td><span className="status-pill">{label(item.status)}</span></td>
           <td>{item._count?.entries ?? item._count?.charges ?? 0}</td>
           <td><div className="table-actions">

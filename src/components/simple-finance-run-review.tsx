@@ -233,10 +233,15 @@ function openBillingAdjustment(charge: Charge) {
       <select className="field" value={filter} onChange={event => setFilter(event.target.value)}><option value="ALL">All records</option><option value="WARNINGS">Warnings only</option><option value="EXCLUDED">Excluded</option></select>
       {!complete && <button className="btn primary" disabled={working || exceptions.length > 0 || records.length === 0} onClick={approveAndCreate}>{working ? "Working..." : `Approve and create ${mode === "payroll" ? "payroll files" : "invoices"}`}</button>}
       {!complete && <button className="btn secondary" disabled={working} onClick={refreshCalculations}>Refresh calculations</button>}
-      {mode === "billing" && complete && <button className="btn primary" onClick={async () => {
-        const response = await fetch(`/api/billing/runs/${id}/documents`, { method: "POST" }); const body = await response.json();
-        if (response.ok) window.location.assign(`/api/documents/${body.zipDocument.id}/download`); else setError(body.error || "Unable to download invoices.");
-      }}>Download invoices</button>}
+      {mode === "billing" && complete && <button className="btn primary" disabled={working} onClick={async () => {
+        setWorking(true); setError("");
+        try {
+          const response = await fetch(`/api/billing/runs/${id}/documents`, { method: "POST" });
+          const body = await response.json().catch(() => ({}));
+          if (!response.ok || !body.zipDocument?.id) throw new Error(body.error || "Unable to download invoices.");
+          window.location.assign(`/api/documents/${body.zipDocument.id}/download`);
+        } catch (caught) { setError(caught instanceof Error ? caught.message : "Unable to download invoices."); setWorking(false); }
+      }}>{working ? "Preparing download..." : "Download invoices"}</button>}
       {mode === "payroll" && complete && <a className="btn primary" href="/dashboard/reports/payroll">Download payroll files</a>}
     </div>
     <section className="card table-wrap"><table className="table">

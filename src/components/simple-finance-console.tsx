@@ -44,13 +44,13 @@ export function SimpleFinanceConsole({ mode }: { mode: Mode }) {
   useEffect(() => { load(); }, [load]);
   useEffect(() => { if (mode !== "billing") return; fetch("/api/students/records?status=active", { cache: "no-store" }).then(async response => { const body = await response.json(); if (!response.ok) throw new Error(body.error || "Unable to load students."); setStudents(Array.isArray(body) ? body : []); }).catch(caught => setError(caught instanceof Error ? caught.message : "Unable to load students.")); }, [mode]);
   const payers = [...new Set(students.map(student => student.billingProfile?.payerName).filter((value): value is string => Boolean(value)))].sort();
-  const eligibleStudents = students.filter(student => student.startDate.slice(0, 10) <= to && (!student.endDate || student.endDate.slice(0, 10) >= from));
+  const eligibleStudents = historicalMode ? students : students.filter(student => student.startDate.slice(0, 10) <= to && (!student.endDate || student.endDate.slice(0, 10) >= from));
   const visibleStudents = eligibleStudents.filter(student => (payerFilter === "ALL" || student.billingProfile?.payerName === payerFilter) && (!studentSearch.trim() || (student.displayName + " " + (student.internalReference || "")).toLowerCase().includes(studentSearch.trim().toLowerCase())));
   const hiddenSelectedCount = selectedStudentIds.filter(id => !visibleStudents.some(student => student.id === id)).length;
   useEffect(() => {
-    const eligibleIds = new Set(students.filter(student => student.startDate.slice(0, 10) <= to && (!student.endDate || student.endDate.slice(0, 10) >= from)).map(student => student.id));
+    const eligibleIds = new Set((historicalMode ? students : students.filter(student => student.startDate.slice(0, 10) <= to && (!student.endDate || student.endDate.slice(0, 10) >= from))).map(student => student.id));
     setSelectedStudentIds(current => { const next = current.filter(id => eligibleIds.has(id)); return next.length === current.length ? current : next; });
-  }, [students, from, to]);
+  }, [students, from, to, historicalMode]);
 
   async function prepare() {
     if (mode === "billing" && (!runLabel.trim() || !selectedStudentIds.length)) { setError("Enter a billing run label and select at least one student."); return; }

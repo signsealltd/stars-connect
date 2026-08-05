@@ -75,7 +75,7 @@ export function SimpleFinanceRunReview({ mode, id }: { mode: "payroll" | "billin
       method: "PATCH", headers: { "content-type": "application/json" },
       body: JSON.stringify({ action: name, ...(name === "approve" ? { updatedAt: run?.updatedAt } : {}), ...extra }),
     });
-    const body = await response.json();
+    const body = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(body.error || `${name} failed.`);
     if (reload) await load();
     return body;

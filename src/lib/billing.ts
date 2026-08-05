@@ -9,3 +9,4 @@ export function billingDepartureStatus(attendanceDate:Date,arrivalTime:Date|null
 export function simpleAttendedDayRule<T extends {unitType:string;attendanceDependency:string}>(rules:T[]){return rules.find(rule=>rule.unitType==="DAY"&&rule.attendanceDependency==="ATTENDED");}
 export const billingRunEditable=(status:string)=>!["APPROVED","LOCKED","INVOICES_GENERATED","SUPERSEDED"].includes(status);
 export function invoiceNumber(prefix:string,year:number,sequence:number){return `${prefix}-${year}-${String(sequence).padStart(5,"0")}`;}
+export function nextInvoiceSequence(prefix:string,year:number,numbers:Iterable<string>){const escapedPrefix=prefix.replace(/[.*+?^${}()|[\]\\]/g,"\\$&"),pattern=new RegExp(`^${escapedPrefix}-${year}-(\\d+)$`);let highest=0;for(const number of numbers){const match=pattern.exec(number);if(match)highest=Math.max(highest,Number(match[1]));}return highest+1;}

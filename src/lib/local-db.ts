@@ -1,13 +1,13 @@
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
-import type { LocalAttendance, LocalClockEvent, LocalStudent, LocalVisitorVisit, PendingChange } from "./types";
+import type { LocalAttendance, LocalClockEvent, LocalStaffPresenceEvent, LocalStudent, LocalVisitorVisit, PendingChange } from "./types";
 import { normalizeVisitorName } from "./visitors";
 import { hasDeviceCredential,kioskSyncEligibility,safeSyncRejection,type SyncRejectionCategory } from "./kiosk-context";
 import { batterySyncHeaders } from "./battery-status";
 
-type LocalStaff = { id: string; displayName: string; currentState: "IN" | "OUT" };
+type LocalStaff = { id: string; displayName: string; currentState: "IN" | "OUT" | "OFFSITE" };
 type RollCall = { id: string; startedAt: string; entries: Array<{ id:string;personType:string;personId:string;displayName:string;accountedFor:boolean }> };
 type Conflict = { id:string;eventId:string;operation:string;reason:string;payload:unknown;createdAt:string };
-type PulledEvent = { sequence:string;eventId:string;operation:"CLOCK_EVENT"|"ATTENDANCE"|"ROLL_CALL_ENTRY"|"VISITOR_SIGN_IN"|"VISITOR_SIGN_OUT";payload:Record<string,unknown>;createdAt:string };
+type PulledEvent = { sequence:string;eventId:string;operation:"CLOCK_EVENT"|"STAFF_PRESENCE"|"ATTENDANCE"|"ROLL_CALL_ENTRY"|"VISITOR_SIGN_IN"|"VISITOR_SIGN_OUT";payload:Record<string,unknown>;createdAt:string };
 
 interface StarsConnectDB extends DBSchema {
   staff:{key:string;value:LocalStaff};
@@ -118,6 +118,28 @@ export async function applyPulledEvent(database: IDBPDatabase<StarsConnectDB>, e
       await database.put("clockEvents", clock);
       const current = await database.get("staff", staffId);
       await database.put("staff", { id: staffId, displayName: clock.staffName || current?.displayName || "Staff member", currentState: type === "CLOCK_IN" ? "IN" : "OUT" });
+    }
+  } else if (event.operation === "STAFF_PRESENCE") {
+    const staffId = String(payload.staffId || "");
+    const type = String(payload.type || "");
+    const timestamp = String(payload.deviceTimestamp || "");
+    if (!staffId || !["WENT_OFFSITE", "RETURNED_ONSITE"].includes(type) || !Date.parse(timestamp)) throw new Error("Malformed staff presence event");
+    const current = await database.get("staff", staffId);
+    if (current?.currentState !== "OUT") {
+      const presence: LocalStaffPresenceEvent = {
+        id: event.eventId,
+        staffId,
+        staffName: String(payload.staffName || current?.displayName || "Staff member"),
+        type: type as LocalStaffPresenceEvent["type"],
+        deviceId: String(payload.deviceId || ""),
+        deviceTimestamp: timestamp,
+        offlineRecorded: Boolean(payload.offlineRecorded),
+      };
+      await database.put("staff", {
+        id: staffId,
+        displayName: presence.staffName,
+        currentState: type === "WENT_OFFSITE" ? "OFFSITE" : "IN",
+      });
     }
   } else if (event.operation === "ATTENDANCE") {
     const studentId = String(payload.studentId || "");

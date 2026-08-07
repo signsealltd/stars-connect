@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { withRole } from "@/lib/api";
 import { localDateAsDatabaseDate, localDateKey } from "@/lib/dates";
+import { staffOccupancy } from "@/lib/staff-presence";
 
 export async function GET(req: NextRequest) {
   return withRole(req, "RECEPTION", async () => {
@@ -13,6 +14,12 @@ export async function GET(req: NextRequest) {
           id: true,
           displayName: true,
           clockEvents: {
+            where: { device: { isSeedData: false, lastSyncAt: { not: null } } },
+            orderBy: { deviceTimestamp: "desc" },
+            take: 1,
+            select: { type: true, deviceTimestamp: true },
+          },
+          presenceEvents: {
             where: { device: { isSeedData: false, lastSyncAt: { not: null } } },
             orderBy: { deviceTimestamp: "desc" },
             take: 1,
@@ -51,7 +58,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(
       {
         staff: staff
-          .filter((member) => member.clockEvents[0]?.type === "CLOCK_IN")
+          .filter((member) => staffOccupancy(member.clockEvents[0], member.presenceEvents[0]) === "ONSITE")
           .map((member) => ({
             id: member.id,
             name: member.displayName,

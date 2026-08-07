@@ -24,6 +24,11 @@ enum ClockEventType {
   CLOCK_OUT
 }
 
+enum StaffPresenceEventType {
+  WENT_OFFSITE
+  RETURNED_ONSITE
+}
+
 enum AttendanceStatus {
   NOT_MARKED
   PRESENT
@@ -142,6 +147,7 @@ enum RollCallStatus {
 
 enum SyncOperation {
   CLOCK_EVENT
+  STAFF_PRESENCE
   ATTENDANCE
   ROLL_CALL_ENTRY
   VISITOR_SIGN_IN
@@ -244,6 +250,7 @@ model StaffMember {
   notes                 String?                    @db.Text
   credentials           StaffCredential[]
   clockEvents           ClockEvent[]
+  presenceEvents        StaffPresenceEvent[]
   trainingRecords       StaffTrainingRecord[]
   workingPatterns       StaffWorkingPattern[]
   scheduleOccurrences   StaffScheduleOccurrence[]
@@ -346,6 +353,7 @@ model Device {
   revokedAt         DateTime?
   isSeedData        Boolean                  @default(false)
   clockEvents       ClockEvent[]
+  presenceEvents    StaffPresenceEvent[]
   attendances       StudentAttendance[]
   syncEvents        SyncEvent[]
   visitorSignIns    VisitorVisit[]           @relation("VisitorSignInDevice")
@@ -487,6 +495,22 @@ model ClockEvent {
   photos           AttendancePhoto[]
   corrections      ClockCorrection[]
   createdAt        DateTime          @default(now())
+
+  @@index([staffId, deviceTimestamp])
+  @@index([serverReceivedAt])
+}
+
+model StaffPresenceEvent {
+  id               String                 @id @db.Char(36)
+  staffId          String                 @db.Char(36)
+  staff            StaffMember            @relation(fields: [staffId], references: [id])
+  deviceId         String                 @db.Char(36)
+  device           Device                 @relation(fields: [deviceId], references: [id])
+  type             StaffPresenceEventType
+  deviceTimestamp  DateTime
+  serverReceivedAt DateTime               @default(now())
+  offlineRecorded  Boolean                @default(false)
+  createdAt        DateTime               @default(now())
 
   @@index([staffId, deviceTimestamp])
   @@index([serverReceivedAt])

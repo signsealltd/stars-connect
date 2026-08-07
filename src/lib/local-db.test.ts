@@ -1,4 +1,4 @@
-import "fake-indexeddb/auto";
+﻿import "fake-indexeddb/auto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { applyPulledBatch, applyPulledEvent, clearUnprovisionedQueue, db, inspectUnprovisionedQueue, queueChange, saveAttendance, syncNow } from "./local-db";
 
@@ -30,6 +30,16 @@ describe("pulled event application",()=>{
     expect((await database.get("staff","staff-1"))?.currentState).toBe("IN");
   });
 
+  it("moves a clocked-in staff member offsite and back onsite without closing the shift",async()=>{
+    const database=await db();
+    await applyPulledEvent(database,clockEvent());
+    await applyPulledEvent(database,{sequence:"2",eventId:"33333333-3333-4333-8333-333333333333",operation:"STAFF_PRESENCE",payload:{staffId:"staff-1",staffName:"Amelia Hart",type:"WENT_OFFSITE",deviceId:"device-a",deviceTimestamp:"2026-07-20T10:00:00Z",offlineRecorded:false},createdAt:"2026-07-20T10:00:01Z"});
+    expect((await database.get("staff","staff-1"))?.currentState).toBe("OFFSITE");
+    expect(await database.count("clockEvents")).toBe(1);
+    await applyPulledEvent(database,{sequence:"3",eventId:"44444444-4444-4444-8444-444444444444",operation:"STAFF_PRESENCE",payload:{staffId:"staff-1",staffName:"Amelia Hart",type:"RETURNED_ONSITE",deviceId:"device-a",deviceTimestamp:"2026-07-20T11:00:00Z",offlineRecorded:false},createdAt:"2026-07-20T11:00:01Z"});
+    expect((await database.get("staff","staff-1"))?.currentState).toBe("IN");
+    expect(await database.count("clockEvents")).toBe(1);
+  });
   it("does not apply a pulled UUID twice",async()=>{
     const database=await db();
     await applyPulledEvent(database,clockEvent());

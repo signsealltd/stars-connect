@@ -26,7 +26,7 @@ describe("dashboard metrics", () => {
 
   it("does not let seeded demonstration activity inflate operational totals", () => {
     const route = readFileSync(join(process.cwd(), "src/app/api/dashboard/route.ts"), "utf8");
-    expect(route.match(/device:\{isSeedData:false,lastSyncAt:\{not:null\}\}/g)).toHaveLength(3);
+    expect(route.match(/device:\{isSeedData:false,lastSyncAt:\{not:null\}\}/g)).toHaveLength(4);
   });
   it("counts only expected unmarked students as not marked", () => {
     const metrics = studentDashboardMetrics(

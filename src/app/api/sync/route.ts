@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
-import { Prisma, type AttendanceStatus, type ClockEventType, type PhotoStatus } from "@prisma/client";
+import { Prisma, type AttendanceStatus, type ClockEventType, type PhotoStatus, type StaffPresenceEventType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { sha256 } from "@/lib/security";
 import { audit } from "@/lib/audit";
@@ -12,7 +12,7 @@ import { localDateAsDatabaseDate, localDateKey } from "@/lib/dates";
 
 const eventSchema = z.object({
   id: z.uuid(),
-  operation: z.enum(["CLOCK_EVENT", "ATTENDANCE", "ROLL_CALL_ENTRY", "VISITOR_SIGN_IN", "VISITOR_SIGN_OUT"]),
+  operation: z.enum(["CLOCK_EVENT", "STAFF_PRESENCE", "ATTENDANCE", "ROLL_CALL_ENTRY", "VISITOR_SIGN_IN", "VISITOR_SIGN_OUT"]),
   payload: z.record(z.string(), z.unknown()),
   createdAt: z.string(),
   attempts: z.number(),
@@ -98,6 +98,27 @@ export async function POST(req: NextRequest) {
               await tx.attendancePhoto.create({ data: { clockEventId: item.id, storagePath, mimeType: "image/jpeg", sizeBytes: photoBuffer.length, expiresAt: new Date(Date.now() + retentionDays * 86_400_000) } });
             }
           }
+        } else if (item.operation === "STAFF_PRESENCE") {
+          const timestamp = new Date(String(p.deviceTimestamp));
+          const type = z.enum(["WENT_OFFSITE", "RETURNED_ONSITE"]).parse(p.type);
+          const latestClock = await tx.clockEvent.findFirst({
+            where: { staffId: String(p.staffId) },
+            orderBy: { deviceTimestamp: "desc" },
+            select: { type: true, deviceTimestamp: true },
+          });
+          if (!latestClock || latestClock.type !== "CLOCK_IN" || timestamp < latestClock.deviceTimestamp) {
+            throw new Error("STAFF_NOT_CLOCKED_IN");
+          }
+          await tx.staffPresenceEvent.create({
+            data: {
+              id: item.id,
+              staffId: String(p.staffId),
+              deviceId: device.id,
+              type: type as StaffPresenceEventType,
+              deviceTimestamp: timestamp,
+              offlineRecorded: Boolean(p.offlineRecorded),
+            },
+          });
         } else if (item.operation === "ATTENDANCE") {
           const date = new Date(`${String(p.date).slice(0, 10)}T00:00:00.000Z`);
           const status = attendanceStatusSchema.parse(p.status);
@@ -160,7 +181,7 @@ export async function POST(req: NextRequest) {
       });
       acknowledged.push(item.id);
       await audit("SYNC_EVENT_ACCEPTED", { actorType: "DEVICE", deviceId: device.id, entityType: item.operation, entityId: item.id });
-      const sourceTimestamp=item.operation==="ATTENDANCE"?String(item.payload.date):item.operation==="CLOCK_EVENT"?String(item.payload.deviceTimestamp):item.operation.startsWith("VISITOR_")?String(item.payload.signedInAt||item.payload.signedOutAt||item.createdAt):null;
+      const sourceTimestamp=item.operation==="ATTENDANCE"?String(item.payload.date):item.operation==="CLOCK_EVENT"||item.operation==="STAFF_PRESENCE"?String(item.payload.deviceTimestamp):item.operation.startsWith("VISITOR_")?String(item.payload.signedInAt||item.payload.signedOutAt||item.createdAt):null;
       if(sourceTimestamp){const affectedDate=localDateAsDatabaseDate(/^\d{4}-\d{2}-\d{2}$/.test(sourceTimestamp)?sourceTimestamp:localDateKey(new Date(sourceTimestamp)));await prisma.dailyAttendanceReport.updateMany({where:{reportDate:affectedDate,status:{in:["GENERATED","EMAILED","SUPERSEDED"]}},data:{potentiallyOutdated:true}});}
       if (item.operation === "VISITOR_SIGN_IN" || item.operation === "VISITOR_SIGN_OUT") await audit(item.operation === "VISITOR_SIGN_IN" ? "VISITOR_SIGNED_IN" : "VISITOR_SIGNED_OUT", { actorType:"DEVICE",deviceId:device.id,entityType:"VisitorVisit",entityId:String((item.payload as Record<string,unknown>).visitId || item.id) });
     } catch (error) {

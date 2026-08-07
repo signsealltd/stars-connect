@@ -21,7 +21,7 @@ describe("manager live attendance", () => {
   it("returns real names and excludes demonstration attendance", () => {
     expect(route).toContain("displayName: true");
     expect(route).toContain("fullName: true");
-    expect(route.match(/isSeedData: false, lastSyncAt: \{ not: null \}/g)).toHaveLength(2);
+    expect(route.match(/isSeedData: false, lastSyncAt: \{ not: null \}/g)).toHaveLength(3);
   });
 
   it("refreshes live occupancy regularly and on demand", () => {

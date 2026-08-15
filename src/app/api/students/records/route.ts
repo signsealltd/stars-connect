@@ -6,6 +6,7 @@ import { withRole, jsonError, requestContext } from "@/lib/api";
 import { audit } from "@/lib/audit";
 import { directorRoles, emergencyContactFields, inlineBillingSchema, nullableEmergencyContacts, optionalBillingProfileIdSchema, studentValidationMessage } from "@/lib/student-management";
 import { createInlineBillingProfile } from "@/lib/billing-profile-management";
+import { nullableProfileText, studentProfileFields } from "@/lib/student-profile";
 
 const schema = z.object({
   firstName: z.string().trim().min(1).max(80),
@@ -19,6 +20,7 @@ const schema = z.object({
   internalReference: z.string().trim().max(100).optional().or(z.literal("")),
   notes: z.string().trim().max(5000).optional().or(z.literal("")),
   ...emergencyContactFields,
+  ...studentProfileFields,
   billing: inlineBillingSchema.extend({ profileId: optionalBillingProfileIdSchema }).optional(),
 }).refine(data => !data.endDate || data.endDate >= data.startDate, {
   message: "The end date cannot be before the start date.",
@@ -42,6 +44,10 @@ export async function GET(req: NextRequest) {
         ...(search ? { OR: [{ displayName: { contains: search } }, { internalReference: { contains: search } }] } : {}),
       },
       orderBy: [{ sortOrder: "asc" }, { displayName: "asc" }],
+      include: {
+        consentHistory: { orderBy: { createdAt: "desc" }, take: 50 },
+        informationReviews: { select: { id: true, status: true, submittedAt: true, completedAt: true, nextReviewDate: true }, orderBy: { createdAt: "desc" }, take: 10 },
+      },
     });
     if (!directorRoles.has(user.role) || !students.length) return NextResponse.json(students);
     const profiles = await prisma.billingProfile.findMany({
@@ -64,11 +70,12 @@ export async function POST(req: NextRequest) {
     if (billing?.enabled && !directorRoles.has(user.role)) return jsonError("Only a director or administrator can configure billing.", 403);
     try {
       const result = await prisma.$transaction(async tx => {
-        const data = nullableEmergencyContacts(input);
+        const data = nullableProfileText(nullableEmergencyContacts(input));
         const student = await tx.student.create({ data: {
           ...data,
           startDate: new Date(input.startDate),
           endDate: input.endDate ? new Date(input.endDate) : null,
+          dateOfBirth: input.dateOfBirth ? new Date(input.dateOfBirth) : null,
           fundingCategory: input.fundingCategory || null,
           fundingOrganisation: input.fundingOrganisation || null,
           internalReference: input.internalReference || null,

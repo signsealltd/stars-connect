@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Pencil, Plus, Square, Trash2 } from "lucide-react";
 import { appConfirm, appReasonPrompt } from "@/lib/app-dialog";
 import { billingProfileReasons } from "@/lib/operational-reasons";
@@ -25,12 +25,20 @@ export function SimpleBillingProfilesV2({ initialStudentId = "", returnTo = "" }
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  async function load() {
+  const load = useCallback(async () => {
     const [profileResponse, studentResponse] = await Promise.all([fetch("/api/billing/profiles", { cache: "no-store" }), fetch("/api/students/records?status=all", { cache: "no-store" })]);
-    if (profileResponse.ok) setProfiles(await profileResponse.json());
+    if (profileResponse.ok) {
+      const loadedProfiles: Profile[] = await profileResponse.json();
+      setProfiles(loadedProfiles);
+      const selected = initialStudentId ? loadedProfiles.find(profile => profile.studentId === initialStudentId && !profile.activeTo) : undefined;
+      if (selected) {
+        setEditingId(selected.id);
+        setForm({ studentId:selected.studentId,payerType:selected.payerType,payerName:selected.payerName,billingAddress:selected.billingAddress,billingEmail:selected.billingEmail||"",activeFrom:selected.activeFrom.slice(0,10),vatTreatment:selected.vatTreatment,vatRate:Number(selected.vatRate),rate:Number(selected.chargeRules[0]?.rate||0) });
+      }
+    }
     if (studentResponse.ok) setStudents(await studentResponse.json());
-  }
-  useEffect(() => { void load(); }, []);
+  }, [initialStudentId]);
+  useEffect(() => { void load(); }, [load]);
 
   function edit(profile: Profile) {
     setEditingId(profile.id); setError(""); setSuccess("");

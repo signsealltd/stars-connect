@@ -5,6 +5,7 @@ import { withRole, jsonError, requestContext } from "@/lib/api";
 import { audit } from "@/lib/audit";
 import { directorRoles, emergencyContactFields, inlineBillingSchema, nullableEmergencyContacts, optionalBillingProfileIdSchema, studentValidationMessage } from "@/lib/student-management";
 import { createInlineBillingProfile, updateInlineBillingProfile } from "@/lib/billing-profile-management";
+import { nullableProfileText, studentProfileFields } from "@/lib/student-profile";
 
 const schema = z.object({
   firstName: z.string().trim().min(1).max(80).optional(),
@@ -18,6 +19,7 @@ const schema = z.object({
   internalReference: z.string().trim().max(100).optional().or(z.literal("")),
   notes: z.string().trim().max(5000).optional().or(z.literal("")),
   ...emergencyContactFields,
+  ...studentProfileFields,
   active: z.boolean().optional(),
   billing: inlineBillingSchema.extend({ profileId: optionalBillingProfileIdSchema }).optional(),
 });
@@ -33,11 +35,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (billing?.enabled && !directorRoles.has(user.role)) return jsonError("Only a director or administrator can configure billing.", 403);
     try {
       const result = await prisma.$transaction(async tx => {
-        const data = nullableEmergencyContacts(input);
+        const data = nullableProfileText(nullableEmergencyContacts(input));
         const student = await tx.student.update({ where: { id }, data: {
           ...data,
           ...(input.startDate ? { startDate: new Date(input.startDate) } : {}),
           ...(input.endDate !== undefined ? { endDate: input.endDate ? new Date(input.endDate) : null } : {}),
+          ...(input.dateOfBirth !== undefined ? { dateOfBirth: input.dateOfBirth ? new Date(input.dateOfBirth) : null } : {}),
           ...(input.fundingCategory !== undefined ? { fundingCategory: input.fundingCategory || null } : {}),
           ...(input.fundingOrganisation !== undefined ? { fundingOrganisation: input.fundingOrganisation || null } : {}),
           ...(input.internalReference !== undefined ? { internalReference: input.internalReference || null } : {}),

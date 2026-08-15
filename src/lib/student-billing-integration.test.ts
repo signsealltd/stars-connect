@@ -34,29 +34,36 @@ describe("student emergency contacts and billing integration", () => {
     expect(route).toContain("BILLING_PROFILE_DELETED");
   });
 
-  it("exposes emergency contacts and inline billing in the student editor", () => {
+  it("exposes emergency contacts and a protected billing summary in the student editor", () => {
     const component = source("src/components/student-manager-v2.tsx");
-    expect(component).toContain("Emergency contact");
+    expect(component).toContain("Emergency contacts");
     expect(component).toContain("not downloaded to kiosk tablets");
-    expect(component).toContain("Set up billing when this student is saved");
+    expect(component).toContain("Billing setup");
+    expect(component).toContain("/dashboard/billing/profiles?studentId=");
+    expect(component).toContain("A director or administrator can change billing setup.");
     expect(component).not.toContain("form.fundingCategory");
     expect(component).not.toContain("form.fundingOrganisation");
   });
 
-  it("omits the billing object when inline billing is disabled", () => {
+  it("keeps billing updates in the dedicated permission-protected workflow", () => {
     const component = source("src/components/student-manager-v2.tsx");
-    expect(component).toContain("const billing = canManageBilling && form.billing.enabled");
+    expect(component).not.toContain("form.billing.enabled");
+    expect(component).toContain("canManageBilling&&<Link");
+    const billingComponent = source("src/components/simple-billing-profiles-v2.tsx");
+    expect(billingComponent).toContain("initialStudentId");
+    expect(billingComponent).toContain("setEditingId(selected.id)");
     const createRoute = source("src/app/api/students/records/route.ts");
     expect(createRoute).toContain("studentValidationMessage(parsed.error)");
     const updateRoute = source("src/app/api/students/records/[id]/route.ts");
     expect(updateRoute).toContain("studentValidationMessage(parsed.error)");
   });
-  it("normalises an empty new-student billing profile id instead of rejecting the form", () => {
+  it("normalises legacy empty billing profile ids while the student profile stays independent", () => {
     expect(optionalBillingProfileIdSchema.parse("")).toBeUndefined();
     expect(optionalBillingProfileIdSchema.parse(null)).toBeUndefined();
     expect(optionalBillingProfileIdSchema.parse("0191b0ea-d4b8-48ca-ae5f-8ec270b44763"))
       .toBe("0191b0ea-d4b8-48ca-ae5f-8ec270b44763");
     const component = source("src/components/student-manager-v2.tsx");
-    expect(component).toContain("profileId: form.billing.profileId || undefined");
+    expect(component).not.toContain("profileId: form.billing.profileId");
+    expect(component).toContain("Save this student before configuring billing.");
   });
 });

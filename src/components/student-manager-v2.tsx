@@ -1,163 +1,68 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { Archive, CreditCard, Pencil, Plus, RotateCcw, Search } from "lucide-react";
+import { Archive, CalendarClock, CreditCard, FileClock, HeartPulse, Pencil, Plus, RotateCcw, Search, ShieldCheck, UserRound } from "lucide-react";
 import { appConfirm } from "@/lib/app-dialog";
+import { latestConsentValues } from "@/lib/student-profile";
 
-type BillingProfile = {
-  id: string; payerType: string; payerName: string; billingAddress: string; billingEmail?: string;
-  activeFrom: string; activeTo?: string; vatTreatment: string; vatRate: number | string;
-  chargeRules: Array<{ rate: number | string }>;
-};
+type JsonMap = Record<string, string>;
+type BillingProfile = { id: string; payerType: string; payerName: string; billingAddress: string; billingEmail?: string; activeFrom: string; activeTo?: string; vatTreatment: string; vatRate: number|string; chargeRules: Array<{rate:number|string;description?:string}> };
+type Consent = { id:string; consentType:string; newValue:unknown; providedByName:string; providedAt:string; approvedAt?:string|null };
+type Review = { id:string; status:string; submittedAt?:string|null; completedAt?:string|null; nextReviewDate?:string|null };
 type Student = {
-  id: string; firstName: string; lastName: string; displayName: string; active: boolean;
-  startDate: string; endDate?: string; expectedDays: number[]; internalReference?: string; notes?: string;
-  emergencyContactName?: string; emergencyContactRelationship?: string; emergencyContactPhone?: string;
-  emergencyContactAlternativePhone?: string; emergencyContactEmail?: string; emergencyContactNotes?: string;
-  billingProfile?: BillingProfile | null;
+  id:string; firstName:string; lastName:string; displayName:string; active:boolean; startDate:string; endDate?:string; expectedDays:number[]; internalReference?:string; notes?:string;
+  dateOfBirth?:string; addressLine1?:string; addressLine2?:string; town?:string; postcode?:string; phone?:string; email?:string; nhsNumber?:string; hospitalNumber?:string;
+  emergencyContactName?:string; emergencyContactRelationship?:string; emergencyContactPhone?:string; emergencyContactAlternativePhone?:string; emergencyContactEmail?:string; emergencyContactNotes?:string;
+  secondaryEmergencyContact?:JsonMap|null; gpName?:string; gpSurgery?:string; gpPhone?:string; medicalProfile?:JsonMap|null; personCentredProfile?:JsonMap|null;
+  lastInformationReviewAt?:string|null; nextInformationReviewAt?:string|null; consentHistory?:Consent[]; informationReviews?:Review[]; billingProfile?:BillingProfile|null;
 };
+type Tab = "details"|"contacts"|"medical"|"profile"|"consents"|"billing"|"rams";
 
-const emptyBilling = {
-  enabled: false, profileId: "", payerType: "Local authority", payerName: "", billingAddress: "",
-  billingEmail: "", activeFrom: new Date().toISOString().slice(0, 10),
-  vatTreatment: "OUTSIDE_SCOPE", vatRate: 0, rate: 0,
-};
 const blank = {
-  firstName: "", lastName: "", displayName: "", startDate: "", endDate: "", expectedDays: [1, 2, 3, 4, 5],
-  internalReference: "", notes: "",
-  emergencyContactName: "", emergencyContactRelationship: "", emergencyContactPhone: "",
-  emergencyContactAlternativePhone: "", emergencyContactEmail: "", emergencyContactNotes: "",
-  billing: emptyBilling,
+  firstName:"",lastName:"",displayName:"",startDate:"",endDate:"",expectedDays:[1,2,3,4,5],internalReference:"",notes:"",dateOfBirth:"",addressLine1:"",addressLine2:"",town:"",postcode:"",phone:"",email:"",nhsNumber:"",hospitalNumber:"",
+  emergencyContactName:"",emergencyContactRelationship:"",emergencyContactPhone:"",emergencyContactAlternativePhone:"",emergencyContactEmail:"",emergencyContactNotes:"",
+  secondaryEmergencyContact:{name:"",relationship:"",phone:"",email:""},gpName:"",gpSurgery:"",gpPhone:"",medicalProfile:{conditions:"",allergies:"",emergencyMedication:"",currentMedication:"",instructions:""},
+  personCentredProfile:{communication:"",supportStrategies:"",interests:"",dislikes:"",triggers:"",calmingStrategies:"",goals:""},
 };
-const days = [[1, "Mon"], [2, "Tue"], [3, "Wed"], [4, "Thu"], [5, "Fri"], [6, "Sat"], [7, "Sun"]] as const;
+const days = [[1,"Mon"],[2,"Tue"],[3,"Wed"],[4,"Thu"],[5,"Fri"],[6,"Sat"],[7,"Sun"]] as const;
+const tabs:Array<[Tab,string]> = [["details","Details"],["contacts","Emergency contacts"],["medical","Medical"],["profile","Person-centred"],["consents","Consents & reviews"],["billing","Billing"],["rams","RAMS"]];
+const consentLabels:Record<string,string> = {photography:"Photography and video",localTrips:"Local outings",transport:"STARS transport",emergencyTreatment:"Emergency treatment",informationSharing:"Necessary information sharing"};
+const dateValue=(value?:string|null)=>value?.slice(0,10)||"";
+const field=(value:unknown)=>typeof value==="string"?value:"";
 
-function billingForm(profile?: BillingProfile | null) {
-  if (!profile) return { ...emptyBilling };
-  return {
-    enabled: true, profileId: profile.id, payerType: profile.payerType, payerName: profile.payerName,
-    billingAddress: profile.billingAddress, billingEmail: profile.billingEmail || "",
-    activeFrom: profile.activeFrom.slice(0, 10), vatTreatment: profile.vatTreatment,
-    vatRate: Number(profile.vatRate), rate: Number(profile.chargeRules[0]?.rate || 0),
-  };
-}
-
-export function StudentManagerV2() {
-  const [rows, setRows] = useState<Student[]>([]);
-  const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("active");
-  const [editing, setEditing] = useState<Student | null | "new">(null);
-  const [form, setForm] = useState(blank);
-  const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [canManageBilling, setCanManageBilling] = useState(false);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    const response = await fetch(`/api/students/records?status=${status}&search=${encodeURIComponent(search)}`, { cache: "no-store" });
-    if (response.status === 403) { location.href = "/login"; return; }
-    setRows(response.ok ? await response.json() : []);
-    setLoading(false);
-  }, [search, status]);
-
-  useEffect(() => {
-    fetch("/api/auth/me").then(response => response.ok ? response.json() : null).then(user => setCanManageBilling(Boolean(user && ["DIRECTOR", "ADMINISTRATOR"].includes(user.role))));
-  }, []);
-  useEffect(() => { const id = setTimeout(load, 200); return () => clearTimeout(id); }, [load]);
-
-  function open(row?: Student) {
-    setEditing(row || "new"); setError(""); setNotice("");
-    setForm(row ? {
-      firstName: row.firstName, lastName: row.lastName, displayName: row.displayName,
-      startDate: row.startDate.slice(0, 10), endDate: row.endDate?.slice(0, 10) || "",
-      expectedDays: (row.expectedDays || []).map(Number), internalReference: row.internalReference || "", notes: row.notes || "",
-      emergencyContactName: row.emergencyContactName || "", emergencyContactRelationship: row.emergencyContactRelationship || "",
-      emergencyContactPhone: row.emergencyContactPhone || "", emergencyContactAlternativePhone: row.emergencyContactAlternativePhone || "",
-      emergencyContactEmail: row.emergencyContactEmail || "", emergencyContactNotes: row.emergencyContactNotes || "",
-      billing: billingForm(row.billingProfile),
-    } : { ...blank, billing: { ...emptyBilling } });
-  }
-
-  async function save(event: React.FormEvent) {
-    event.preventDefault(); setSaving(true); setError("");
-    const isNew = editing === "new";
-    const billing = canManageBilling && form.billing.enabled
-      ? { ...form.billing, profileId: form.billing.profileId || undefined }
-      : undefined;
-    const body = { ...form, billing };
-    const response = await fetch(isNew ? "/api/students/records" : `/api/students/records/${(editing as Student).id}`, {
-      method: isNew ? "POST" : "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(body),
-    });
-    const result = await response.json();
-    setSaving(false);
-    if (!response.ok) return setError(result.error || "Unable to save the student.");
-    setEditing(null); setNotice(isNew ? "Student added." : "Student details updated."); await load();
-  }
-
-  async function setActive(row: Student, active: boolean) {
-    if (!await appConfirm(`${active ? "Restore" : "Archive"} ${row.displayName}? Historic attendance and billing records will be preserved.`)) return;
-    await fetch(`/api/students/records/${row.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ active }) });
-    await load();
-  }
-
+export function StudentManagerV2(){
+  const[rows,setRows]=useState<Student[]>([]),[search,setSearch]=useState(""),[status,setStatus]=useState("active"),[editing,setEditing]=useState<Student|null|"new">(null),[form,setForm]=useState(blank),[tab,setTab]=useState<Tab>("details");
+  const[error,setError]=useState(""),[notice,setNotice]=useState(""),[loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[canManageBilling,setCanManageBilling]=useState(false);
+  const load=useCallback(async()=>{setLoading(true);const response=await fetch(`/api/students/records?status=${status}&search=${encodeURIComponent(search)}`,{cache:"no-store"});if(response.status===403){location.href="/login";return}setRows(response.ok?await response.json():[]);setLoading(false)},[search,status]);
+  useEffect(()=>{fetch("/api/auth/me").then(r=>r.ok?r.json():null).then(user=>setCanManageBilling(Boolean(user&&["DIRECTOR","ADMINISTRATOR"].includes(user.role))))},[]);
+  useEffect(()=>{const id=setTimeout(load,200);return()=>clearTimeout(id)},[load]);
+  const nested=(group:"secondaryEmergencyContact"|"medicalProfile"|"personCentredProfile",key:string,value:string)=>setForm(current=>({...current,[group]:{...current[group],[key]:value}}));
+  function open(row?:Student){setEditing(row||"new");setTab("details");setError("");setNotice("");setForm(row?{
+    firstName:row.firstName,lastName:row.lastName,displayName:row.displayName,startDate:dateValue(row.startDate),endDate:dateValue(row.endDate),expectedDays:(row.expectedDays||[]).map(Number),internalReference:row.internalReference||"",notes:row.notes||"",dateOfBirth:dateValue(row.dateOfBirth),addressLine1:row.addressLine1||"",addressLine2:row.addressLine2||"",town:row.town||"",postcode:row.postcode||"",phone:row.phone||"",email:row.email||"",nhsNumber:row.nhsNumber||"",hospitalNumber:row.hospitalNumber||"",
+    emergencyContactName:row.emergencyContactName||"",emergencyContactRelationship:row.emergencyContactRelationship||"",emergencyContactPhone:row.emergencyContactPhone||"",emergencyContactAlternativePhone:row.emergencyContactAlternativePhone||"",emergencyContactEmail:row.emergencyContactEmail||"",emergencyContactNotes:row.emergencyContactNotes||"",
+    secondaryEmergencyContact:{...blank.secondaryEmergencyContact,...(row.secondaryEmergencyContact||{})},gpName:row.gpName||"",gpSurgery:row.gpSurgery||"",gpPhone:row.gpPhone||"",medicalProfile:{...blank.medicalProfile,...(row.medicalProfile||{})},personCentredProfile:{...blank.personCentredProfile,...(row.personCentredProfile||{})},
+  }:{...blank,expectedDays:[...blank.expectedDays],secondaryEmergencyContact:{...blank.secondaryEmergencyContact},medicalProfile:{...blank.medicalProfile},personCentredProfile:{...blank.personCentredProfile}})}
+  async function save(event:React.FormEvent){event.preventDefault();setSaving(true);setError("");const isNew=editing==="new";const response=await fetch(isNew?"/api/students/records":`/api/students/records/${(editing as Student).id}`,{method:isNew?"POST":"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify(form)});const result=await response.json().catch(()=>({}));setSaving(false);if(!response.ok)return setError(result.error||"Unable to save the student profile.");setEditing(null);setNotice(isNew?"Student added.":"Student profile updated.");await load()}
+  async function setActive(row:Student,active:boolean){if(!await appConfirm(`${active?"Restore":"Archive"} ${row.displayName}? Historic attendance and billing records will be preserved.`))return;await fetch(`/api/students/records/${row.id}`,{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({active})});await load()}
+  const current=editing&&editing!=="new"?editing:null;
+  const consents=latestConsentValues(current?.consentHistory||[]);
+  const input=(label:string,key:keyof typeof blank,type="text")=><label className="form-label">{label}<input autoComplete="off" className="field" type={type} value={String(form[key]??"")} onChange={event=>setForm({...form,[key]:event.target.value})}/></label>;
+  const area=(label:string,group:"medicalProfile"|"personCentredProfile",key:string)=><label className="form-label">{label}<textarea className="field" rows={4} value={field((form[group] as Record<string,string>)[key])} onChange={event=>nested(group,key,event.target.value)}/></label>;
   return <>
-    {notice && <div className="alert alert-success">{notice}</div>}
-    <div className="toolbar">
-      <label style={{ position: "relative" }}><Search size={18} style={{ position: "absolute", left: 13, top: 16 }}/><input autoComplete="off" className="field" style={{ paddingLeft: 40 }} placeholder="Search students" value={search} onChange={event => setSearch(event.target.value)}/></label>
-      <select className="field" value={status} onChange={event => setStatus(event.target.value)}><option value="active">Active students</option><option value="archived">Archived students</option><option value="all">All students</option></select>
-      <button className="btn primary" style={{ marginLeft: "auto" }} onClick={() => open()}><Plus size={18}/>Add student</button>
-    </div>
-    <section className="card table-wrap">{loading ? <div className="empty">Loading students…</div> : rows.length ? <table className="table">
-      <thead><tr><th>Name</th><th>Reference</th><th>Expected days</th><th>Emergency contact</th><th>Billing</th><th>Status</th><th>Actions</th></tr></thead>
-      <tbody>{rows.map(row => <tr key={row.id}>
-        <td><b>{row.displayName}</b></td><td>{row.internalReference || "—"}</td>
-        <td>{(row.expectedDays || []).map(Number).map(number => days.find(day => day[0] === number)?.[1]).join(", ") || "None"}</td>
-        <td>{row.emergencyContactName ? <><b>{row.emergencyContactName}</b><small className="muted" style={{ display: "block" }}>{row.emergencyContactPhone || "No telephone"}</small></> : <span className="badge badge-warning">Not configured</span>}</td>
-        <td>{row.billingProfile ? <><span className={`badge ${row.billingProfile.activeTo ? "badge-neutral" : "badge-success"}`}>{row.billingProfile.activeTo ? "Ended" : "Configured"}</span><small className="muted" style={{ display: "block" }}>{row.billingProfile.payerName}</small></> : canManageBilling ? <span className="badge badge-warning">Not configured</span> : "—"}</td>
-        <td><span className={`badge ${row.active ? "badge-success" : "badge-neutral"}`}>{row.active ? "Active" : "Archived"}</span></td>
-        <td><div style={{ display: "flex", gap: 7 }}><button className="btn ghost" onClick={() => open(row)} aria-label={`Edit ${row.displayName}`}><Pencil size={17}/></button><button className={`btn ${row.active ? "danger" : "secondary"}`} onClick={() => setActive(row, !row.active)}>{row.active ? <Archive size={17}/> : <RotateCcw size={17}/>}</button></div></td>
-      </tr>)}</tbody>
-    </table> : <div className="empty"><b>No students found</b><p>Change the filters or add a student.</p></div>}</section>
-
-    {editing && <div className="modal-backdrop" role="presentation"><form autoComplete="off" className="modal student-record-modal" onSubmit={save}>
-      <h2>{editing === "new" ? "Add student" : `Edit ${(editing as Student).displayName}`}</h2>
-      {error && <div className="alert alert-error">{error}</div>}
-      <h3>Student details</h3><div className="form-grid">
-        <label className="form-label">First name<input autoComplete="off" className="field" required value={form.firstName} onChange={event => setForm({ ...form, firstName: event.target.value })}/></label>
-        <label className="form-label">Surname<input autoComplete="off" className="field" required value={form.lastName} onChange={event => setForm({ ...form, lastName: event.target.value })}/></label>
-        <label className="form-label">Display name<input autoComplete="off" className="field" required value={form.displayName} onChange={event => setForm({ ...form, displayName: event.target.value })}/></label>
-        <label className="form-label">Internal reference<input autoComplete="off" className="field" value={form.internalReference} onChange={event => setForm({ ...form, internalReference: event.target.value })}/></label>
-        <label className="form-label">Start date<input className="field" type="date" required value={form.startDate} onChange={event => setForm({ ...form, startDate: event.target.value })}/></label>
-        <label className="form-label">End date<input className="field" type="date" value={form.endDate} onChange={event => setForm({ ...form, endDate: event.target.value })}/></label>
-        <fieldset className="full record-fieldset"><legend>Expected attendance days</legend><div className="check-list">{days.map(([number, label]) => <label key={number}><input type="checkbox" checked={form.expectedDays.includes(number)} onChange={event => setForm({ ...form, expectedDays: event.target.checked ? [...form.expectedDays, number].sort() : form.expectedDays.filter(value => value !== number) })}/> {label}</label>)}</div></fieldset>
-      </div>
-
-      <h3>Emergency contact</h3><p className="muted">Protected manager information. These details are not downloaded to kiosk tablets.</p><div className="form-grid">
-        <label className="form-label">Contact name<input autoComplete="off" className="field" value={form.emergencyContactName} onChange={event => setForm({ ...form, emergencyContactName: event.target.value })}/></label>
-        <label className="form-label">Relationship<input autoComplete="off" className="field" value={form.emergencyContactRelationship} onChange={event => setForm({ ...form, emergencyContactRelationship: event.target.value })}/></label>
-        <label className="form-label">Primary telephone<input autoComplete="off" className="field" inputMode="tel" value={form.emergencyContactPhone} onChange={event => setForm({ ...form, emergencyContactPhone: event.target.value })}/></label>
-        <label className="form-label">Alternative telephone<input autoComplete="off" className="field" inputMode="tel" value={form.emergencyContactAlternativePhone} onChange={event => setForm({ ...form, emergencyContactAlternativePhone: event.target.value })}/></label>
-        <label className="form-label full">Email<input autoComplete="off" className="field" type="email" value={form.emergencyContactEmail} onChange={event => setForm({ ...form, emergencyContactEmail: event.target.value })}/></label>
-        <label className="form-label full">Emergency contact notes<textarea autoComplete="off" className="field" value={form.emergencyContactNotes} onChange={event => setForm({ ...form, emergencyContactNotes: event.target.value })}/></label>
-      </div>
-
-      {canManageBilling && <><h3><CreditCard size={19}/> Billing setup</h3>
-        <label className="check-row"><input type="checkbox" checked={form.billing.enabled} onChange={event => setForm({ ...form, billing: { ...form.billing, enabled: event.target.checked } })}/><span>{form.billing.profileId ? "Edit this student’s billing profile" : "Set up billing when this student is saved"}</span></label>
-        {form.billing.enabled && <div className="form-grid billing-inline">
-          <label className="form-label">Who pays?<select className="field" value={form.billing.payerType} onChange={event => setForm({ ...form, billing: { ...form.billing, payerType: event.target.value } })}>{["Local authority", "Funding organisation", "Private payer", "Family member", "Care provider", "Business", "Other"].map(value => <option key={value}>{value}</option>)}</select></label>
-          <label className="form-label">Payer/organisation name<input autoComplete="off" className="field" required value={form.billing.payerName} onChange={event => setForm({ ...form, billing: { ...form.billing, payerName: event.target.value } })}/></label>
-          <label className="form-label">Agreed day rate (£)<input className="field" type="number" min="0" step="0.01" required value={form.billing.rate} onChange={event => setForm({ ...form, billing: { ...form.billing, rate: Number(event.target.value) } })}/></label>
-          <label className="form-label">Use from<input className="field" type="date" required value={form.billing.activeFrom} onChange={event => setForm({ ...form, billing: { ...form.billing, activeFrom: event.target.value } })}/></label>
-          <label className="form-label full">Invoice address<textarea autoComplete="off" className="field" required value={form.billing.billingAddress} onChange={event => setForm({ ...form, billing: { ...form.billing, billingAddress: event.target.value } })}/></label>
-          <label className="form-label">Invoice email<input autoComplete="off" className="field" type="email" value={form.billing.billingEmail} onChange={event => setForm({ ...form, billing: { ...form.billing, billingEmail: event.target.value } })}/></label>
-          <label className="form-label">VAT treatment<select className="field" value={form.billing.vatTreatment} onChange={event => setForm({ ...form, billing: { ...form.billing, vatTreatment: event.target.value } })}><option value="OUTSIDE_SCOPE">Outside scope</option><option value="EXEMPT">Exempt</option><option value="STANDARD">Standard rate</option><option value="ZERO_RATED">Zero rated</option></select></label>
-          <label className="form-label">VAT rate (%)<input className="field" type="number" min="0" max="100" step="0.01" value={form.billing.vatRate} onChange={event => setForm({ ...form, billing: { ...form.billing, vatRate: Number(event.target.value) } })}/></label>
-        </div>}
-      </>}
-
-      <label className="form-label"><h3>Restricted manager notes</h3><textarea autoComplete="off" className="field" value={form.notes} onChange={event => setForm({ ...form, notes: event.target.value })}/></label>
-      <div className="modal-actions"><button type="button" className="btn secondary" onClick={() => setEditing(null)}>Cancel</button><button className="btn primary" disabled={saving}>{saving ? "Saving…" : "Save student"}</button></div>
+    {notice&&<div className="alert alert-success">{notice}</div>}
+    <div className="toolbar"><label style={{position:"relative"}}><Search size={18} style={{position:"absolute",left:13,top:16}}/><input autoComplete="off" className="field" style={{paddingLeft:40}} placeholder="Search students" value={search} onChange={event=>setSearch(event.target.value)}/></label><select className="field" value={status} onChange={event=>setStatus(event.target.value)}><option value="active">Active students</option><option value="archived">Archived students</option><option value="all">All students</option></select><button className="btn primary" style={{marginLeft:"auto"}} onClick={()=>open()}><Plus size={18}/>Add student</button></div>
+    <section className="card table-wrap">{loading?<div className="empty">Loading students...</div>:rows.length?<table className="table"><thead><tr><th>Name</th><th>Reference</th><th>Expected days</th><th>Emergency contact</th><th>Billing</th><th>Status</th><th>Actions</th></tr></thead><tbody>{rows.map(row=><tr key={row.id}><td><b>{row.displayName}</b></td><td>{row.internalReference||"—"}</td><td>{(row.expectedDays||[]).map(Number).map(n=>days.find(day=>day[0]===n)?.[1]).join(", ")||"None"}</td><td>{row.emergencyContactName?<><b>{row.emergencyContactName}</b><small className="muted" style={{display:"block"}}>{row.emergencyContactPhone||"No telephone"}</small></>:<span className="badge badge-warning">Not configured</span>}</td><td>{row.billingProfile?<><span className={`badge ${row.billingProfile.activeTo?"badge-neutral":"badge-success"}`}>{row.billingProfile.activeTo?"Ended":"Configured"}</span><small className="muted" style={{display:"block"}}>{row.billingProfile.payerName}</small></>:canManageBilling?<span className="badge badge-warning">Not configured</span>:"—"}</td><td><span className={`badge ${row.active?"badge-success":"badge-neutral"}`}>{row.active?"Active":"Archived"}</span></td><td><div className="table-actions"><button className="btn ghost" onClick={()=>open(row)} aria-label={`Open ${row.displayName}`}><Pencil size={17}/></button><button className={`btn ${row.active?"danger":"secondary"}`} onClick={()=>setActive(row,!row.active)}>{row.active?<Archive size={17}/>:<RotateCcw size={17}/>}</button></div></td></tr>)}</tbody></table>:<div className="empty"><b>No students found</b><p>Change the filters or add a student.</p></div>}</section>
+    {editing&&<div className="modal-backdrop"><form autoComplete="off" className="modal student-record-modal" onSubmit={save}><div className="modal-title-row"><div><h2>{editing==="new"?"Add student":current!.displayName}</h2><p className="muted">Protected student profile</p></div>{current?.nextInformationReviewAt&&<span className="badge badge-neutral"><CalendarClock size={15}/> Review due {new Date(current.nextInformationReviewAt).toLocaleDateString("en-GB")}</span>}</div>{error&&<div className="alert alert-error">{error}</div>}
+      <nav className="tabs student-profile-tabs" aria-label="Student profile sections">{tabs.map(([id,label])=><button type="button" key={id} className={`btn ${tab===id?"primary":"secondary"}`} onClick={()=>setTab(id)}>{label}</button>)}</nav>
+      {tab==="details"&&<section><h3><UserRound size={19}/>Student details</h3><div className="form-grid">{input("First name","firstName")}{input("Surname","lastName")}{input("Display name","displayName")}{input("Internal reference","internalReference")}{input("Date of birth","dateOfBirth","date")}{input("Telephone","phone")}{input("Email","email","email")}{input("Start date","startDate","date")}{input("End date","endDate","date")}{input("Address line 1","addressLine1")}{input("Address line 2","addressLine2")}{input("Town","town")}{input("Postcode","postcode")}<fieldset className="full record-fieldset"><legend>Expected attendance days</legend><div className="check-list">{days.map(([number,label])=><label key={number}><input type="checkbox" checked={form.expectedDays.includes(number)} onChange={event=>setForm({...form,expectedDays:event.target.checked?[...form.expectedDays,number].sort():form.expectedDays.filter(value=>value!==number)})}/> {label}</label>)}</div></fieldset><label className="form-label full">Restricted manager notes<textarea className="field" rows={4} value={form.notes} onChange={event=>setForm({...form,notes:event.target.value})}/></label></div></section>}
+      {tab==="contacts"&&<section><h3>Primary emergency contact</h3><p className="muted">Protected manager information. It is not downloaded to kiosk tablets.</p><div className="form-grid">{input("Contact name","emergencyContactName")}{input("Relationship","emergencyContactRelationship")}{input("Primary telephone","emergencyContactPhone")}{input("Alternative telephone","emergencyContactAlternativePhone")}{input("Email","emergencyContactEmail","email")}<label className="form-label full">Emergency instructions<textarea className="field" rows={4} value={form.emergencyContactNotes} onChange={event=>setForm({...form,emergencyContactNotes:event.target.value})}/></label></div><h3>Secondary emergency contact</h3><div className="form-grid">{[["Name","name"],["Relationship","relationship"],["Telephone","phone"],["Email","email"]].map(([label,key])=><label className="form-label" key={key}>{label}<input className="field" type={key==="email"?"email":"text"} value={field((form.secondaryEmergencyContact as Record<string,string>)[key])} onChange={event=>nested("secondaryEmergencyContact",key,event.target.value)}/></label>)}</div></section>}
+      {tab==="medical"&&<section><h3><HeartPulse size={19}/>Medical information</h3><div className="form-grid">{input("NHS number","nhsNumber")}{input("Hospital number","hospitalNumber")}{input("GP name","gpName")}{input("GP surgery","gpSurgery")}{input("GP telephone","gpPhone")}{area("Medical conditions","medicalProfile","conditions")}{area("Allergies","medicalProfile","allergies")}{area("Emergency medication","medicalProfile","emergencyMedication")}{area("Current medication","medicalProfile","currentMedication")}{area("Other medical instructions","medicalProfile","instructions")}</div></section>}
+      {tab==="profile"&&<section><h3>Person-centred profile</h3><div className="form-grid">{area("How I communicate","personCentredProfile","communication")}{area("Support strategies that work","personCentredProfile","supportStrategies")}{area("Interests and things I enjoy","personCentredProfile","interests")}{area("Dislikes","personCentredProfile","dislikes")}{area("Triggers or things that may upset me","personCentredProfile","triggers")}{area("What helps me feel calm","personCentredProfile","calmingStrategies")}{area("Current goals","personCentredProfile","goals")}</div></section>}
+      {tab==="consents"&&<section><h3><ShieldCheck size={19}/>Current consent decisions</h3>{current?(Object.keys(consentLabels).map(key=><div className="student-summary-row" key={key}><span>{consentLabels[key]}</span><span className={`badge ${consents[key]?"badge-success":"badge-neutral"}`}>{key in consents?(consents[key]?"Consent given":"Consent not given"):"Not recorded"}</span></div>)):<div className="empty">Consent history becomes available after the student is saved.</div>}<h3><FileClock size={19}/>Information review history</h3>{current?.informationReviews?.length?current.informationReviews.map(review=><div className="student-summary-row" key={review.id}><span><b>{review.status.replaceAll("_"," ")}</b><small className="muted" style={{display:"block"}}>{review.submittedAt?`Submitted ${new Date(review.submittedAt).toLocaleString("en-GB")}`:"Not yet submitted"}</small></span><Link className="btn ghost" href={`/dashboard/information-reviews/${review.id}`}>View review</Link></div>):<div className="empty">No information reviews recorded.</div>}</section>}
+      {tab==="billing"&&<section><h3><CreditCard size={19}/>Billing setup</h3>{!current?<div className="empty">Save this student before configuring billing.</div>:current.billingProfile?<div className="card student-billing-summary"><div><span className="muted">Payer</span><b>{current.billingProfile.payerName}</b><small>{current.billingProfile.payerType}</small></div><div><span className="muted">Day rate</span><b>£{Number(current.billingProfile.chargeRules[0]?.rate||0).toFixed(2)}</b><small>{current.billingProfile.vatTreatment.replaceAll("_"," ").toLowerCase()}</small></div><div><span className="muted">Invoice contact</span><b>{current.billingProfile.billingEmail||"No email set"}</b><small>{current.billingProfile.billingAddress}</small></div></div>:<div className="alert alert-warning">Billing has not been configured for this student.</div>}{current&&canManageBilling&&<Link className="btn primary" href={`/dashboard/billing/profiles?studentId=${current.id}`}>{current.billingProfile?"Edit billing setup":"Set up billing"}</Link>}{current&&!canManageBilling&&<p className="muted">A director or administrator can change billing setup.</p>}</section>}
+      {tab==="rams"&&<section className="student-coming-soon"><ShieldCheck size={48}/><h3>Student RAMS</h3><p>Coming soon</p><small className="muted">This area will hold student-specific risk assessments and safe-working information. No RAMS data is collected yet.</small></section>}
+      <div className="modal-actions"><button type="button" className="btn secondary" onClick={()=>setEditing(null)}>Cancel</button>{!["consents","billing","rams"].includes(tab)&&<button className="btn primary" disabled={saving}>{saving?"Saving...":"Save student profile"}</button>}</div>
     </form></div>}
   </>;
 }

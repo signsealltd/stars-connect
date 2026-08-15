@@ -187,6 +187,31 @@ enum ComplianceApprovalDecision {
   REJECTED
 }
 
+enum InformationReviewStatus {
+  DRAFT
+  SENT
+  OPENED
+  IN_PROGRESS
+  SUBMITTED
+  UNDER_REVIEW
+  PARTIALLY_APPROVED
+  COMPLETED
+  EXPIRED
+  REVOKED
+}
+
+enum InformationReviewSource {
+  ONLINE
+  PAPER
+  ASSISTED
+}
+
+enum ReviewProposalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 enum ComplianceActionStatus {
   OPEN
   IN_PROGRESS
@@ -303,34 +328,142 @@ model StaffCredential {
 }
 
 model Student {
-  id                               String              @id @default(uuid()) @db.Char(36)
-  firstName                        String              @db.VarChar(80)
-  lastName                         String              @db.VarChar(80)
-  displayName                      String              @db.VarChar(120)
-  profilePhotoUrl                  String?             @db.VarChar(500)
+  id                               String                     @id @default(uuid()) @db.Char(36)
+  firstName                        String                     @db.VarChar(80)
+  lastName                         String                     @db.VarChar(80)
+  displayName                      String                     @db.VarChar(120)
+  profilePhotoUrl                  String?                    @db.VarChar(500)
   expectedDays                     Json
-  active                           Boolean             @default(true)
-  sortOrder                        Int                 @default(0)
-  startDate                        DateTime            @db.Date
-  endDate                          DateTime?           @db.Date
-  fundingCategory                  String?             @db.VarChar(100)
-  fundingOrganisation              String?             @db.VarChar(191)
-  internalReference                String?             @unique @db.VarChar(100)
-  billingReference                 String?             @db.VarChar(100)
-  emergencyContactName             String?             @db.VarChar(120)
-  emergencyContactRelationship     String?             @db.VarChar(80)
-  emergencyContactPhone            String?             @db.VarChar(40)
-  emergencyContactAlternativePhone String?             @db.VarChar(40)
-  emergencyContactEmail            String?             @db.VarChar(191)
-  emergencyContactNotes            String?             @db.Text
-  notes                            String?             @db.Text
+  active                           Boolean                    @default(true)
+  sortOrder                        Int                        @default(0)
+  startDate                        DateTime                   @db.Date
+  endDate                          DateTime?                  @db.Date
+  fundingCategory                  String?                    @db.VarChar(100)
+  fundingOrganisation              String?                    @db.VarChar(191)
+  internalReference                String?                    @unique @db.VarChar(100)
+  billingReference                 String?                    @db.VarChar(100)
+  emergencyContactName             String?                    @db.VarChar(120)
+  emergencyContactRelationship     String?                    @db.VarChar(80)
+  emergencyContactPhone            String?                    @db.VarChar(40)
+  emergencyContactAlternativePhone String?                    @db.VarChar(40)
+  emergencyContactEmail            String?                    @db.VarChar(191)
+  emergencyContactNotes            String?                    @db.Text
+  dateOfBirth                      DateTime?                  @db.Date
+  addressLine1                     String?                    @db.VarChar(191)
+  addressLine2                     String?                    @db.VarChar(191)
+  town                             String?                    @db.VarChar(120)
+  postcode                         String?                    @db.VarChar(20)
+  phone                            String?                    @db.VarChar(40)
+  email                            String?                    @db.VarChar(191)
+  nhsNumber                        String?                    @db.VarChar(32)
+  hospitalNumber                   String?                    @db.VarChar(64)
+  gpName                           String?                    @db.VarChar(120)
+  gpSurgery                        String?                    @db.VarChar(191)
+  gpPhone                          String?                    @db.VarChar(40)
+  secondaryEmergencyContact        Json?
+  medicalProfile                   Json?
+  personCentredProfile             Json?
+  lastInformationReviewAt          DateTime?
+  nextInformationReviewAt          DateTime?
+  notes                            String?                    @db.Text
   attendance                       StudentAttendance[]
   operationAttendances             OperationAttendee[]
-  createdAt                        DateTime            @default(now())
-  updatedAt                        DateTime            @updatedAt
+  informationReviews               InformationReviewRequest[]
+  consentHistory                   StudentConsentHistory[]
+  createdAt                        DateTime                   @default(now())
+  updatedAt                        DateTime                   @updatedAt
   archivedAt                       DateTime?
 
   @@index([active, displayName])
+}
+
+model InformationReviewRequest {
+  id                   String                        @id @default(uuid()) @db.Char(36)
+  organisationId       String                        @db.Char(36)
+  organisation         Organisation                  @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  studentId            String                        @db.Char(36)
+  student              Student                       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  tokenHash            String                        @unique @db.Char(64)
+  status               InformationReviewStatus       @default(DRAFT)
+  source               InformationReviewSource       @default(ONLINE)
+  verifyDateOfBirth    Boolean                       @default(false)
+  verificationFailures Int                           @default(0)
+  lockedUntil          DateTime?
+  expiresAt            DateTime
+  openedAt             DateTime?
+  submittedAt          DateTime?
+  completedAt          DateTime?
+  revokedAt            DateTime?
+  lastSavedAt          DateTime?
+  sentAt               DateTime?
+  sentTo               String?                       @db.VarChar(191)
+  createdById          String                        @db.Char(36)
+  reviewedById         String?                       @db.Char(36)
+  baselineSnapshot     Json
+  draftAnswers         Json?
+  nextReviewDate       DateTime?                     @db.Date
+  submissions          InformationReviewSubmission[]
+  proposals            RecordChangeProposal[]
+  consentHistory       StudentConsentHistory[]
+  createdAt            DateTime                      @default(now())
+  updatedAt            DateTime                      @updatedAt
+
+  @@index([organisationId, status, expiresAt])
+  @@index([studentId, createdAt])
+}
+
+model InformationReviewSubmission {
+  id                  String                   @id @default(uuid()) @db.Char(36)
+  reviewRequestId     String                   @db.Char(36)
+  reviewRequest       InformationReviewRequest @relation(fields: [reviewRequestId], references: [id], onDelete: Cascade)
+  version             Int                      @default(1)
+  answers             Json
+  declarationName     String                   @db.VarChar(120)
+  declarationCapacity String                   @db.VarChar(120)
+  signatureData       String?                  @db.LongText
+  declaredAt          DateTime
+  submittedAt         DateTime                 @default(now())
+
+  @@unique([reviewRequestId, version])
+}
+
+model RecordChangeProposal {
+  id              String                   @id @default(uuid()) @db.Char(36)
+  reviewRequestId String                   @db.Char(36)
+  reviewRequest   InformationReviewRequest @relation(fields: [reviewRequestId], references: [id], onDelete: Cascade)
+  category        String                   @db.VarChar(80)
+  fieldKey        String                   @db.VarChar(120)
+  currentValue    Json?
+  submittedValue  Json?
+  approvedValue   Json?
+  critical        Boolean                  @default(false)
+  status          ReviewProposalStatus     @default(PENDING)
+  reviewNote      String?                  @db.VarChar(500)
+  reviewedById    String?                  @db.Char(36)
+  reviewedAt      DateTime?
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+
+  @@unique([reviewRequestId, fieldKey])
+  @@index([reviewRequestId, status, critical])
+}
+
+model StudentConsentHistory {
+  id              String                    @id @default(uuid()) @db.Char(36)
+  studentId       String                    @db.Char(36)
+  student         Student                   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  reviewRequestId String?                   @db.Char(36)
+  reviewRequest   InformationReviewRequest? @relation(fields: [reviewRequestId], references: [id], onDelete: SetNull)
+  consentType     String                    @db.VarChar(80)
+  previousValue   Json?
+  newValue        Json
+  providedByName  String                    @db.VarChar(120)
+  providedAt      DateTime
+  approvedById    String?                   @db.Char(36)
+  approvedAt      DateTime?
+  createdAt       DateTime                  @default(now())
+
+  @@index([studentId, consentType, createdAt])
 }
 
 model Device {
@@ -1100,6 +1233,7 @@ model Organisation {
   expectedStaffAttendances  ExpectedStaffAttendance[]
   attendanceReconciliations AttendanceReconciliation[]
   readinessSnapshots        OperationReadinessSnapshot[]
+  informationReviews        InformationReviewRequest[]
   createdAt                 DateTime                      @default(now())
   updatedAt                 DateTime                      @updatedAt
 }

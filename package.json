@@ -54,6 +54,7 @@
     "seed": "tsx prisma/seed.ts"
   },
   "overrides": {
+    "nanoid": "3.3.18",
     "next": {
       "sharp": "0.35.3",
       "postcss": "8.5.24"

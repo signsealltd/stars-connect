@@ -170,7 +170,7 @@ function ramsRecordPdf(input: StudentRecordPdfInput) {
   label("People involved", `${scope.get("Selected students") || "None linked"}; ${scope.get("Assigned staff") || "None linked"}`, 256, 550);
   y = 338;
   const columns = [28, 112, 198, 284, 430, 454, 478, 516, 668, 692, 716, 754, 814];
-  const headings = ["HAZARD", "WHO MAY BE HARMED", "HOW HARM MAY OCCUR", "EXISTING CONTROLS", "L", "S", "RISK", "FURTHER CONTROLS", "L", "S", "RISK", "OWNER"];
+  const headings = ["HAZARD", "WHO MAY BE HARMED", "HOW HARM MAY OCCUR", "EXISTING CONTROLS", "INITIAL L", "INITIAL S", "INITIAL RISK", "FURTHER CONTROLS", "RESIDUAL L", "RESIDUAL S", "RESIDUAL RISK", "OWNER"];
   const tableHead = () => { commands.push(rect(28, y - 27, 786, 27, PURPLE)); headings.forEach((heading, index) => drawWrapped(heading, columns[index], y, columns[index + 1] - columns[index], 5.4, true, 3, "1 1 1")); y -= 27; };
   tableHead();
   hazards.forEach((row, index) => {
@@ -181,7 +181,8 @@ function ramsRecordPdf(input: StudentRecordPdfInput) {
     columns.slice(1, -1).forEach(x => commands.push(line(x, top, x, top - rowHeight)));
     const initial = field(value, "Initial risk").match(/(\d+)\s*x\s*(\d+)\s*=\s*(\d+)/i);
     const residual = field(value, "Residual risk").match(/(\d+)\s*x\s*(\d+)\s*=\s*(\d+)/i);
-    const owner = field(value, "Owner / target").split(" / ")[0];
+    const recordedOwner = field(value, "Owner / target").split(" / ")[0];
+    const owner = recordedOwner === "Not recorded" ? control.get("Responsible person") || recordedOwner : recordedOwner;
     const values = [row.label.replace(/^Hazard \d+:\s*/, ""), field(value, "Who may be harmed"), field(value, "How"), field(value, "Existing controls"), initial?.[1] || "-", initial?.[2] || "-", initial?.[3] || "-", field(value, "Further controls"), residual?.[1] || "-", residual?.[2] || "-", residual?.[3] || "-", owner];
     values.forEach((item, itemIndex) => {
       if (itemIndex === 6 || itemIndex === 10) commands.push(rect(columns[itemIndex], top - rowHeight, columns[itemIndex + 1] - columns[itemIndex], rowHeight, riskColour(Number(item)), BORDER));
@@ -207,14 +208,22 @@ function ramsRecordPdf(input: StudentRecordPdfInput) {
     const methodText = row.value.split(/\nResponsible:/i)[0];
     [number, stage, methodText, responsible, safety, stop].forEach((item, itemIndex) => drawWrapped(item, methodColumns[itemIndex], top, methodColumns[itemIndex + 1] - methodColumns[itemIndex], itemIndex ? 6 : 7, itemIndex === 0, 7)); y -= rowHeight;
   });
-  y -= 10; commands.push(rect(28, y - 82, 786, 82, PURPLE_SOFT, BORDER));
-  drawWrapped(`PPE: ${equipment.get("PPE") || "Not recorded"}`, 28, y, 250, 6.5, true, 7);
-  drawWrapped(`Equipment: ${equipment.get("Equipment") || "Not recorded"}`, 286, y, 250, 6.5, true, 7);
-  drawWrapped(`Emergency arrangements: ${equipment.get("Emergency arrangements") || "Not recorded"}`, 544, y, 270, 6.5, true, 7); y -= 96;
-  commands.push(text("READINESS CHECKLIST", 28, y, 7.5, true, PURPLE)); y -= 15;
-  checklist.forEach((row, index) => { const x = index % 2 ? 422 : 28; if (index > 0 && index % 2 === 0) y -= 17; commands.push(text(`${row.value === "Complete" ? "[X]" : "[ ]"} ${row.label}`, x, y, 6.5)); }); y -= 30;
-  commands.push(rect(28, y - 55, 786, 55, control.get("Status") === "PUBLISHED" ? "0.92 0.98 0.94" : "1 0.96 0.84", BORDER));
-  drawWrapped(`${approval.get("Approved") || "Not approved"}. ${approval.get("Important notice") || ""}`, 28, y, 786, 6.8, true, 5); finish();
+  finish();
+
+  header("Equipment, emergency arrangements and approval");
+  commands.push(rect(28, y - 68, 786, 68, PURPLE_SOFT, BORDER));
+  drawWrapped(`PPE: ${equipment.get("PPE") || "Not recorded"}`, 28, y, 250, 6.8, true, 6);
+  drawWrapped(`Equipment: ${equipment.get("Equipment") || "Not recorded"}`, 286, y, 250, 6.8, true, 6);
+  drawWrapped(`Emergency arrangements: ${equipment.get("Emergency arrangements") || "Not recorded"}`, 544, y, 270, 6.8, true, 6); y -= 88;
+  commands.push(text("RISK RATING KEY", 28, y, 7.5, true, PURPLE)); y -= 21;
+  commands.push(rect(28, y - 24, 118, 24, "0.35 0.68 0.35", BORDER), text("LOW 1-7", 63, y - 15, 7, true));
+  commands.push(rect(156, y - 24, 118, 24, "0.96 0.72 0.15", BORDER), text("MEDIUM 8-14", 179, y - 15, 7, true));
+  commands.push(rect(284, y - 24, 118, 24, "0.82 0.20 0.20", BORDER), text("HIGH 15-25", 313, y - 15, 7, true, "1 1 1")); y -= 48;
+  commands.push(text("READINESS CHECKLIST", 28, y, 7.5, true, PURPLE)); y -= 18;
+  checklist.forEach((row, index) => { const x = index % 2 ? 422 : 28; if (index > 0 && index % 2 === 0) y -= 19; commands.push(text(`${row.value === "Complete" ? "[X]" : "[ ]"} ${row.label}`, x, y, 6.8)); }); y -= 38;
+  commands.push(text("APPROVAL AND DOCUMENT STATUS", 28, y, 7.5, true, PURPLE)); y -= 12;
+  commands.push(rect(28, y - 64, 786, 64, control.get("Status") === "PUBLISHED" ? "0.92 0.98 0.94" : "1 0.96 0.84", BORDER));
+  drawWrapped(`${approval.get("Approved") || "Not approved"}. ${approval.get("Important notice") || ""}`, 28, y, 786, 7, true, 6); finish();
 
   const pageCount = pages.length, regularRef = 3 + pageCount * 2, boldRef = regularRef + 1, logoRef = boldRef + 1, pageRefs = pages.map((_, index) => 3 + index * 2);
   const objects: Array<string | Buffer> = ["<< /Type /Catalog /Pages 2 0 R >>", `<< /Type /Pages /Kids [${pageRefs.map(ref => `${ref} 0 R`).join(" ")}] /Count ${pageCount} >>`];

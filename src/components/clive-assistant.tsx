@@ -28,6 +28,14 @@ export function CliveAssistant() {
   }, [visible]);
   useEffect(() => { if (open) setTimeout(() => input.current?.focus(), 0); }, [open]);
   useEffect(() => { end.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, busy]);
+  useEffect(() => {
+    const openWithQuestion = (event: Event) => {
+      setQuestion((event as CustomEvent<{ question?: string }>).detail?.question?.slice(0, 600) || "");
+      setOpen(true);
+    };
+    window.addEventListener("stars-open-clive", openWithQuestion);
+    return () => window.removeEventListener("stars-open-clive", openWithQuestion);
+  }, []);
 
   async function ask(event?: FormEvent, preset?: string) {
     event?.preventDefault();

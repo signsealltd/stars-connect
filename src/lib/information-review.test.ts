@@ -73,7 +73,7 @@ describe("secure annual information reviews", () => {
     expect(result.success).toBe(true);
   });
 
-  it("provides a safe preview and password-protected completed-review deletion", () => {
+  it("provides a safe preview and password-protected review cancellation or deletion", () => {
     const form = readFileSync("src/components/public-information-review.tsx", "utf8");
     const manager = readFileSync("src/components/information-review-manager.tsx", "utf8");
     const route = readFileSync("src/app/api/information-reviews/[id]/route.ts", "utf8");
@@ -83,8 +83,10 @@ describe("secure annual information reviews", () => {
     expect(form).toContain("Local authority or council");
     expect(form).toContain("Health professionals and agencies");
     expect(manager).toContain("/dashboard/information-reviews/preview");
-    expect(route).toContain('existing.status !== "COMPLETED"');
+    expect(manager).toContain("Cancel request");
+    expect(manager).toContain("immediately makes its secure public link unusable");
     expect(route).toContain("bcrypt.compare");
     expect(route).toContain("INFORMATION_REVIEW_DELETED");
+    expect(route).toContain("INFORMATION_REVIEW_CANCELLED");
   });
 });

@@ -81,7 +81,6 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     const id = (await params).id;
     const existing = await scoped(id, user.organisationId);
     if (!existing) return NextResponse.json({ error: "Review not found." }, { status: 404 });
-    if (existing.status !== "COMPLETED") return NextResponse.json({ error: "Only completed information reviews can be deleted." }, { status: 409 });
     const body = await req.json().catch(() => null);
     if (!body?.password || !await bcrypt.compare(String(body.password), user.passwordHash)) {
       return NextResponse.json({ error: "Your password was not accepted." }, { status: 401 });
@@ -94,9 +93,10 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       proposals: existing.proposals.length,
     };
     await prisma.informationReviewRequest.delete({ where: { id } });
-    await audit("INFORMATION_REVIEW_DELETED", {
+    const completed = existing.status === "COMPLETED";
+    await audit(completed ? "INFORMATION_REVIEW_DELETED" : "INFORMATION_REVIEW_CANCELLED", {
       actorType: "USER", actorId: user.id, entityType: "InformationReviewRequest", entityId: id,
-      beforeValue: snapshot, afterValue: { deleted: true }, ...requestContext(req),
+      beforeValue: snapshot, afterValue: { deleted: true, cancelled: !completed }, ...requestContext(req),
     });
     return NextResponse.json({ ok: true });
   });

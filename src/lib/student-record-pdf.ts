@@ -248,9 +248,8 @@ function ramsRecordPdf(input: StudentRecordPdfInput) {
       4,
     );
     y -= 54;
-    commands.push(text("RAMS REFERENCE", 28, y, 6, true, PURPLE), text(input.studentReference, 28, y - 15, 7.2, true));
-    commands.push(text("ACTIVITY", 330, y, 6, true, PURPLE), text(scope.get("Activity / task") || input.studentName.replace(/^RAMS - /, ""), 330, y - 15, 7.2, true));
-    commands.push(text("BRIEFED BY", 620, y, 6, true, PURPLE), text(control.get("Responsible person") || "", 620, y - 15, 7.2, true));
+    commands.push(text("RAMS TITLE", 28, y, 6, true, PURPLE));
+    drawWrapped(input.studentName.replace(/^RAMS - /, ""), 28, y - 15, 786, 7.2, true, 2);
     y -= 34;
     commands.push(rect(28, y - 24, 786, 24, PURPLE));
     acknowledgementHeadings.forEach((heading, index) => drawWrapped(heading, acknowledgementColumns[index], y, acknowledgementColumns[index + 1] - acknowledgementColumns[index], 6, true, 3, "1 1 1"));

@@ -148,7 +148,10 @@ function ramsRecordPdf(input: StudentRecordPdfInput) {
   const pages: string[][] = [];
   let commands: string[] = [], y = 0;
   const header = (title: string) => {
-    commands = [rect(0, 0, width, height, "1 1 1"), "q 96 0 0 70 28 502 cm /Logo Do Q", rect(570, 510, 244, 58, PURPLE), text("RISK ASSESSMENT & METHOD STATEMENT", 586, 546, 9, true, "1 1 1"), text(`${input.studentReference}`, 586, 526, 8, true, "1 1 1"), line(28, 492, 814, 492, PURPLE), text(title, 28, 470, 14, true, PURPLE)];
+    const documentTitle = input.studentName.replace(/^RAMS - /, "");
+    commands = [rect(0, 0, width, height, "1 1 1"), "q 96 0 0 70 28 502 cm /Logo Do Q", rect(570, 510, 244, 58, PURPLE), text("RAMS", 586, 553, 5.5, true, "1 1 1")];
+    wrap(documentTitle, 39).slice(0, 2).forEach((part, index) => commands.push(text(part, 586, 540 - index * 9, 7.5, true, "1 1 1")));
+    commands.push(text(`${input.studentReference}`, 586, 516, 6.2, false, "1 1 1"), line(28, 492, 814, 492, PURPLE), text(title, 28, 470, 14, true, PURPLE));
     y = 446;
   };
   const finish = () => { pages.push(commands); };
@@ -170,7 +173,7 @@ function ramsRecordPdf(input: StudentRecordPdfInput) {
   label("People involved", `${scope.get("Selected students") || "None linked"}; ${scope.get("Assigned staff") || "None linked"}`, 256, 550);
   y = 338;
   const columns = [28, 112, 198, 284, 430, 454, 478, 516, 668, 692, 716, 754, 814];
-  const headings = ["HAZARD", "WHO MAY BE HARMED", "HOW HARM MAY OCCUR", "EXISTING CONTROLS", "INITIAL L", "INITIAL S", "INITIAL RISK", "FURTHER CONTROLS", "RESIDUAL L", "RESIDUAL S", "RESIDUAL RISK", "OWNER"];
+  const headings = ["HAZARD", "WHO MAY BE HARMED", "HOW HARM MAY OCCUR", "EXISTING CONTROLS", "INIT. L", "INIT. S", "INIT. RISK", "FURTHER CONTROLS", "RES. L", "RES. S", "RES. RISK", "OWNER"];
   const tableHead = () => { commands.push(rect(28, y - 27, 786, 27, PURPLE)); headings.forEach((heading, index) => drawWrapped(heading, columns[index], y, columns[index + 1] - columns[index], 5.4, true, 3, "1 1 1")); y -= 27; };
   tableHead();
   hazards.forEach((row, index) => {
@@ -224,6 +227,50 @@ function ramsRecordPdf(input: StudentRecordPdfInput) {
   commands.push(text("APPROVAL AND DOCUMENT STATUS", 28, y, 7.5, true, PURPLE)); y -= 12;
   commands.push(rect(28, y - 64, 786, 64, control.get("Status") === "PUBLISHED" ? "0.92 0.98 0.94" : "1 0.96 0.84", BORDER));
   drawWrapped(`${approval.get("Approved") || "Not approved"}. ${approval.get("Important notice") || ""}`, 28, y, 786, 7, true, 6); finish();
+
+  const assignedStaff = (scope.get("Assigned staff") || "")
+    .split("\n")
+    .map(name => name.trim())
+    .filter(name => name && name !== "None linked");
+  const acknowledgementColumns = [28, 194, 294, 472, 552, 814];
+  const acknowledgementHeadings = ["PRINTED NAME", "ROLE", "SIGNATURE", "DATE", "COMMENTS / QUESTIONS"];
+  const acknowledgementPageCount = Math.max(1, Math.ceil(assignedStaff.length / 15));
+  for (let pageIndex = 0; pageIndex < acknowledgementPageCount; pageIndex += 1) {
+    header(pageIndex ? "Staff briefing and acknowledgement - continued" : "Staff briefing and acknowledgement");
+    commands.push(rect(28, y - 42, 786, 42, PURPLE_SOFT, BORDER));
+    drawWrapped(
+      "I confirm that I have read and understood this RAMS, have had the opportunity to ask questions, and will follow the controls and safe method of work. I will report any change, incident or concern before continuing the activity.",
+      36,
+      y - 2,
+      770,
+      6.4,
+      true,
+      4,
+    );
+    y -= 54;
+    commands.push(text("RAMS REFERENCE", 28, y, 6, true, PURPLE), text(input.studentReference, 28, y - 15, 7.2, true));
+    commands.push(text("ACTIVITY", 330, y, 6, true, PURPLE), text(scope.get("Activity / task") || input.studentName.replace(/^RAMS - /, ""), 330, y - 15, 7.2, true));
+    commands.push(text("BRIEFED BY", 620, y, 6, true, PURPLE), text(control.get("Responsible person") || "", 620, y - 15, 7.2, true));
+    y -= 34;
+    commands.push(rect(28, y - 24, 786, 24, PURPLE));
+    acknowledgementHeadings.forEach((heading, index) => drawWrapped(heading, acknowledgementColumns[index], y, acknowledgementColumns[index + 1] - acknowledgementColumns[index], 6, true, 3, "1 1 1"));
+    y -= 24;
+    const pageStaff = assignedStaff.slice(pageIndex * 15, pageIndex * 15 + 15);
+    for (let index = 0; index < 15; index += 1) {
+      const rowHeight = 17;
+      commands.push(rect(28, y - rowHeight, 786, rowHeight, index % 2 ? "1 1 1" : PURPLE_SOFT, BORDER));
+      acknowledgementColumns.slice(1, -1).forEach(x => commands.push(line(x, y, x, y - rowHeight)));
+      if (pageStaff[index]) drawWrapped(pageStaff[index], acknowledgementColumns[0], y + 2, acknowledgementColumns[1] - acknowledgementColumns[0], 5.8, true, 1);
+      y -= rowHeight;
+    }
+    y -= 10;
+    commands.push(text("BRIEFING CONFIRMATION", 28, y, 7.5, true, PURPLE));
+    y -= 18;
+    commands.push(text("Briefed by:", 28, y, 7, true), line(86, y - 2, 280, y - 2));
+    commands.push(text("Signature:", 302, y, 7, true), line(360, y - 2, 566, y - 2));
+    commands.push(text("Date / time:", 588, y, 7, true), line(656, y - 2, 814, y - 2));
+    finish();
+  }
 
   const pageCount = pages.length, regularRef = 3 + pageCount * 2, boldRef = regularRef + 1, logoRef = boldRef + 1, pageRefs = pages.map((_, index) => 3 + index * 2);
   const objects: Array<string | Buffer> = ["<< /Type /Catalog /Pages 2 0 R >>", `<< /Type /Pages /Kids [${pageRefs.map(ref => `${ref} 0 R`).join(" ")}] /Count ${pageCount} >>`];

@@ -46,10 +46,15 @@ describe("complete student record PDF", () => {
       ],
     });
     const source = pdf.toString("latin1");
-    expect(source).toContain("RISK ASSESSMENT & METHOD STATEMENT");
+    expect(source).toContain("RAMS");
+    expect(source).toContain("Community outing");
     expect(source).toContain("FURTHER CONTROLS");
     expect(source).toContain("SAFE METHOD");
+    expect(source).toContain("Staff briefing and acknowledgement");
+    expect(source).toContain("PRINTED NAME");
+    expect(source).toContain("I confirm that I have read and understood this RAMS");
     expect(source).toContain("/MediaBox [0 0 842 595]");
+    expect(source).not.toContain("AI-generated");
     expect(source).not.toContain("COMPLETE STUDENT RECORD");
   });
 });

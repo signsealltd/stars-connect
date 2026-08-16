@@ -1,6 +1,6 @@
 ﻿import type { ComplianceWorkflowStatus } from "@prisma/client";
 
-export const SAFETY_DRAFT_NOTICE = "AI-generated or template safety content is a drafting aid only. It must be checked, amended where necessary and approved by an authorised manager or competent person before use.";
+export const SAFETY_DRAFT_NOTICE = "Draft safety content must be checked, amended where necessary and approved by an authorised manager or competent person before operational use.";
 
 export function riskScore(likelihood: number, severity: number, size = 5) {
   if (!Number.isInteger(likelihood) || !Number.isInteger(severity) || likelihood < 1 || severity < 1 || likelihood > size || severity > size) throw new Error("RISK_VALUE_OUT_OF_RANGE");

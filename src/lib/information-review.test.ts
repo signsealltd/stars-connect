@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
 import {
   REVIEW_TOKEN_BYTES,
   buildChangeProposals,
@@ -44,5 +45,17 @@ describe("secure annual information reviews", () => {
     expect(reviewDeclarationSchema.safeParse({ declarationName: "A Parent", declarationCapacity: "Parent", accepted: true }).success).toBe(true);
     expect(reviewDeclarationSchema.safeParse({ declarationName: "A", declarationCapacity: "Parent", accepted: true }).success).toBe(false);
     expect(reviewAnswersSchema.safeParse({ firstName: "Alex", lastName: "Smith", displayName: "Alex", email: "not-an-email" }).success).toBe(false);
+  });
+
+  it("provides a safe preview and password-protected completed-review deletion", () => {
+    const form = readFileSync("src/components/public-information-review.tsx", "utf8");
+    const manager = readFileSync("src/components/information-review-manager.tsx", "utf8");
+    const route = readFileSync("src/app/api/information-reviews/[id]/route.ts", "utf8");
+    expect(form).toContain("Welcome to your STARS information review");
+    expect(form).toContain("Preview only");
+    expect(manager).toContain("/dashboard/information-reviews/preview");
+    expect(route).toContain('existing.status !== "COMPLETED"');
+    expect(route).toContain("bcrypt.compare");
+    expect(route).toContain("INFORMATION_REVIEW_DELETED");
   });
 });

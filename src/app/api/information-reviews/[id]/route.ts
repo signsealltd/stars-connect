@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { withCapability, requestContext } from "@/lib/api";
 import { audit } from "@/lib/audit";
 import { CAPABILITIES } from "@/lib/permissions";
+import bcrypt from "bcryptjs";
 
 const actionSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("revoke") }),
@@ -71,5 +72,32 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     });
     await audit("INFORMATION_REVIEW_COMPLETED", { actorType: "USER", actorId: user.id, entityType: "InformationReviewRequest", entityId: id, afterValue: { approvedFields: approved.map(item => item.fieldKey), nextReviewDate }, ...requestContext(req) });
     return NextResponse.json(await scoped(id, user.organisationId));
+  });
+}
+
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  return withCapability(req, CAPABILITIES.INFORMATION_REVIEW_MANAGE, async user => {
+    if (!user.organisationId) return NextResponse.json({ error: "Organisation is not configured." }, { status: 409 });
+    const id = (await params).id;
+    const existing = await scoped(id, user.organisationId);
+    if (!existing) return NextResponse.json({ error: "Review not found." }, { status: 404 });
+    if (existing.status !== "COMPLETED") return NextResponse.json({ error: "Only completed information reviews can be deleted." }, { status: 409 });
+    const body = await req.json().catch(() => null);
+    if (!body?.password || !await bcrypt.compare(String(body.password), user.passwordHash)) {
+      return NextResponse.json({ error: "Your password was not accepted." }, { status: 401 });
+    }
+    const snapshot = {
+      studentId: existing.studentId,
+      status: existing.status,
+      completedAt: existing.completedAt,
+      submissions: existing.submissions.length,
+      proposals: existing.proposals.length,
+    };
+    await prisma.informationReviewRequest.delete({ where: { id } });
+    await audit("INFORMATION_REVIEW_DELETED", {
+      actorType: "USER", actorId: user.id, entityType: "InformationReviewRequest", entityId: id,
+      beforeValue: snapshot, afterValue: { deleted: true }, ...requestContext(req),
+    });
+    return NextResponse.json({ ok: true });
   });
 }

@@ -18,6 +18,7 @@ const createSchema = z.object({
   endTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
   location: z.string().trim().max(191).optional(),
   description: z.string().trim().max(2000).optional(),
+  studentIds: z.array(z.string().uuid()).max(250).default([]).transform(ids => [...new Set(ids)]),
 });
 
 const dateKey = (value: Date) => formatInTimeZone(value, APP_TIME_ZONE, "yyyy-MM-dd");
@@ -37,7 +38,7 @@ export async function GET(req: NextRequest) {
     const endDate = localDateAsDatabaseDate(endKey);
     const trainingHorizon = addDays(endDate, 60);
     const [students, shifts, operations, training, billingRuns] = await Promise.all([
-      prisma.student.findMany({ where: { active: true, archivedAt: null, startDate: { lte: endDate }, OR: [{ endDate: null }, { endDate: { gte: startDate } }] }, select: { id: true, displayName: true, expectedDays: true, startDate: true, endDate: true }, orderBy: [{ sortOrder: "asc" }, { displayName: "asc" }] }),
+      prisma.student.findMany({ where: { active: true, archivedAt: null }, select: { id: true, displayName: true, internalReference: true, expectedDays: true, startDate: true, endDate: true }, orderBy: [{ sortOrder: "asc" }, { displayName: "asc" }] }),
       prisma.staffScheduleOccurrence.findMany({ where: { organisationId, startAt: { lte: endExclusive }, endAt: { gte: start }, status: { not: "CANCELLED" } }, include: { staff: { select: { displayName: true } } }, orderBy: { startAt: "asc" }, take: 500 }),
       prisma.operationOccurrence.findMany({ where: { organisationId, startAt: { lte: endExclusive }, endAt: { gte: start }, status: { not: "CANCELLED" } }, include: { operation: { select: { title: true, type: true, description: true } }, assignments: { where: { status: "ASSIGNED" }, include: { staff: { select: { displayName: true } } } }, attendees: { include: { student: { select: { displayName: true } } } } }, orderBy: { startAt: "asc" }, take: 250 }),
       prisma.staffTrainingRecord.findMany({ where: { active: true, expiryDate: { not: null, lte: trainingHorizon }, staff: { active: true, archivedAt: null } }, include: { staff: { select: { displayName: true } } }, orderBy: { expiryDate: "asc" }, take: 250 }),
@@ -57,7 +58,7 @@ export async function GET(req: NextRequest) {
     });
     const now = new Date();
     const trainingFlags = training.map(item => ({ id: item.id, staff: item.staff.displayName, course: item.courseName, expiryDate: item.expiryDate, mandatory: item.mandatory, state: item.expiryDate && item.expiryDate < now ? "OVERDUE" : "DUE_SOON" }));
-    return NextResponse.json({ pilot: true, readOnlySources: ["student expected days", "staff schedules", "training renewals", "billing cycles"], days, trainingFlags });
+    return NextResponse.json({ pilot: true, readOnlySources: ["student expected days", "staff schedules", "training renewals", "billing cycles"], students: students.map(student => ({ id: student.id, name: student.displayName, reference: student.internalReference })), days, trainingFlags });
   });
 }
 
@@ -68,9 +69,14 @@ export async function POST(req: NextRequest) {
     const parsed = createSchema.safeParse(await req.json().catch(() => null));
     if (!parsed.success || parsed.data.endTime <= parsed.data.startTime) return jsonError("Check the activity title, date and times.", 422);
     const input = parsed.data;
+    if (input.studentIds.length && !hasCapability(user.role, CAPABILITIES.OPERATIONS_ASSIGN_ATTENDEES, user.permissionOverrides)) return jsonError("You do not have permission to assign students to activities.", 403);
     const startAt = fromZonedTime(`${input.date}T${input.startTime}:00`, APP_TIME_ZONE).toISOString();
     const endAt = fromZonedTime(`${input.date}T${input.endTime}:00`, APP_TIME_ZONE).toISOString();
-    const created = await createOperation(user, { title: input.title, type: input.type, description: input.description, startAt, endAt, timezone: APP_TIME_ZONE, location: input.location });
-    return NextResponse.json(created, { status: 201 });
+    try {
+      const created = await createOperation(user, { title: input.title, type: input.type, description: input.description, startAt, endAt, timezone: APP_TIME_ZONE, location: input.location, attendeeStudentIds: input.studentIds });
+      return NextResponse.json(created, { status: 201 });
+    } catch (error) {
+      return jsonError(error instanceof Error ? error.message : "Unable to create the activity.", Number((error as { status?: number }).status ?? 500));
+    }
   });
 }

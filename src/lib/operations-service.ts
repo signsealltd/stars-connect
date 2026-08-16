@@ -57,14 +57,23 @@ export async function confirmStaffEndDate(user:User,staffId:string,endDate:strin
  },serial);
 }
 
-export async function createOperation(user:User,input:{title:string;type:string;description?:string;internalNotes?:string;startAt:string;endAt:string;timezone?:string;location?:string;premisesName?:string;roomName?:string;requiredStaffCount?:number;requiresCompliance?:boolean;recurrenceRule?:Prisma.InputJsonValue}){
+export async function createOperation(user:User,input:{title:string;type:string;description?:string;internalNotes?:string;startAt:string;endAt:string;timezone?:string;location?:string;premisesName?:string;roomName?:string;requiredStaffCount?:number;requiresCompliance?:boolean;recurrenceRule?:Prisma.InputJsonValue;attendeeStudentIds?:string[]}){
  const organisationId=requireOrganisation(user);
  return prisma.$transaction(async tx=>{
+  const attendeeStudentIds=[...new Set(input.attendeeStudentIds??[])];
+  if(attendeeStudentIds.length){
+   const available=await tx.student.count({where:{id:{in:attendeeStudentIds},active:true,archivedAt:null}});
+   if(available!==attendeeStudentIds.length)throw Object.assign(new Error("One or more selected students are no longer available."),{status:422});
+  }
   const operation=await tx.operation.create({data:{organisationId,title:input.title,type:input.type,description:input.description,internalNotes:input.internalNotes,createdById:user.id}});
   const series=input.recurrenceRule?await tx.operationSeries.create({data:{organisationId,operationId:operation.id,recurrenceRule:input.recurrenceRule,timezone:input.timezone??"Europe/London"}}):null;
   const dates=input.recurrenceRule?expandRecurrence(new Date(input.startAt),new Date(input.endAt),input.recurrenceRule as never,input.timezone??"Europe/London"):[{startAt:new Date(input.startAt),endAt:new Date(input.endAt)}];
-  const occurrences=[];for(const dateslot of dates)occurrences.push(await tx.operationOccurrence.create({data:{organisationId,operationId:operation.id,seriesId:series?.id,startAt:dateslot.startAt,endAt:dateslot.endAt,timezone:input.timezone??"Europe/London",location:input.location,premisesName:input.premisesName,roomName:input.roomName,requiredStaffCount:input.requiredStaffCount??0,requiresCompliance:input.requiresCompliance??false}}));const occurrence=occurrences[0];
-  await tx.auditLog.create({data:{action:"OPERATION_CREATED",actorType:"USER",actorId:user.id,entityType:"Operation",entityId:operation.id,afterValue:{organisationId,occurrenceId:occurrence.id,type:input.type,status:"DRAFT"}}});
+  const occurrences=[];for(const dateslot of dates){
+   const occurrence=await tx.operationOccurrence.create({data:{organisationId,operationId:operation.id,seriesId:series?.id,startAt:dateslot.startAt,endAt:dateslot.endAt,timezone:input.timezone??"Europe/London",location:input.location,premisesName:input.premisesName,roomName:input.roomName,requiredStaffCount:input.requiredStaffCount??0,requiresCompliance:input.requiresCompliance??false}});
+   occurrences.push(occurrence);
+   if(attendeeStudentIds.length)await tx.operationAttendee.createMany({data:attendeeStudentIds.map(studentId=>({organisationId,occurrenceId:occurrence.id,studentId,status:"PLANNED" as const,createdById:user.id}))});
+  }const occurrence=occurrences[0];
+  await tx.auditLog.create({data:{action:"OPERATION_CREATED",actorType:"USER",actorId:user.id,entityType:"Operation",entityId:operation.id,afterValue:{organisationId,occurrenceId:occurrence.id,type:input.type,status:"DRAFT",attendeeCount:attendeeStudentIds.length}}});
   return{operation,series,occurrence,occurrencesCreated:occurrences.length};
  },serial);
 }

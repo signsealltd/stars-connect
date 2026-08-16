@@ -65,6 +65,7 @@ function pageHeader(input: StudentRecordPdfInput, continued: boolean) {
 }
 
 export function studentRecordPdf(input: StudentRecordPdfInput) {
+  if (input.studentName.startsWith("RAMS -")) return ramsRecordPdf(input);
   const pages: string[][] = [];
   let commands = pageHeader(input, false);
   let y = 660;
@@ -127,4 +128,98 @@ export function studentRecordPdf(input: StudentRecordPdfInput) {
   const xref = pdf.length;
   const trailer = `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n${offsets.slice(1).map(offset => `${String(offset).padStart(10, "0")} 00000 n `).join("\n")}\ntrailer << /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
   return Buffer.concat([pdf, Buffer.from(trailer, "latin1")]);
+}
+
+function field(value: string, label: string) {
+  const match = value.match(new RegExp(`${label}:\\s*([^\\n]+)`, "i"));
+  return match?.[1]?.trim() || "Not recorded";
+}
+
+function ramsRecordPdf(input: StudentRecordPdfInput) {
+  const width = 842, height = 595;
+  const sections = new Map(input.sections.map(section => [section.title, section.rows]));
+  const control = new Map((sections.get("Document control") || []).map(row => [row.label, row.value]));
+  const scope = new Map((sections.get("Activity and scope") || []).map(row => [row.label, row.value]));
+  const hazards = sections.get("Hazard and risk assessment") || [];
+  const method = sections.get("Method statement") || [];
+  const equipment = new Map((sections.get("Equipment and emergency arrangements") || []).map(row => [row.label, row.value]));
+  const checklist = sections.get("Readiness checklist") || [];
+  const approval = new Map((sections.get("Approval and publication") || []).map(row => [row.label, row.value]));
+  const pages: string[][] = [];
+  let commands: string[] = [], y = 0;
+  const header = (title: string) => {
+    commands = [rect(0, 0, width, height, "1 1 1"), "q 96 0 0 70 28 502 cm /Logo Do Q", rect(570, 510, 244, 58, PURPLE), text("RISK ASSESSMENT & METHOD STATEMENT", 586, 546, 9, true, "1 1 1"), text(`${input.studentReference}`, 586, 526, 8, true, "1 1 1"), line(28, 492, 814, 492, PURPLE), text(title, 28, 470, 14, true, PURPLE)];
+    y = 446;
+  };
+  const finish = () => { pages.push(commands); };
+  const drawWrapped = (value: string, x: number, top: number, boxWidth: number, size = 6.2, bold = false, max = 8, colour = INK) => {
+    const chars = Math.max(8, Math.floor(boxWidth / (size * .52)));
+    wrap(value, chars).slice(0, max).forEach((part, index) => commands.push(text(part, x + 4, top - 11 - index * (size + 2), size, bold, colour)));
+  };
+  const riskColour = (score: number) => score >= 15 ? "0.82 0.20 0.20" : score >= 8 ? "0.96 0.72 0.15" : "0.35 0.68 0.35";
+  const label = (name: string, value: string, x: number, boxWidth: number) => { commands.push(text(name.toUpperCase(), x, y, 6, true, PURPLE)); drawWrapped(value, x, y - 3, boxWidth, 7, false, 4); };
+
+  header("Document control and risk assessment");
+  commands.push(rect(28, 388, 786, 50, PURPLE_SOFT, BORDER));
+  label("Activity", scope.get("Activity / task") || input.studentName.replace(/^RAMS - /, ""), 36, 260);
+  label("Location", scope.get("Location") || "Not recorded", 306, 135);
+  label("Assessed by", control.get("Assessment author") || "Not recorded", 450, 130);
+  label("Assessment / review", `${control.get("Assessment date") || "Not recorded"} / ${control.get("Review date") || "Not recorded"}`, 590, 215);
+  y = 374;
+  label("Responsible person", control.get("Responsible person") || "Not recorded", 36, 210);
+  label("People involved", `${scope.get("Selected students") || "None linked"}; ${scope.get("Assigned staff") || "None linked"}`, 256, 550);
+  y = 338;
+  const columns = [28, 112, 198, 284, 430, 454, 478, 516, 668, 692, 716, 754, 814];
+  const headings = ["HAZARD", "WHO MAY BE HARMED", "HOW HARM MAY OCCUR", "EXISTING CONTROLS", "L", "S", "RISK", "FURTHER CONTROLS", "L", "S", "RISK", "OWNER"];
+  const tableHead = () => { commands.push(rect(28, y - 27, 786, 27, PURPLE)); headings.forEach((heading, index) => drawWrapped(heading, columns[index], y, columns[index + 1] - columns[index], 5.4, true, 3, "1 1 1")); y -= 27; };
+  tableHead();
+  hazards.forEach((row, index) => {
+    const rowHeight = 82;
+    if (y - rowHeight < 48) { finish(); header("Risk assessment matrix - continued"); tableHead(); }
+    const top = y, value = row.value;
+    commands.push(rect(28, top - rowHeight, 786, rowHeight, index % 2 ? "1 1 1" : PURPLE_SOFT, BORDER));
+    columns.slice(1, -1).forEach(x => commands.push(line(x, top, x, top - rowHeight)));
+    const initial = field(value, "Initial risk").match(/(\d+)\s*x\s*(\d+)\s*=\s*(\d+)/i);
+    const residual = field(value, "Residual risk").match(/(\d+)\s*x\s*(\d+)\s*=\s*(\d+)/i);
+    const owner = field(value, "Owner / target").split(" / ")[0];
+    const values = [row.label.replace(/^Hazard \d+:\s*/, ""), field(value, "Who may be harmed"), field(value, "How"), field(value, "Existing controls"), initial?.[1] || "-", initial?.[2] || "-", initial?.[3] || "-", field(value, "Further controls"), residual?.[1] || "-", residual?.[2] || "-", residual?.[3] || "-", owner];
+    values.forEach((item, itemIndex) => {
+      if (itemIndex === 6 || itemIndex === 10) commands.push(rect(columns[itemIndex], top - rowHeight, columns[itemIndex + 1] - columns[itemIndex], rowHeight, riskColour(Number(item)), BORDER));
+      drawWrapped(item, columns[itemIndex], top, columns[itemIndex + 1] - columns[itemIndex], itemIndex === 0 ? 6.2 : 5.6, itemIndex === 0 || itemIndex === 6 || itemIndex === 10, 8);
+    });
+    y -= rowHeight;
+  });
+  finish();
+
+  header("Safe method of work");
+  const overview = method.find(row => row.label === "Overview")?.value || "Not recorded";
+  commands.push(rect(28, y - 50, 786, 50, PURPLE_SOFT, BORDER)); drawWrapped(overview, 28, y, 786, 7, false, 5); y -= 64;
+  const methodColumns = [28, 62, 170, 400, 510, 625, 814], methodHeads = ["STEP", "STAGE", "SAFE METHOD", "RESPONSIBLE", "SAFETY CHECKS", "STOP-WORK / EMERGENCY"];
+  const methodHead = () => { commands.push(rect(28, y - 26, 786, 26, PURPLE)); methodHeads.forEach((heading, index) => drawWrapped(heading, methodColumns[index], y, methodColumns[index + 1] - methodColumns[index], 5.5, true, 2, "1 1 1")); y -= 26; };
+  methodHead();
+  method.filter(row => row.label !== "Overview").forEach((row, index) => {
+    const rowHeight = 67;
+    if (y - rowHeight < 48) { finish(); header("Safe method of work - continued"); methodHead(); }
+    const top = y;
+    commands.push(rect(28, top - rowHeight, 786, rowHeight, index % 2 ? "1 1 1" : PURPLE_SOFT, BORDER)); methodColumns.slice(1, -1).forEach(x => commands.push(line(x, top, x, top - rowHeight)));
+    const number = row.label.match(/^(\d+)/)?.[1] || String(index + 1), stage = row.label.replace(/^\d+\.\s*/, "");
+    const responsible = field(row.value, "Responsible"), safety = field(row.value, "Safety checks"), stop = `${field(row.value, "Stop-work conditions")} / Emergency: ${field(row.value, "Emergency response")}`;
+    const methodText = row.value.split(/\nResponsible:/i)[0];
+    [number, stage, methodText, responsible, safety, stop].forEach((item, itemIndex) => drawWrapped(item, methodColumns[itemIndex], top, methodColumns[itemIndex + 1] - methodColumns[itemIndex], itemIndex ? 6 : 7, itemIndex === 0, 7)); y -= rowHeight;
+  });
+  y -= 10; commands.push(rect(28, y - 82, 786, 82, PURPLE_SOFT, BORDER));
+  drawWrapped(`PPE: ${equipment.get("PPE") || "Not recorded"}`, 28, y, 250, 6.5, true, 7);
+  drawWrapped(`Equipment: ${equipment.get("Equipment") || "Not recorded"}`, 286, y, 250, 6.5, true, 7);
+  drawWrapped(`Emergency arrangements: ${equipment.get("Emergency arrangements") || "Not recorded"}`, 544, y, 270, 6.5, true, 7); y -= 96;
+  commands.push(text("READINESS CHECKLIST", 28, y, 7.5, true, PURPLE)); y -= 15;
+  checklist.forEach((row, index) => { const x = index % 2 ? 422 : 28; if (index > 0 && index % 2 === 0) y -= 17; commands.push(text(`${row.value === "Complete" ? "[X]" : "[ ]"} ${row.label}`, x, y, 6.5)); }); y -= 30;
+  commands.push(rect(28, y - 55, 786, 55, control.get("Status") === "PUBLISHED" ? "0.92 0.98 0.94" : "1 0.96 0.84", BORDER));
+  drawWrapped(`${approval.get("Approved") || "Not approved"}. ${approval.get("Important notice") || ""}`, 28, y, 786, 6.8, true, 5); finish();
+
+  const pageCount = pages.length, regularRef = 3 + pageCount * 2, boldRef = regularRef + 1, logoRef = boldRef + 1, pageRefs = pages.map((_, index) => 3 + index * 2);
+  const objects: Array<string | Buffer> = ["<< /Type /Catalog /Pages 2 0 R >>", `<< /Type /Pages /Kids [${pageRefs.map(ref => `${ref} 0 R`).join(" ")}] /Count ${pageCount} >>`];
+  pages.forEach((page, index) => { page.push(line(28, 35, 814, 35), text(`Generated by ${input.generatedBy} on ${input.generatedAt}`, 28, 21, 6.5, false, MUTED), text(input.organisationName, 330, 21, 6.5, false, MUTED), text(`Page ${index + 1} of ${pageCount}`, 770, 21, 6.5, false, MUTED)); const body = page.join("\n"), pageRef = 3 + index * 2; objects.push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${width} ${height}] /Resources << /Font << /F1 ${regularRef} 0 R /F2 ${boldRef} 0 R >> /XObject << /Logo ${logoRef} 0 R >> >> /Contents ${pageRef + 1} 0 R >>`, `<< /Length ${Buffer.byteLength(body)} >>\nstream\n${body}\nendstream`); });
+  objects.push("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>", "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>", Buffer.concat([Buffer.from(`<< /Type /XObject /Subtype /Image /Width 260 /Height 189 /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${input.logoJpeg.length} >>\nstream\n`), input.logoJpeg, Buffer.from("\nendstream")]));
+  let pdf = Buffer.from("%PDF-1.4\n", "latin1"); const offsets = [0]; objects.forEach((object, index) => { offsets.push(pdf.length); pdf = Buffer.concat([pdf, Buffer.from(`${index + 1} 0 obj\n`, "latin1"), Buffer.isBuffer(object) ? object : Buffer.from(object, "latin1"), Buffer.from("\nendobj\n", "latin1")]); }); const xref = pdf.length;
+  return Buffer.concat([pdf, Buffer.from(`xref\n0 ${objects.length + 1}\n0000000000 65535 f \n${offsets.slice(1).map(offset => `${String(offset).padStart(10, "0")} 00000 n `).join("\n")}\ntrailer << /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`, "latin1")]);
 }

@@ -85,6 +85,11 @@ describe("secure annual information reviews", () => {
     expect(manager).toContain("/dashboard/information-reviews/preview");
     expect(manager).toContain("Cancel request");
     expect(manager).toContain("immediately makes its secure public link unusable");
+    const approval = readFileSync("src/components/information-review-approval.tsx", "utf8");
+    expect(approval).toContain("Who pays?");
+    expect(approval).toContain("Photographs and media");
+    expect(approval).toContain("Information sharing with health professionals");
+    expect(approval).not.toContain("JSON.stringify(value,null,2)");
     expect(route).toContain("bcrypt.compare");
     expect(route).toContain("INFORMATION_REVIEW_DELETED");
     expect(route).toContain("INFORMATION_REVIEW_CANCELLED");

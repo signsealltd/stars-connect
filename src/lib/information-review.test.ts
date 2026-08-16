@@ -47,12 +47,41 @@ describe("secure annual information reviews", () => {
     expect(reviewAnswersSchema.safeParse({ firstName: "Alex", lastName: "Smith", displayName: "Alex", email: "not-an-email" }).success).toBe(false);
   });
 
+  it("accepts structured repeatable medical, consent and billing answers", () => {
+    const result = reviewAnswersSchema.safeParse({
+      firstName: "Alex", lastName: "Smith", displayName: "Alex",
+      medicalProfile: {
+        conditions: ["Epilepsy"], allergies: ["Penicillin"],
+        currentMedication: [{ name: "Medicine A", frequency: "Twice daily", dosage: "5 ml" }],
+        emergencyMedication: [{ name: "Rescue medicine", frequency: "When required", dosage: "One dose" }],
+      },
+      consents: {
+        photography: { internalCareRecords: true, website: false, socialMedia: false, printedMaterials: false, newslettersDisplays: true, pressReleases: false, promotionalVideos: false, none: false },
+        localTrips: "OTHER", localTripsOther: "Please telephone first", transport: true, emergencyTreatment: true, informationSharing: false,
+      },
+      billing: { payerType: "LOCAL_AUTHORITY", payerName: "Example Council", email: "billing@example.test" },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("continues accepting older free-text medical and boolean consent answers", () => {
+    const result = reviewAnswersSchema.safeParse({
+      firstName: "Alex", lastName: "Smith", displayName: "Alex",
+      medicalProfile: { conditions: "None known", allergies: "None known", currentMedication: "Medicine A" },
+      consents: { photography: true, localTrips: false, transport: true },
+    });
+    expect(result.success).toBe(true);
+  });
+
   it("provides a safe preview and password-protected completed-review deletion", () => {
     const form = readFileSync("src/components/public-information-review.tsx", "utf8");
     const manager = readFileSync("src/components/information-review-manager.tsx", "utf8");
     const route = readFileSync("src/app/api/information-reviews/[id]/route.ts", "utf8");
     expect(form).toContain("Welcome to your STARS information review");
     expect(form).toContain("Preview only");
+    expect(form).toContain("Add another medication");
+    expect(form).toContain("Local authority or council");
+    expect(form).toContain("Health professionals and agencies");
     expect(manager).toContain("/dashboard/information-reviews/preview");
     expect(route).toContain('existing.status !== "COMPLETED"');
     expect(route).toContain("bcrypt.compare");

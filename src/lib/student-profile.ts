@@ -10,10 +10,10 @@ export const secondaryEmergencyContactSchema = z.object({
 });
 
 export const medicalProfileSchema = z.object({
-  conditions: optionalText(),
-  allergies: optionalText(),
-  emergencyMedication: optionalText(),
-  currentMedication: optionalText(),
+  conditions: z.union([optionalText(), z.array(z.string().trim().max(1000)).max(30)]),
+  allergies: z.union([optionalText(), z.array(z.string().trim().max(1000)).max(30)]),
+  emergencyMedication: z.union([optionalText(), z.array(z.object({ name: z.string().trim().max(191), frequency: optionalText(191), dosage: optionalText(191) })).max(30)]),
+  currentMedication: z.union([optionalText(), z.array(z.object({ name: z.string().trim().max(191), frequency: optionalText(191), dosage: optionalText(191) })).max(30)]),
   instructions: optionalText(),
 });
 
@@ -44,7 +44,7 @@ export function nullableProfileText<T extends Record<string, unknown>>(input: T)
 }
 
 export function latestConsentValues(items: Array<{ consentType: string; newValue: unknown }>) {
-  const result: Record<string, boolean> = {};
-  for (const item of items) if (!(item.consentType in result)) result[item.consentType] = Boolean(item.newValue);
+  const result: Record<string, unknown> = {};
+  for (const item of items) if (!(item.consentType in result)) result[item.consentType] = item.newValue;
   return result;
 }

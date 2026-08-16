@@ -29,6 +29,33 @@ export type ReviewFieldKey = typeof reviewFieldDefinitions[number][0];
 export type ReviewAnswers = Record<string, unknown>;
 
 const optionalText = z.string().trim().max(4000).optional().nullable();
+const shortOptionalText = z.string().trim().max(191).optional().nullable();
+const repeatableText = z.union([
+  z.string().trim().max(4000),
+  z.array(z.string().trim().max(1000)).max(30),
+]);
+const medicationList = z.union([
+  z.string().trim().max(4000),
+  z.array(z.object({
+    name: z.string().trim().max(191),
+    frequency: z.string().trim().max(191).default(""),
+    dosage: z.string().trim().max(191).default(""),
+  })).max(30),
+]);
+const consentChoice = z.enum(["YES", "NO", "OTHER"]);
+const photographyConsent = z.union([
+  z.boolean(),
+  z.object({
+    internalCareRecords: z.boolean().default(false),
+    website: z.boolean().default(false),
+    socialMedia: z.boolean().default(false),
+    printedMaterials: z.boolean().default(false),
+    newslettersDisplays: z.boolean().default(false),
+    pressReleases: z.boolean().default(false),
+    promotionalVideos: z.boolean().default(false),
+    none: z.boolean().default(false),
+  }),
+]);
 export const reviewAnswersSchema = z.object({
   firstName: z.string().trim().min(1).max(80),
   lastName: z.string().trim().min(1).max(80),
@@ -43,10 +70,30 @@ export const reviewAnswersSchema = z.object({
   emergencyContactNotes: optionalText,
   secondaryEmergencyContact: z.record(z.string(), z.unknown()).optional().nullable(),
   gpName: optionalText, gpSurgery: optionalText, gpPhone: optionalText,
-  medicalProfile: z.record(z.string(), z.unknown()).optional().nullable(),
+  medicalProfile: z.object({
+    conditions: repeatableText.optional(),
+    allergies: repeatableText.optional(),
+    emergencyMedication: medicationList.optional(),
+    currentMedication: medicationList.optional(),
+    instructions: optionalText,
+  }).passthrough().optional().nullable(),
   personCentredProfile: z.record(z.string(), z.unknown()).optional().nullable(),
-  consents: z.record(z.string(), z.boolean()).optional().default({}),
-  billing: z.record(z.string(), z.unknown()).optional().default({}),
+  consents: z.object({
+    photography: photographyConsent.optional(),
+    localTrips: z.union([z.boolean(), consentChoice]).optional(),
+    localTripsOther: optionalText,
+    transport: z.boolean().optional(),
+    emergencyTreatment: z.boolean().optional(),
+    informationSharing: z.boolean().optional(),
+  }).passthrough().optional().default({}),
+  billing: z.object({
+    payerType: z.string().trim().max(191).optional(),
+    payerName: shortOptionalText,
+    email: z.union([z.literal(""), z.string().email().max(191)]).optional().nullable(),
+    phone: shortOptionalText,
+    address: optionalText,
+    reference: shortOptionalText,
+  }).passthrough().optional().default({}),
 });
 
 export const reviewDeclarationSchema = z.object({

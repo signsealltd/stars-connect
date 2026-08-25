@@ -65,6 +65,14 @@ describe("official invoice PDF", () => {
     expect(text).toContain('(Payment is due - quote GBP 100 "reference".)');
     expect(text).not.toContain("(Payment is due ?");
   });
+
+  it("prints a corrected historical billing period in the attendance column without truncation", () => {
+    const input = fixture();
+    input.rows[0].date = "29 June 2026 - 26 July 2026";
+    const text = invoicePdf(input).toString("latin1");
+    expect(text).toContain("(29 June 2026 - 26 July 2026)");
+  });
+
   it("paginates a full attendance month and repeats invoice context", () => {
     const text = invoicePdf(fixture(31)).toString("latin1");
     expect(text).toContain("/Count 3");

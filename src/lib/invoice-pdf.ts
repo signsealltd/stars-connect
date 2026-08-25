@@ -98,11 +98,11 @@ function tableHeader(y: number, showVat: boolean) {
   return [
     rect(42, y - 4, 511, 24, PURPLE_SOFT, BORDER),
     text("ATTENDANCE", 50, y + 5, 7, true, PURPLE),
-    text("SERVICE", 149, y + 5, 7, true, PURPLE),
-    text("DAYS", 260, y + 5, 7, true, PURPLE),
-    text("DAY RATE", 306, y + 5, 7, true, PURPLE),
-    text("NET", 374, y + 5, 7, true, PURPLE),
-    ...(showVat ? [text("VAT", 433, y + 5, 7, true, PURPLE)] : []),
+    text("SERVICE", 181, y + 5, 7, true, PURPLE),
+    text("DAYS", 280, y + 5, 7, true, PURPLE),
+    text("DAY RATE", 322, y + 5, 7, true, PURPLE),
+    text("NET", 386, y + 5, 7, true, PURPLE),
+    ...(showVat ? [text("VAT", 439, y + 5, 7, true, PURPLE)] : []),
     text("TOTAL", 487, y + 5, 7, true, PURPLE),
   ];
 }
@@ -111,12 +111,12 @@ function tableRow(row: InvoicePdfRow, y: number, alternate: boolean, showVat: bo
   const commands = [];
   if (alternate) commands.push(rect(42, y - 17, 511, 26, "0.985 0.98 0.99"));
   commands.push(
-    text(row.date, 50, y - 1, 7.5),
-    text(fit(row.service || "Attendance", 22), 149, y - 1, 7.5, true),
-    text(row.days, 260, y - 1, 7.5),
-    text(row.rate, 306, y - 1, 7.5),
-    text(row.net, 374, y - 1, 7.5),
-    ...(showVat ? [text(row.vat, 433, y - 1, 7.5)] : []),
+    text(fit(row.date, 35), 50, y - 1, 6.8),
+    text(fit(row.service || "Attendance", 18), 181, y - 1, 7.5, true),
+    text(row.days, 280, y - 1, 7.5),
+    text(row.rate, 322, y - 1, 7.5),
+    text(row.net, 386, y - 1, 7.5),
+    ...(showVat ? [text(row.vat, 439, y - 1, 7.5)] : []),
     text(row.total, 487, y - 1, 7.5, true),
     line(42, y - 17, 553, y - 17),
   );

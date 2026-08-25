@@ -44,7 +44,7 @@ export function SimpleFinanceRunReview({ mode, id }: { mode: "payroll" | "billin
   const [billingQuantity, setBillingQuantity] = useState("1");
   const [billingDate, setBillingDate] = useState("");
   const [editingInvoicePeriod, setEditingInvoicePeriod] = useState(false);
-  const [invoicePeriod, setInvoicePeriod] = useState({ periodStart: "", periodEnd: "", descriptionFrom: "", descriptionTo: "", reason: "", password: "" });
+  const [invoicePeriod, setInvoicePeriod] = useState({ periodStart: "", periodEnd: "", showPeriodAsAttendance: false, descriptionFrom: "", descriptionTo: "", reason: "", password: "" });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -208,7 +208,7 @@ function openBillingAdjustment(charge: Charge) {
     setError(""); setSuccess("");
     const descriptions = [...new Set((run.charges || []).filter(charge => !charge.excluded).map(charge => charge.description))];
     const descriptionFrom = descriptions.find(description => description === "Historical attendance") || descriptions[0] || "";
-    setInvoicePeriod({ periodStart: run.periodStart.slice(0, 10), periodEnd: run.periodEnd.slice(0, 10), descriptionFrom, descriptionTo: "", reason: "", password: "" });
+    setInvoicePeriod({ periodStart: run.periodStart.slice(0, 10), periodEnd: run.periodEnd.slice(0, 10), showPeriodAsAttendance: false, descriptionFrom, descriptionTo: "", reason: "", password: "" });
     setEditingInvoicePeriod(true);
   }
 
@@ -218,13 +218,13 @@ function openBillingAdjustment(charge: Charge) {
     if (invoicePeriod.periodEnd < invoicePeriod.periodStart) { setError("The end date cannot be before the start date."); return; }
     const datesChanged = invoicePeriod.periodStart !== run.periodStart.slice(0, 10) || invoicePeriod.periodEnd !== run.periodEnd.slice(0, 10);
     const wordingChanged = Boolean(invoicePeriod.descriptionFrom && invoicePeriod.descriptionTo.trim() && invoicePeriod.descriptionFrom !== invoicePeriod.descriptionTo.trim());
-    if (!datesChanged && !wordingChanged) { setError("Change the invoice dates or enter replacement service wording."); return; }
+    if (!datesChanged && !wordingChanged && !invoicePeriod.showPeriodAsAttendance) { setError("Change the invoice dates, attendance display or service wording."); return; }
     if (invoicePeriod.reason.trim().length < 5) { setError("Enter a correction reason of at least five characters."); return; }
     setWorking(true); setError(""); setSuccess("");
     try {
       const response = await fetch(`/api/billing/runs/${id}/correct-period`, {
         method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({
-          periodStart: invoicePeriod.periodStart, periodEnd: invoicePeriod.periodEnd,
+          periodStart: invoicePeriod.periodStart, periodEnd: invoicePeriod.periodEnd, showPeriodAsAttendance: invoicePeriod.showPeriodAsAttendance,
           ...(wordingChanged ? { descriptionFrom: invoicePeriod.descriptionFrom, descriptionTo: invoicePeriod.descriptionTo.trim() } : {}),
           reason: invoicePeriod.reason, password: invoicePeriod.password,
         }),
@@ -301,6 +301,7 @@ function openBillingAdjustment(charge: Charge) {
         <label className="form-label">Billing period starts<input className="field" type="date" required value={invoicePeriod.periodStart} onChange={event => setInvoicePeriod({...invoicePeriod, periodStart:event.target.value})}/></label>
         <label className="form-label">Billing period ends<input className="field" type="date" required value={invoicePeriod.periodEnd} onChange={event => setInvoicePeriod({...invoicePeriod, periodEnd:event.target.value})}/></label>
       </div>
+      <label className="check-row"><input type="checkbox" checked={invoicePeriod.showPeriodAsAttendance} onChange={event => setInvoicePeriod({...invoicePeriod, showPeriodAsAttendance:event.target.checked})}/><span><b>Show this full period in the Attendance column</b><small className="muted" style={{display:"block"}}>Use this for a historical invoice where each line should read, for example, 29 June 2026 - 26 July 2026. Live attendance records are not changed.</small></span></label>
       <div className="form-grid">
         <label className="form-label">Existing service wording<select className="field" value={invoicePeriod.descriptionFrom} onChange={event => setInvoicePeriod({...invoicePeriod, descriptionFrom:event.target.value})}><option value="">Do not replace wording</option>{[...new Set((run.charges || []).filter(charge => !charge.excluded).map(charge => charge.description))].map(description => <option key={description} value={description}>{description}</option>)}</select></label>
         <label className="form-label">Replacement service wording<input className="field" maxLength={191} placeholder="Leave blank to keep existing wording" value={invoicePeriod.descriptionTo} onChange={event => setInvoicePeriod({...invoicePeriod, descriptionTo:event.target.value})}/></label>

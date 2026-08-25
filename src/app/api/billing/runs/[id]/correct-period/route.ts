@@ -7,7 +7,7 @@ import { requestContext } from "@/lib/api";
 import { getBillingSettings } from "@/lib/billing-settings";
 import { APP_TIME_ZONE, localDateAsDatabaseDate } from "@/lib/dates";
 import { storeDocument } from "@/lib/documents";
-import { loadInvoiceLogo } from "@/lib/invoice-logo";
+import { loadInvoiceLogo, safeDocumentName } from "@/lib/invoice-logo";
 import { invoicePdf } from "@/lib/invoice-pdf";
 import { CAPABILITIES, requireCapability } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
@@ -18,6 +18,7 @@ const schema = z.object({
   periodEnd: z.string().date(),
   descriptionFrom: z.string().trim().min(2).max(191).optional(),
   descriptionTo: z.string().trim().min(2).max(191).optional(),
+  showPeriodAsAttendance: z.boolean().optional().default(false),
   reason: z.string().trim().min(5).max(1000),
   password: z.string().min(1).max(200),
 });
@@ -40,7 +41,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const descriptionsProvided = Boolean(parsed.data.descriptionFrom || parsed.data.descriptionTo);
   if (descriptionsProvided && (!parsed.data.descriptionFrom || !parsed.data.descriptionTo)) return NextResponse.json({ error: "Choose the existing service wording and enter its replacement." }, { status: 422 });
   const descriptionChanged = Boolean(parsed.data.descriptionFrom && parsed.data.descriptionTo && parsed.data.descriptionFrom !== parsed.data.descriptionTo);
-  if (!datesChanged && !descriptionChanged) return NextResponse.json({ error: "The invoice dates and service wording are unchanged." }, { status: 422 });
+  if (!datesChanged && !descriptionChanged && !parsed.data.showPeriodAsAttendance) return NextResponse.json({ error: "The invoice dates, attendance display and service wording are unchanged." }, { status: 422 });
   const matchingChargeIds = descriptionChanged ? run.charges.filter(charge => !charge.excluded && charge.description === parsed.data.descriptionFrom).map(charge => charge.id) : [];
   if (descriptionChanged && !matchingChargeIds.length) return NextResponse.json({ error: "No included invoice lines use that service wording." }, { status: 422 });
 
@@ -78,7 +79,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       studentName: studentFullName(student),
       studentReference: student.internalReference || "Not supplied",
       rows: charges.sort((a, b) => a.sourceDate.getTime() - b.sourceDate.getTime()).map(charge => ({
-        date: formatInTimeZone(charge.sourceDate, APP_TIME_ZONE, "dd/MM/yyyy"), service: matchingChargeIds.includes(charge.id) ? parsed.data.descriptionTo! : charge.description,
+        date: parsed.data.showPeriodAsAttendance
+          ? `${formatInTimeZone(periodStart, APP_TIME_ZONE, "d MMMM yyyy")} - ${formatInTimeZone(periodEnd, APP_TIME_ZONE, "d MMMM yyyy")}`
+          : formatInTimeZone(charge.sourceDate, APP_TIME_ZONE, "dd/MM/yyyy"),
+        service: matchingChargeIds.includes(charge.id) ? parsed.data.descriptionTo! : charge.description,
         days: Number(charge.quantity).toFixed(2), rate: `GBP ${Number(charge.unitRate).toFixed(2)}`,
         net: `GBP ${Number(charge.netAmount).toFixed(2)}`, vat: `GBP ${Number(charge.vatAmount).toFixed(2)}`,
         total: `GBP ${Number(charge.grossAmount).toFixed(2)}`,
@@ -92,7 +96,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       generatedAt: formatInTimeZone(new Date(), APP_TIME_ZONE, "dd MMMM yyyy HH:mm"),
     });
     const document = await storeDocument({
-      documentNumber: oldDocument.documentNumber,
+      documentNumber: `${invoice.invoiceNumber}-${safeDocumentName(studentFullName(student))}-${safeDocumentName(student.internalReference || "No-reference")}`,
       documentType: "INVOICE",
       periodStart,
       periodEnd,
@@ -123,7 +127,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   await audit("BILLING_INVOICES_CORRECTED", {
     actorType: "USER", actorId: actor.id, entityType: "BillingRun", entityId: id,
     beforeValue: { periodStart: run.periodStart.toISOString().slice(0, 10), periodEnd: run.periodEnd.toISOString().slice(0, 10), serviceDescription: parsed.data.descriptionFrom, version: run.version },
-    afterValue: { periodStart: parsed.data.periodStart, periodEnd: parsed.data.periodEnd, serviceDescription: parsed.data.descriptionTo, correctedLines: matchingChargeIds.length, version: run.version + 1, invoiceCount: correctedDocuments.length, reason: parsed.data.reason },
+    afterValue: { periodStart: parsed.data.periodStart, periodEnd: parsed.data.periodEnd, attendanceDisplay: parsed.data.showPeriodAsAttendance ? "BILLING_PERIOD" : "SERVICE_DATE", serviceDescription: parsed.data.descriptionTo, correctedLines: matchingChargeIds.length, version: run.version + 1, invoiceCount: correctedDocuments.length, reason: parsed.data.reason },
     ...requestContext(req),
   });
   return NextResponse.json({ ok: true, invoiceCount: correctedDocuments.length });

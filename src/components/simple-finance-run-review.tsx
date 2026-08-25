@@ -20,7 +20,7 @@ type Charge = {
 type Run = {
   id: string; label?: string; historicalMode?: boolean; status: string; version: number; periodStart: string; periodEnd: string; updatedAt: string;
   entries?: Entry[]; charges?: Charge[];
-  invoices?: Array<{ id: string; invoiceNumber: string; documentId?: string; grossTotal: string | number }>;
+  invoices?: Array<{ id: string; studentId?: string; invoiceNumber: string; documentId?: string; grossTotal: string | number }>;
 };
 
 const hours = (minutes: number) => `${(minutes / 60).toFixed(2)}h`;
@@ -43,6 +43,8 @@ export function SimpleFinanceRunReview({ mode, id }: { mode: "payroll" | "billin
   const [billingDescription, setBillingDescription] = useState("Day trip");
   const [billingQuantity, setBillingQuantity] = useState("1");
   const [billingDate, setBillingDate] = useState("");
+  const [editingInvoicePeriod, setEditingInvoicePeriod] = useState(false);
+  const [invoicePeriod, setInvoicePeriod] = useState({ periodStart: "", periodEnd: "", reason: "", password: "" });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -201,6 +203,32 @@ function openBillingAdjustment(charge: Charge) {
     } finally { setWorking(false); }
   }
 
+  function openInvoicePeriodCorrection() {
+    if (!run) return;
+    setError(""); setSuccess("");
+    setInvoicePeriod({ periodStart: run.periodStart.slice(0, 10), periodEnd: run.periodEnd.slice(0, 10), reason: "", password: "" });
+    setEditingInvoicePeriod(true);
+  }
+
+  async function correctInvoicePeriod(event: React.FormEvent) {
+    event.preventDefault();
+    if (!run) return;
+    if (invoicePeriod.periodEnd < invoicePeriod.periodStart) { setError("The end date cannot be before the start date."); return; }
+    if (invoicePeriod.reason.trim().length < 5) { setError("Enter a correction reason of at least five characters."); return; }
+    setWorking(true); setError(""); setSuccess("");
+    try {
+      const response = await fetch(`/api/billing/runs/${id}/correct-period`, {
+        method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(invoicePeriod),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.error || "Unable to correct the invoice dates.");
+      setEditingInvoicePeriod(false);
+      setSuccess(`${body.invoiceCount} corrected invoice document${body.invoiceCount === 1 ? "" : "s"} created. The previous versions remain in the audit history.`);
+      await load();
+    } catch (caught) { setError(caught instanceof Error ? caught.message : "Unable to correct the invoice dates."); }
+    finally { setWorking(false); }
+  }
+
   if (loading) return <div className="empty">Loading calculated records...</div>;
   if (!run) return <div className="alert alert-error">{error || "Run not found."}</div>;
   const complete = ["EXPORTED", "INVOICES_GENERATED"].includes(run.status);
@@ -242,6 +270,7 @@ function openBillingAdjustment(charge: Charge) {
           window.location.assign(`/api/documents/${body.zipDocument.id}/download`);
         } catch (caught) { setError(caught instanceof Error ? caught.message : "Unable to download invoices."); setWorking(false); }
       }}>{working ? "Preparing download..." : "Download invoices"}</button>}
+      {mode === "billing" && complete && <button className="btn secondary" disabled={working} onClick={openInvoicePeriodCorrection}>Edit invoice dates</button>}
       {mode === "payroll" && complete && <a className="btn primary" href="/dashboard/reports/payroll">Download payroll files</a>}
     </div>
     <section className="card table-wrap"><table className="table">
@@ -251,10 +280,22 @@ function openBillingAdjustment(charge: Charge) {
         return <tr key={entry.id}><td><button className="btn ghost" disabled={working || complete || isExcluded} onClick={() => openPayItem(entry)}>{entry.staffName}</button></td><td>{entry.payrollNumber || "Not configured"}</td><td>{hours(entry.ordinaryMinutes)}</td><td>{hours(entry.overtimeMinutes)}<small style={{display:"block"}}>{entry.overtimeHourlyRate != null || entry.hourlyRate != null ? `@ GBP ${Number(entry.overtimeHourlyRate ?? entry.hourlyRate).toFixed(2)}/hour` : "Rate not configured"}</small></td><td>{hours(entry.adjustmentMinutes)}<small style={{display:"block"}}>Holiday {hours(entry.holidayMinutes)} | Sickness {hours(entry.sicknessMinutes)} | Training {hours(entry.trainingMinutes)} | Unpaid {hours(entry.unpaidMinutes)}<br/>Original {hours(entry.originalMinutes)} | {entry.transportMinutes>0&&<><Bus size={15} style={{verticalAlign:"middle"}}/> +{(entry.transportMinutes/60).toFixed(2)} Hours | </>}Before rounding {hours(entry.preRoundedMinutes)} | Rounding {entry.roundingMinutes>=0?"+":""}{hours(entry.roundingMinutes)}</small></td><td>{hours(entry.totalPayableMinutes)}</td><td>{entry.exceptionCount ? (isExcluded ? "EXCLUDED" : entry.exceptionStatus) : "CLEAR"}</td><td><div className="table-actions">{!complete && !isExcluded && <button className="btn secondary" disabled={working} onClick={() => openPayItem(entry)}>Add pay item</button>}{entry.exceptionCount > 0 && !isExcluded && <button className="btn primary" disabled={working} onClick={() => resolve(entry)}>Resolve warning</button>}<button className="btn secondary" disabled={working || complete} onClick={() => exclude(entry, isExcluded)}>{isExcluded ? "Restore" : "Exclude"}</button></div></td></tr>;
       })() : (() => {
         const charge = record as Charge; const missing = charge.exceptionCode === "MISSING_BILLING_PROFILE";
-        return <tr key={charge.id}><td>{charge.studentName}</td><td>{missing ? "Not set up" : charge.payerName}</td><td>{missing ? "Billing details required" : <>{charge.description}{charge.manuallyAdjusted && <small className="muted" style={{display:"block"}}>Adjusted with reason recorded</small>}</>}</td><td>{money(charge.netAmount)}</td><td>{money(charge.vatAmount)}</td><td><b>{money(charge.grossAmount)}</b></td><td>{charge.excluded ? "EXCLUDED" : missing ? "SETUP REQUIRED" : charge.exceptionCode || (charge.manuallyAdjusted ? "ADJUSTED" : "CLEAR")}</td><td><div className="table-actions">{missing ? <a className="btn primary" href={`/dashboard/billing/profiles?studentId=${charge.studentId}&returnTo=${encodeURIComponent(`/dashboard/billing/runs/${id}`)}`}>Set up billing</a> : <button className="btn primary" disabled={working || complete || charge.excluded} onClick={() => openBillingAdjustment(charge)}>{charge.exceptionCode === "HISTORICAL_ATTENDANCE_REQUIRED" ? "Enter attendance days" : "Add service"}</button>}<button className="btn secondary" disabled={working || complete} onClick={() => exclude(charge, charge.excluded)}>{charge.excluded ? "Restore" : "Exclude"}</button></div></td></tr>;
+        const invoice = run.invoices?.find(item => item.studentId === charge.studentId);
+        return <tr key={charge.id}><td>{invoice ? <a href={`/dashboard/billing/invoices/${invoice.id}`} title={`View invoice ${invoice.invoiceNumber}`}>{charge.studentName}</a> : charge.studentName}</td><td>{missing ? "Not set up" : charge.payerName}</td><td>{missing ? "Billing details required" : <>{charge.description}{charge.manuallyAdjusted && <small className="muted" style={{display:"block"}}>Adjusted with reason recorded</small>}</>}</td><td>{money(charge.netAmount)}</td><td>{money(charge.vatAmount)}</td><td><b>{money(charge.grossAmount)}</b></td><td>{charge.excluded ? "EXCLUDED" : missing ? "SETUP REQUIRED" : charge.exceptionCode || (charge.manuallyAdjusted ? "ADJUSTED" : "CLEAR")}</td><td><div className="table-actions">{missing ? <a className="btn primary" href={`/dashboard/billing/profiles?studentId=${charge.studentId}&returnTo=${encodeURIComponent(`/dashboard/billing/runs/${id}`)}`}>Set up billing</a> : <button className="btn primary" disabled={working || complete || charge.excluded} onClick={() => openBillingAdjustment(charge)}>{charge.exceptionCode === "HISTORICAL_ATTENDANCE_REQUIRED" ? "Enter attendance days" : "Add service"}</button>}<button className="btn secondary" disabled={working || complete} onClick={() => exclude(charge, charge.excluded)}>{charge.excluded ? "Restore" : "Exclude"}</button></div></td></tr>;
       })())}</tbody>
     </table>{!visible.length && <div className="empty">No records match this filter.</div>}</section>
     {(run.invoices || []).length > 0 && <section className="card"><h2>Generated invoices</h2>{run.invoices!.map(invoice => <p key={invoice.id}>{invoice.invoiceNumber} | {money(invoice.grossTotal)} {invoice.documentId && <a className="btn secondary" href={`/api/documents/${invoice.documentId}/download`}>Download</a>}</p>)}</section>}
+    {editingInvoicePeriod && <div className="modal-backdrop"><form className="modal" onSubmit={correctInvoicePeriod}>
+      <h2>Correct invoice dates</h2>
+      <p className="muted">This creates a corrected version of every invoice in this run. Existing invoice numbers and totals stay unchanged, and the original documents remain recorded for audit.</p>
+      <div className="form-grid">
+        <label className="form-label">Billing period starts<input className="field" type="date" required value={invoicePeriod.periodStart} onChange={event => setInvoicePeriod({...invoicePeriod, periodStart:event.target.value})}/></label>
+        <label className="form-label">Billing period ends<input className="field" type="date" required value={invoicePeriod.periodEnd} onChange={event => setInvoicePeriod({...invoicePeriod, periodEnd:event.target.value})}/></label>
+      </div>
+      <label className="form-label">Reason for correction<textarea className="field" minLength={5} maxLength={1000} required value={invoicePeriod.reason} onChange={event => setInvoicePeriod({...invoicePeriod, reason:event.target.value})}/></label>
+      <label className="form-label">Confirm with your password<input className="field" type="password" autoComplete="new-password" required value={invoicePeriod.password} onChange={event => setInvoicePeriod({...invoicePeriod, password:event.target.value})}/></label>
+      <div className="modal-actions"><button type="button" className="btn secondary" disabled={working} onClick={() => setEditingInvoicePeriod(false)}>Cancel</button><button className="btn primary" disabled={working}>{working ? "Creating corrected versions..." : "Correct and regenerate invoices"}</button></div>
+    </form></div>}
     {payItemEntry && <div className="modal-backdrop"><form className="modal" onSubmit={addPayItem}>
       <h2>Add pay item for {payItemEntry.staffName}</h2>
       <div className="form-grid">

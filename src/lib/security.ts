@@ -16,6 +16,30 @@ export class AccessError extends Error {
 export const sha256 = (value: string) =>
   createHash("sha256").update(value).digest("hex");
 
+async function ensureSingleOrganisationAssignment<T extends { id: string; organisationId: string | null }>(user: T): Promise<T> {
+  if (user.organisationId) return user;
+  const organisations = await prisma.organisation.findMany({ select: { id: true }, take: 2 });
+  if (organisations.length !== 1) return user;
+  const organisationId = organisations[0].id;
+  const assigned = await prisma.user.updateMany({
+    where: { id: user.id, organisationId: null },
+    data: { organisationId },
+  });
+  if (assigned.count) {
+    await prisma.auditLog.create({
+      data: {
+        action: "USER_ORGANISATION_ASSIGNED",
+        actorType: "SYSTEM",
+        actorId: user.id,
+        entityType: "User",
+        entityId: user.id,
+        afterValue: { organisationId, reason: "single-organisation-account-repair" },
+      },
+    });
+  }
+  return { ...user, organisationId };
+}
+
 export async function createSession(userId: string) {
   const token = randomBytes(32).toString("base64url");
   await prisma.session.create({
@@ -50,7 +74,8 @@ export async function getSession() {
   if (session.lastSeenAt.getTime() < now.getTime() - SESSION_TOUCH_MS) {
     await prisma.session.updateMany({ where: { id: session.id, lastSeenAt: session.lastSeenAt }, data: { lastSeenAt: now } });
   }
-  return session;
+  const user = await ensureSingleOrganisationAssignment(session.user);
+  return { ...session, user };
 }
 
 const rank: Record<Role, number> = {

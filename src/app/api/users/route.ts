@@ -30,12 +30,17 @@ export async function POST(req: NextRequest) {
     }
     const { password, permissionOverrides, ...data } = parsed.data;
     const user = await prisma.user.create({
-      data: { ...data, permissionOverrides:permissionOverrides||{}, passwordHash: await bcrypt.hash(password, 12) },
+      data: {
+        ...data,
+        organisationId: actor.organisationId,
+        permissionOverrides:permissionOverrides||{},
+        passwordHash: await bcrypt.hash(password, 12),
+      },
       select: publicUser,
     });
     await audit("USER_CREATED", {
       actorType: "USER", actorId: actor.id, entityType: "User", entityId: user.id,
-      afterValue: { name: user.name, username:user.username, email: user.email, role: user.role, active: user.active, permissionsCustomised:Boolean(Object.keys(permissionOverrides||{}).length) },
+      afterValue: { name: user.name, username:user.username, email: user.email, role: user.role, active: user.active, organisationId: actor.organisationId, permissionsCustomised:Boolean(Object.keys(permissionOverrides||{}).length) },
       ...requestContext(req),
     });
     return NextResponse.json(user, { status: 201 });

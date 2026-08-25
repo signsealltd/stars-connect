@@ -44,7 +44,7 @@ export function SimpleFinanceRunReview({ mode, id }: { mode: "payroll" | "billin
   const [billingQuantity, setBillingQuantity] = useState("1");
   const [billingDate, setBillingDate] = useState("");
   const [editingInvoicePeriod, setEditingInvoicePeriod] = useState(false);
-  const [invoicePeriod, setInvoicePeriod] = useState({ periodStart: "", periodEnd: "", reason: "", password: "" });
+  const [invoicePeriod, setInvoicePeriod] = useState({ periodStart: "", periodEnd: "", descriptionFrom: "", descriptionTo: "", reason: "", password: "" });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -206,7 +206,9 @@ function openBillingAdjustment(charge: Charge) {
   function openInvoicePeriodCorrection() {
     if (!run) return;
     setError(""); setSuccess("");
-    setInvoicePeriod({ periodStart: run.periodStart.slice(0, 10), periodEnd: run.periodEnd.slice(0, 10), reason: "", password: "" });
+    const descriptions = [...new Set((run.charges || []).filter(charge => !charge.excluded).map(charge => charge.description))];
+    const descriptionFrom = descriptions.find(description => description === "Historical attendance") || descriptions[0] || "";
+    setInvoicePeriod({ periodStart: run.periodStart.slice(0, 10), periodEnd: run.periodEnd.slice(0, 10), descriptionFrom, descriptionTo: "", reason: "", password: "" });
     setEditingInvoicePeriod(true);
   }
 
@@ -214,18 +216,25 @@ function openBillingAdjustment(charge: Charge) {
     event.preventDefault();
     if (!run) return;
     if (invoicePeriod.periodEnd < invoicePeriod.periodStart) { setError("The end date cannot be before the start date."); return; }
+    const datesChanged = invoicePeriod.periodStart !== run.periodStart.slice(0, 10) || invoicePeriod.periodEnd !== run.periodEnd.slice(0, 10);
+    const wordingChanged = Boolean(invoicePeriod.descriptionFrom && invoicePeriod.descriptionTo.trim() && invoicePeriod.descriptionFrom !== invoicePeriod.descriptionTo.trim());
+    if (!datesChanged && !wordingChanged) { setError("Change the invoice dates or enter replacement service wording."); return; }
     if (invoicePeriod.reason.trim().length < 5) { setError("Enter a correction reason of at least five characters."); return; }
     setWorking(true); setError(""); setSuccess("");
     try {
       const response = await fetch(`/api/billing/runs/${id}/correct-period`, {
-        method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(invoicePeriod),
+        method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({
+          periodStart: invoicePeriod.periodStart, periodEnd: invoicePeriod.periodEnd,
+          ...(wordingChanged ? { descriptionFrom: invoicePeriod.descriptionFrom, descriptionTo: invoicePeriod.descriptionTo.trim() } : {}),
+          reason: invoicePeriod.reason, password: invoicePeriod.password,
+        }),
       });
       const body = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(body.error || "Unable to correct the invoice dates.");
+      if (!response.ok) throw new Error(body.error || "Unable to correct the invoices.");
       setEditingInvoicePeriod(false);
       setSuccess(`${body.invoiceCount} corrected invoice document${body.invoiceCount === 1 ? "" : "s"} created. The previous versions remain in the audit history.`);
       await load();
-    } catch (caught) { setError(caught instanceof Error ? caught.message : "Unable to correct the invoice dates."); }
+    } catch (caught) { setError(caught instanceof Error ? caught.message : "Unable to correct the invoices."); }
     finally { setWorking(false); }
   }
 
@@ -270,7 +279,7 @@ function openBillingAdjustment(charge: Charge) {
           window.location.assign(`/api/documents/${body.zipDocument.id}/download`);
         } catch (caught) { setError(caught instanceof Error ? caught.message : "Unable to download invoices."); setWorking(false); }
       }}>{working ? "Preparing download..." : "Download invoices"}</button>}
-      {mode === "billing" && complete && <button className="btn secondary" disabled={working} onClick={openInvoicePeriodCorrection}>Edit invoice dates</button>}
+      {mode === "billing" && complete && <button className="btn secondary" disabled={working} onClick={openInvoicePeriodCorrection}>Edit invoices</button>}
       {mode === "payroll" && complete && <a className="btn primary" href="/dashboard/reports/payroll">Download payroll files</a>}
     </div>
     <section className="card table-wrap"><table className="table">
@@ -286,15 +295,19 @@ function openBillingAdjustment(charge: Charge) {
     </table>{!visible.length && <div className="empty">No records match this filter.</div>}</section>
     {(run.invoices || []).length > 0 && <section className="card"><h2>Generated invoices</h2>{run.invoices!.map(invoice => <p key={invoice.id}>{invoice.invoiceNumber} | {money(invoice.grossTotal)} {invoice.documentId && <a className="btn secondary" href={`/api/documents/${invoice.documentId}/download`}>Download</a>}</p>)}</section>}
     {editingInvoicePeriod && <div className="modal-backdrop"><form className="modal" onSubmit={correctInvoicePeriod}>
-      <h2>Correct invoice dates</h2>
-      <p className="muted">This creates a corrected version of every invoice in this run. Existing invoice numbers and totals stay unchanged, and the original documents remain recorded for audit.</p>
+      <h2>Edit generated invoices</h2>
+      <p className="muted">Correct the billing period, replace service wording across all matching invoice lines, or both. Invoice numbers and financial values stay unchanged, and the original documents remain recorded for audit.</p>
       <div className="form-grid">
         <label className="form-label">Billing period starts<input className="field" type="date" required value={invoicePeriod.periodStart} onChange={event => setInvoicePeriod({...invoicePeriod, periodStart:event.target.value})}/></label>
         <label className="form-label">Billing period ends<input className="field" type="date" required value={invoicePeriod.periodEnd} onChange={event => setInvoicePeriod({...invoicePeriod, periodEnd:event.target.value})}/></label>
       </div>
+      <div className="form-grid">
+        <label className="form-label">Existing service wording<select className="field" value={invoicePeriod.descriptionFrom} onChange={event => setInvoicePeriod({...invoicePeriod, descriptionFrom:event.target.value})}><option value="">Do not replace wording</option>{[...new Set((run.charges || []).filter(charge => !charge.excluded).map(charge => charge.description))].map(description => <option key={description} value={description}>{description}</option>)}</select></label>
+        <label className="form-label">Replacement service wording<input className="field" maxLength={191} placeholder="Leave blank to keep existing wording" value={invoicePeriod.descriptionTo} onChange={event => setInvoicePeriod({...invoicePeriod, descriptionTo:event.target.value})}/></label>
+      </div>
       <label className="form-label">Reason for correction<textarea className="field" minLength={5} maxLength={1000} required value={invoicePeriod.reason} onChange={event => setInvoicePeriod({...invoicePeriod, reason:event.target.value})}/></label>
       <label className="form-label">Confirm with your password<input className="field" type="password" autoComplete="new-password" required value={invoicePeriod.password} onChange={event => setInvoicePeriod({...invoicePeriod, password:event.target.value})}/></label>
-      <div className="modal-actions"><button type="button" className="btn secondary" disabled={working} onClick={() => setEditingInvoicePeriod(false)}>Cancel</button><button className="btn primary" disabled={working}>{working ? "Creating corrected versions..." : "Correct and regenerate invoices"}</button></div>
+      <div className="modal-actions"><button type="button" className="btn secondary" disabled={working} onClick={() => setEditingInvoicePeriod(false)}>Cancel</button><button className="btn primary" disabled={working}>{working ? "Creating corrected versions..." : "Save and regenerate invoices"}</button></div>
     </form></div>}
     {payItemEntry && <div className="modal-backdrop"><form className="modal" onSubmit={addPayItem}>
       <h2>Add pay item for {payItemEntry.staffName}</h2>

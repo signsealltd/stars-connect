@@ -97,7 +97,7 @@ function pageHeader(input: InvoicePdfInput, page: number) {
 function tableHeader(y: number, showVat: boolean) {
   return [
     rect(42, y - 4, 511, 24, PURPLE_SOFT, BORDER),
-    text("ATTENDANCE DATE", 50, y + 5, 7, true, PURPLE),
+    text("ATTENDANCE", 50, y + 5, 7, true, PURPLE),
     text("SERVICE", 149, y + 5, 7, true, PURPLE),
     text("DAYS", 260, y + 5, 7, true, PURPLE),
     text("DAY RATE", 306, y + 5, 7, true, PURPLE),

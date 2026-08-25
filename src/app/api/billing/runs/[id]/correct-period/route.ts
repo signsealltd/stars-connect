@@ -11,10 +11,13 @@ import { loadInvoiceLogo } from "@/lib/invoice-logo";
 import { invoicePdf } from "@/lib/invoice-pdf";
 import { CAPABILITIES, requireCapability } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
+import { studentFullName } from "@/lib/student-name";
 
 const schema = z.object({
   periodStart: z.string().date(),
   periodEnd: z.string().date(),
+  descriptionFrom: z.string().trim().min(2).max(191).optional(),
+  descriptionTo: z.string().trim().min(2).max(191).optional(),
   reason: z.string().trim().min(5).max(1000),
   password: z.string().min(1).max(200),
 });
@@ -33,16 +36,22 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const run = await prisma.billingRun.findUnique({ where: { id }, include: { charges: true, invoices: true } });
   if (!run) return NextResponse.json({ error: "Billing run not found." }, { status: 404 });
   if (run.status !== "INVOICES_GENERATED" || !run.invoices.length) return NextResponse.json({ error: "Only a completed billing run with generated invoices can be corrected here." }, { status: 409 });
-  if (run.periodStart.getTime() === periodStart.getTime() && run.periodEnd.getTime() === periodEnd.getTime()) return NextResponse.json({ error: "The corrected dates are unchanged." }, { status: 422 });
+  const datesChanged = run.periodStart.getTime() !== periodStart.getTime() || run.periodEnd.getTime() !== periodEnd.getTime();
+  const descriptionsProvided = Boolean(parsed.data.descriptionFrom || parsed.data.descriptionTo);
+  if (descriptionsProvided && (!parsed.data.descriptionFrom || !parsed.data.descriptionTo)) return NextResponse.json({ error: "Choose the existing service wording and enter its replacement." }, { status: 422 });
+  const descriptionChanged = Boolean(parsed.data.descriptionFrom && parsed.data.descriptionTo && parsed.data.descriptionFrom !== parsed.data.descriptionTo);
+  if (!datesChanged && !descriptionChanged) return NextResponse.json({ error: "The invoice dates and service wording are unchanged." }, { status: 422 });
+  const matchingChargeIds = descriptionChanged ? run.charges.filter(charge => !charge.excluded && charge.description === parsed.data.descriptionFrom).map(charge => charge.id) : [];
+  if (descriptionChanged && !matchingChargeIds.length) return NextResponse.json({ error: "No included invoice lines use that service wording." }, { status: 422 });
 
-  const conflicting = await prisma.billingRun.findFirst({ where: { id: { not: id }, periodStart, periodEnd, version: run.version + 1 }, select: { id: true } });
+  const conflicting = datesChanged ? await prisma.billingRun.findFirst({ where: { id: { not: id }, periodStart, periodEnd, version: run.version + 1 }, select: { id: true } }) : null;
   if (conflicting) return NextResponse.json({ error: "A billing run already uses these corrected dates and version. Contact an administrator before continuing." }, { status: 409 });
 
   const settings = await getBillingSettings();
   const logoJpeg = await loadInvoiceLogo(settings.invoiceLogoUrl);
   const profiles = await prisma.billingProfile.findMany({ where: { id: { in: run.invoices.map(invoice => invoice.billingProfileId) } } });
   const studentIds = run.invoices.map(invoice => invoice.studentId).filter((value): value is string => Boolean(value));
-  const students = await prisma.student.findMany({ where: { id: { in: studentIds } }, select: { id: true, displayName: true, internalReference: true } });
+  const students = await prisma.student.findMany({ where: { id: { in: studentIds } }, select: { id: true, firstName: true, lastName: true, displayName: true, internalReference: true } });
   const previousDocuments = await prisma.documentRecord.findMany({ where: { id: { in: run.invoices.map(invoice => invoice.documentId).filter((value): value is string => Boolean(value)) } } });
   if (previousDocuments.length !== run.invoices.length) return NextResponse.json({ error: "One or more original invoice documents are unavailable, so the correction was stopped safely." }, { status: 409 });
 
@@ -66,10 +75,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       vatNumber: settings.vatNumber,
       payerName: profile.payerName,
       payerAddress: profile.billingAddress.split(/\r?\n/),
-      studentName: student.displayName,
+      studentName: studentFullName(student),
       studentReference: student.internalReference || "Not supplied",
       rows: charges.sort((a, b) => a.sourceDate.getTime() - b.sourceDate.getTime()).map(charge => ({
-        date: formatInTimeZone(charge.sourceDate, APP_TIME_ZONE, "dd/MM/yyyy"), service: charge.description,
+        date: formatInTimeZone(charge.sourceDate, APP_TIME_ZONE, "dd/MM/yyyy"), service: matchingChargeIds.includes(charge.id) ? parsed.data.descriptionTo! : charge.description,
         days: Number(charge.quantity).toFixed(2), rate: `GBP ${Number(charge.unitRate).toFixed(2)}`,
         net: `GBP ${Number(charge.netAmount).toFixed(2)}`, vat: `GBP ${Number(charge.vatAmount).toFixed(2)}`,
         total: `GBP ${Number(charge.grossAmount).toFixed(2)}`,
@@ -108,12 +117,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       await tx.documentRecord.update({ where: { id: corrected.newDocumentId }, data: { supersededDocumentId: corrected.oldDocumentId } });
       await tx.invoice.update({ where: { id: corrected.invoiceId }, data: { documentId: corrected.newDocumentId, version: { increment: 1 } } });
     }
+    if (matchingChargeIds.length) await tx.billingCharge.updateMany({ where: { id: { in: matchingChargeIds } }, data: { description: parsed.data.descriptionTo } });
     await tx.billingRun.update({ where: { id }, data: { periodStart, periodEnd, version: { increment: 1 }, revisionReason: parsed.data.reason } });
   });
-  await audit("BILLING_INVOICE_PERIOD_CORRECTED", {
+  await audit("BILLING_INVOICES_CORRECTED", {
     actorType: "USER", actorId: actor.id, entityType: "BillingRun", entityId: id,
-    beforeValue: { periodStart: run.periodStart.toISOString().slice(0, 10), periodEnd: run.periodEnd.toISOString().slice(0, 10), version: run.version },
-    afterValue: { periodStart: parsed.data.periodStart, periodEnd: parsed.data.periodEnd, version: run.version + 1, invoiceCount: correctedDocuments.length, reason: parsed.data.reason },
+    beforeValue: { periodStart: run.periodStart.toISOString().slice(0, 10), periodEnd: run.periodEnd.toISOString().slice(0, 10), serviceDescription: parsed.data.descriptionFrom, version: run.version },
+    afterValue: { periodStart: parsed.data.periodStart, periodEnd: parsed.data.periodEnd, serviceDescription: parsed.data.descriptionTo, correctedLines: matchingChargeIds.length, version: run.version + 1, invoiceCount: correctedDocuments.length, reason: parsed.data.reason },
     ...requestContext(req),
   });
   return NextResponse.json({ ok: true, invoiceCount: correctedDocuments.length });

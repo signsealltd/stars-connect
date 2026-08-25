@@ -50,6 +50,8 @@ describe("official invoice PDF", () => {
     expect(text).toContain("(Test Student)");
     expect(text).toContain("(TEST1)");
     expect(text).toContain("(ATTENDANCE BREAKDOWN)");
+    expect(text).toContain("(ATTENDANCE)");
+    expect(text).not.toContain("(ATTENDANCE DATE)");
     expect(text).toContain("(01/07/2026)");
     expect(text).toContain("(Day trip)");
     expect(text).not.toContain("Manager confirmed");

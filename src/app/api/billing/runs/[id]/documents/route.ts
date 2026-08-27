@@ -18,6 +18,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       sourceType: "BillingRun",
       sourceId: id,
       version: run.version,
+      status: "GENERATED",
       documentType: { in: ["INVOICE_ZIP", "INVOICE_REGISTER_CSV"] },
     },
     orderBy: { generatedAt: "desc" },

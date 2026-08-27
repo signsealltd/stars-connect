@@ -1024,6 +1024,7 @@ model Invoice {
   documentId       String?    @db.Char(36)
   issuedAt         DateTime?
   supersedesId     String?    @db.Char(36)
+  reissueData      Json?
   createdAt        DateTime   @default(now())
   updatedAt        DateTime   @updatedAt
 

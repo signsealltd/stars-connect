@@ -1,0 +1,3 @@
+import { describe,expect,it } from "vitest";
+import { calculateInvoiceLines,calculateInvoiceTotals,invoiceReissueSchema } from "./invoice-reissue";
+describe("invoice reissue",()=>{it("recalculates every line and total",()=>{const lines=calculateInvoiceLines([{date:"29/06/2026",service:"Attendance",quantity:2,unitRate:104.97,vatRate:20},{date:"30/06/2026",service:"Day trip",quantity:1,unitRate:15,vatRate:0}]);expect(lines[0]).toMatchObject({net:209.94,vat:41.99,total:251.93});expect(calculateInvoiceTotals(lines)).toEqual({net:224.94,vat:41.99,gross:266.93})});it("requires a reason, password and at least one line",()=>expect(invoiceReissueSchema.safeParse({action:"reissue"}).success).toBe(false))});

@@ -9,7 +9,7 @@ const dates = (data: z.infer<typeof trainingSchema>) => ({ ...data, provider: da
 
 export async function GET(req: NextRequest) { return withRole(req, "MANAGER", async () => {
   const includeArchived = req.nextUrl.searchParams.get("archived") === "true";
-  const rows = await prisma.staffTrainingRecord.findMany({ where: includeArchived ? {} : { active: true }, include: { staff: { select: { firstName: true, lastName: true, displayName: true, active: true } } }, orderBy: [{ expiryDate: "asc" }, { completedDate: "desc" }] });
+  const rows = await prisma.staffTrainingRecord.findMany({ where: includeArchived ? {} : { active: true }, include: { staff: { select: { firstName: true, lastName: true, displayName: true, active: true } }, course:true, trainingProvider:true }, orderBy: [{ expiryDate: "asc" }, { completedDate: "desc" }] });
   return NextResponse.json(rows);
 }); }
 export async function POST(req: NextRequest) { return withRole(req, "MANAGER", async (user) => {

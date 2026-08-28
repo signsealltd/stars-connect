@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
       prisma.student.findMany({ where: { active: true, archivedAt: null }, select: { id: true, displayName: true, internalReference: true, expectedDays: true, startDate: true, endDate: true }, orderBy: [{ sortOrder: "asc" }, { displayName: "asc" }] }),
       prisma.staffScheduleOccurrence.findMany({ where: { organisationId, startAt: { lte: endExclusive }, endAt: { gte: start }, status: { not: "CANCELLED" } }, include: { staff: { select: { displayName: true } } }, orderBy: { startAt: "asc" }, take: 500 }),
       prisma.operationOccurrence.findMany({ where: { organisationId, startAt: { lte: endExclusive }, endAt: { gte: start }, status: { not: "CANCELLED" } }, include: { operation: { select: { title: true, type: true, description: true } }, assignments: { where: { status: "ASSIGNED" }, include: { staff: { select: { displayName: true } } } }, attendees: { include: { student: { select: { displayName: true } } } } }, orderBy: { startAt: "asc" }, take: 250 }),
-      prisma.staffTrainingRecord.findMany({ where: { active: true, expiryDate: { not: null, lte: trainingHorizon }, staff: { active: true, archivedAt: null } }, include: { staff: { select: { displayName: true } } }, orderBy: { expiryDate: "asc" }, take: 250 }),
+      prisma.staffTrainingRecord.findMany({ where: { active: true, expiryDate: { not: null, lte: trainingHorizon }, staff: { active: true, archivedAt: null } }, include: { staff: { select: { displayName: true } }, course: { select: { name: true, warningDays: true } } }, orderBy: { expiryDate: "asc" }, take: 250 }),
       prisma.billingRun.findMany({ where: { periodStart: { lte: endDate }, periodEnd: { gte: startDate } }, select: { id: true, label: true, periodStart: true, periodEnd: true, status: true, selectedStudentIds: true }, orderBy: { periodStart: "asc" }, take: 100 }),
     ]);
     const days = keys.map(key => {
@@ -52,12 +52,12 @@ export async function GET(req: NextRequest) {
         expectedStudents: activeStudents.map(student => ({ id: student.id, name: student.displayName })),
         expectedStaff: shifts.filter(shift => dateKey(shift.startAt) === key).map(shift => ({ id: shift.staffId, name: shift.staff.displayName, start: shift.startAt, end: shift.endAt, status: shift.status, role: shift.role })),
         activities: operations.filter(item => dateKey(item.startAt) === key).map(item => ({ id: item.id, title: item.operation.title, type: item.operation.type, description: item.operation.description, start: item.startAt, end: item.endAt, location: item.location || item.premisesName, status: item.status, readiness: item.readiness, staff: item.assignments.map(row => row.staff.displayName), students: item.attendees.map(row => row.student.displayName) })),
-        training: training.filter(item => item.expiryDate && dateKey(item.expiryDate) === key).map(item => ({ id: item.id, staff: item.staff.displayName, course: item.courseName, expiryDate: item.expiryDate, mandatory: item.mandatory })),
+        training: training.filter(item => item.expiryDate && dateKey(item.expiryDate) === key).map(item => ({ id: item.id, staff: item.staff.displayName, course: item.course?.name || item.courseName, expiryDate: item.expiryDate, mandatory: item.mandatory })),
         billingCycles: billingRuns.filter(run => dateKey(run.periodStart) === key).map(run => ({ id: run.id, label: run.label || "Unlabelled billing cycle", start: run.periodStart, end: run.periodEnd, status: run.status, studentCount: Array.isArray(run.selectedStudentIds) ? run.selectedStudentIds.length : 0 })),
       };
     });
     const now = new Date();
-    const trainingFlags = training.map(item => ({ id: item.id, staff: item.staff.displayName, course: item.courseName, expiryDate: item.expiryDate, mandatory: item.mandatory, state: item.expiryDate && item.expiryDate < now ? "OVERDUE" : "DUE_SOON" }));
+    const trainingFlags = training.filter(item => item.expiryDate && (item.expiryDate < now || item.expiryDate <= addDays(now, item.course?.warningDays ?? 60))).map(item => ({ id: item.id, staff: item.staff.displayName, course: item.course?.name || item.courseName, expiryDate: item.expiryDate, mandatory: item.mandatory, state: item.expiryDate && item.expiryDate < now ? "OVERDUE" : "DUE_SOON" }));
     return NextResponse.json({ pilot: true, readOnlySources: ["student expected days", "staff schedules", "training renewals", "billing cycles"], students: students.map(student => ({ id: student.id, name: student.displayName, reference: student.internalReference })), days, trainingFlags });
   });
 }

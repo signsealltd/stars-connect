@@ -291,25 +291,88 @@ model StaffMember {
 }
 
 model StaffTrainingRecord {
-  id                   String      @id @default(uuid()) @db.Char(36)
-  staffId              String      @db.Char(36)
-  staff                StaffMember @relation(fields: [staffId], references: [id], onDelete: Cascade)
-  courseName           String      @db.VarChar(191)
-  provider             String?     @db.VarChar(191)
-  certificateReference String?     @db.VarChar(191)
-  completedDate        DateTime    @db.Date
-  expiryDate           DateTime?   @db.Date
-  mandatory            Boolean     @default(false)
-  notes                String?     @db.Text
-  active               Boolean     @default(true)
-  createdById          String      @db.Char(36)
-  updatedById          String      @db.Char(36)
-  createdAt            DateTime    @default(now())
-  updatedAt            DateTime    @updatedAt
+  id                   String            @id @default(uuid()) @db.Char(36)
+  staffId              String            @db.Char(36)
+  staff                StaffMember       @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  courseId             String?           @db.Char(36)
+  course               TrainingCourse?   @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  providerId           String?           @db.Char(36)
+  trainingProvider     TrainingProvider? @relation(fields: [providerId], references: [id], onDelete: SetNull)
+  courseName           String            @db.VarChar(191)
+  provider             String?           @db.VarChar(191)
+  certificateReference String?           @db.VarChar(191)
+  completedDate        DateTime          @db.Date
+  expiryDate           DateTime?         @db.Date
+  mandatory            Boolean           @default(false)
+  notes                String?           @db.Text
+  active               Boolean           @default(true)
+  createdById          String            @db.Char(36)
+  updatedById          String            @db.Char(36)
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
 
   @@index([staffId, active])
   @@index([expiryDate, active])
   @@index([courseName])
+  @@index([courseId, active])
+  @@index([providerId, active])
+}
+
+model TrainingProvider {
+  id                     String                   @id @default(uuid()) @db.Char(36)
+  name                   String                   @unique @db.VarChar(191)
+  contactName            String?                  @db.VarChar(191)
+  email                  String?                  @db.VarChar(191)
+  phone                  String?                  @db.VarChar(40)
+  website                String?                  @db.VarChar(500)
+  bookingNotes           String?                  @db.Text
+  credentialsSummary     String?                  @db.Text
+  accreditationBody      String?                  @db.VarChar(191)
+  accreditationReference String?                  @db.VarChar(191)
+  accreditationExpiry    DateTime?                @db.Date
+  evidenceReference      String?                  @db.VarChar(500)
+  active                 Boolean                  @default(true)
+  courses                TrainingCourseProvider[]
+  trainingRecords        StaffTrainingRecord[]
+  createdById            String                   @db.Char(36)
+  updatedById            String                   @db.Char(36)
+  createdAt              DateTime                 @default(now())
+  updatedAt              DateTime                 @updatedAt
+
+  @@index([active, name])
+  @@index([accreditationExpiry, active])
+}
+
+model TrainingCourse {
+  id               String                   @id @default(uuid()) @db.Char(36)
+  name             String                   @unique @db.VarChar(191)
+  category         String                   @db.VarChar(100)
+  description      String?                  @db.Text
+  renewalMonths    Int?
+  warningDays      Int                      @default(60)
+  requirementRules Json
+  active           Boolean                  @default(true)
+  providers        TrainingCourseProvider[]
+  trainingRecords  StaffTrainingRecord[]
+  createdById      String?                  @db.Char(36)
+  updatedById      String?                  @db.Char(36)
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+
+  @@index([active, category, name])
+}
+
+model TrainingCourseProvider {
+  courseId         String           @db.Char(36)
+  providerId       String           @db.Char(36)
+  course           TrainingCourse   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  provider         TrainingProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  preferred        Boolean          @default(false)
+  bookingReference String?          @db.VarChar(191)
+  notes            String?          @db.Text
+
+  @@id([courseId, providerId])
+  @@index([providerId])
 }
 
 model StaffCredential {

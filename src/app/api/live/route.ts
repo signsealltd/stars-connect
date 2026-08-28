@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { withRole } from "@/lib/api";
-import { localDateAsDatabaseDate, localDateKey } from "@/lib/dates";
+import { localDateAsDatabaseDate, localDateKey, localDayBounds } from "@/lib/dates";
 import { staffOccupancy } from "@/lib/staff-presence";
 
 export async function GET(req: NextRequest) {
   return withRole(req, "RECEPTION", async () => {
-    const date = localDateAsDatabaseDate(localDateKey());
+    const today = localDateKey();
+    const date = localDateAsDatabaseDate(today);
+    const { start } = localDayBounds(today);
     const [staff, attendance, visitors] = await Promise.all([
       prisma.staffMember.findMany({
         where: { active: true, clockingEnabled: true },
@@ -14,13 +16,19 @@ export async function GET(req: NextRequest) {
           id: true,
           displayName: true,
           clockEvents: {
-            where: { device: { isSeedData: false, lastSyncAt: { not: null } } },
+            where: {
+              deviceTimestamp: { gte: start },
+              device: { isSeedData: false, lastSyncAt: { not: null } },
+            },
             orderBy: { deviceTimestamp: "desc" },
             take: 1,
             select: { type: true, deviceTimestamp: true },
           },
           presenceEvents: {
-            where: { device: { isSeedData: false, lastSyncAt: { not: null } } },
+            where: {
+              deviceTimestamp: { gte: start },
+              device: { isSeedData: false, lastSyncAt: { not: null } },
+            },
             orderBy: { deviceTimestamp: "desc" },
             take: 1,
             select: { type: true, deviceTimestamp: true },

@@ -24,6 +24,11 @@ describe("manager live attendance", () => {
     expect(route.match(/isSeedData: false, lastSyncAt: \{ not: null \}/g)).toHaveLength(3);
   });
 
+  it("does not carry an unclosed shift from an earlier day into live occupancy", () => {
+    expect(route).toContain("const { start } = localDayBounds(today)");
+    expect(route.match(/deviceTimestamp: \{ gte: start \}/g)).toHaveLength(2);
+  });
+
   it("refreshes live occupancy regularly and on demand", () => {
     expect(page).toContain("15_000");
     expect(page).toContain("visibilitychange");

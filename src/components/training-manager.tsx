@@ -3,7 +3,6 @@
 import { FormEvent, ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { Archive, BookOpen, Building2, Grid3X3, Pencil, Plus, Search, X } from "lucide-react";
 import { appConfirm } from "@/lib/app-dialog";
-import "@/app/training-matrix.css";
 
 type Staff={id:string;displayName:string;firstName:string;lastName:string;jobRole?:string};
 type Provider={id:string;name:string;contactName?:string|null;email?:string|null;phone?:string|null;website?:string|null;bookingNotes?:string|null;credentialsSummary?:string|null;accreditationBody?:string|null;accreditationReference?:string|null;accreditationExpiry?:string|null;evidenceReference?:string|null};
@@ -19,7 +18,7 @@ const labels:Record<string,string>={CURRENT:"Current",DUE_SOON:"Due soon",EXPIRE
 async function json(response:Response){const data=await response.json().catch(()=>null);if(!response.ok)throw new Error(data?.error||"Request failed.");return data;}
 function date(value?:string|null){return value?new Date(value).toLocaleDateString("en-GB"):"-";}
 
-export function TrainingManager(){
+export default function TrainingManager(){
  const[tab,setTab]=useState<"matrix"|"records"|"courses"|"providers">("matrix"),[rows,setRows]=useState<RecordRow[]>([]),[staff,setStaff]=useState<Staff[]>([]),[providers,setProviders]=useState<Provider[]>([]),[courses,setCourses]=useState<Course[]>([]),[roles,setRoles]=useState<string[]>([]),[matrix,setMatrix]=useState<Matrix|null>(null),[loading,setLoading]=useState(true),[error,setError]=useState(""),[search,setSearch]=useState("");
  const[recordEditor,setRecordEditor]=useState<RecordRow|null|"new">(null),[recordForm,setRecordForm]=useState(recordBlank),[providerEditor,setProviderEditor]=useState<Provider|null|"new">(null),[providerForm,setProviderForm]=useState(providerBlank),[courseEditor,setCourseEditor]=useState<Course|null|"new">(null),[courseForm,setCourseForm]=useState(courseBlank);
  const load=useCallback(async()=>{setLoading(true);setError("");try{const[a,b,c,d]=await Promise.all([fetch("/api/training"),fetch("/api/staff?status=active"),fetch("/api/training/configuration"),fetch("/api/training/matrix")]),config=await json(c);setRows(await json(a));setStaff(await json(b));setProviders(config.providers);setCourses(config.courses);setRoles(config.roles);setMatrix(await json(d));}catch(e){setError(e instanceof Error?e.message:"Unable to load training.");}finally{setLoading(false)}},[]);useEffect(()=>{void load()},[load]);

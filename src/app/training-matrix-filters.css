@@ -1,0 +1,36 @@
+.matrix-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding: 1rem;
+}
+
+.matrix-filters label {
+  display: grid;
+  gap: 0.4rem;
+  min-width: min(18rem, 100%);
+}
+
+.matrix-filters label span {
+  font-weight: 700;
+}
+
+.matrix-filters select {
+  min-height: 2.75rem;
+}
+
+.training-matrix thead th:first-child {
+  font-size: 0;
+}
+
+.training-matrix thead th:nth-child(2),
+.training-matrix tbody td:nth-child(2) {
+  display: none;
+}
+
+@media (max-width: 600px) {
+  .matrix-filters label {
+    width: 100%;
+  }
+}

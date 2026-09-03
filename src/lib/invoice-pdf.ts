@@ -128,8 +128,22 @@ export function invoicePdf(input: InvoicePdfInput) {
   const rows = input.rows.length ? input.rows : [{ date: "-", service: "Attendance", days: "0", rate: "GBP 0.00", net: "GBP 0.00", vat: "GBP 0.00", total: "GBP 0.00" }];
   const firstPageRows = 10;
   const continuedRows = 20;
-  const pageRows = [rows.slice(0, firstPageRows)];
-  for (let index = firstPageRows; index < rows.length; index += continuedRows) pageRows.push(rows.slice(index, index + continuedRows));
+  const finalPageRows = 15;
+  const firstPageRowsWithPaymentDetails = 5;
+  const pageRows: InvoicePdfRow[][] = [];
+  if (rows.length <= firstPageRowsWithPaymentDetails) {
+    pageRows.push(rows);
+  } else {
+    const firstCount = Math.min(firstPageRows, Math.ceil(rows.length / 2));
+    pageRows.push(rows.slice(0, firstCount));
+    let remaining = rows.slice(firstCount);
+    while (remaining.length > finalPageRows) {
+      const count = Math.min(continuedRows, remaining.length - finalPageRows);
+      pageRows.push(remaining.slice(0, count));
+      remaining = remaining.slice(count);
+    }
+    pageRows.push(remaining);
+  }
 
   const pageCount = pageRows.length;
   const regularRef = 3 + pageCount * 2;

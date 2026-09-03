@@ -79,4 +79,12 @@ describe("official invoice PDF", () => {
     expect(text).toContain("(Test Student - attendance continued)");
     expect(text).toContain("(Page 3 of 3)");
   });
+
+  it("moves overflow attendance rows before the payment details panel", () => {
+    const text = invoicePdf(fixture(6)).toString("latin1");
+    expect(text).toContain("/Count 2");
+    expect(text).toContain("(06/07/2026)");
+    expect(text).toContain("(PAYMENT AND DOCUMENT DETAILS)");
+    expect(text).toContain("(Page 2 of 2)");
+  });
 });

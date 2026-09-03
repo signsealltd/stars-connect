@@ -42,6 +42,7 @@ const PURPLE_SOFT = "0.97 0.95 0.98";
 const INK = "0.13 0.11 0.14";
 const MUTED = "0.40 0.37 0.41";
 const BORDER = "0.87 0.84 0.88";
+const ATTENDANCE_ROW_HEIGHT = 22;
 
 function esc(value: string) {
   return value
@@ -109,7 +110,7 @@ function tableHeader(y: number, showVat: boolean) {
 
 function tableRow(row: InvoicePdfRow, y: number, alternate: boolean, showVat: boolean) {
   const commands = [];
-  if (alternate) commands.push(rect(42, y - 17, 511, 26, "0.985 0.98 0.99"));
+  if (alternate) commands.push(rect(42, y - 14, 511, ATTENDANCE_ROW_HEIGHT, "0.985 0.98 0.99"));
   commands.push(
     text(fit(row.date, 35), 50, y - 1, 6.8),
     text(fit(row.service || "Attendance", 18), 181, y - 1, 7.5, true),
@@ -118,7 +119,7 @@ function tableRow(row: InvoicePdfRow, y: number, alternate: boolean, showVat: bo
     text(row.net, 386, y - 1, 7.5),
     ...(showVat ? [text(row.vat, 439, y - 1, 7.5)] : []),
     text(row.total, 487, y - 1, 7.5, true),
-    line(42, y - 17, 553, y - 17),
+    line(42, y - 14, 553, y - 14),
   );
   return commands;
 }
@@ -129,7 +130,7 @@ export function invoicePdf(input: InvoicePdfInput) {
   const firstPageRows = 10;
   const continuedRows = 20;
   const finalPageRows = 15;
-  const firstPageRowsWithPaymentDetails = 5;
+  const firstPageRowsWithPaymentDetails = 9;
   const pageRows: InvoicePdfRow[][] = [];
   if (rows.length <= firstPageRowsWithPaymentDetails) {
     pageRows.push(rows);
@@ -198,10 +199,10 @@ export function invoicePdf(input: InvoicePdfInput) {
       tableY = 386;
     }
     commands.push(...tableHeader(tableY, showVat));
-    page.forEach((row, index) => commands.push(...tableRow(row, tableY - 27 - index * 26, index % 2 === 1, showVat)));
+    page.forEach((row, index) => commands.push(...tableRow(row, tableY - 25 - index * ATTENDANCE_ROW_HEIGHT, index % 2 === 1, showVat)));
 
     if (pageIndex === pageCount - 1) {
-      const detailsY = Math.max(78, tableY - 44 - page.length * 26 - 138);
+      const detailsY = Math.max(78, tableY - 38 - page.length * ATTENDANCE_ROW_HEIGHT - 132);
       const bankLines = input.bankDetails.filter(Boolean).slice(0, 5);
       const remittanceLines = input.remittanceInstructions.filter(Boolean).slice(0, 3);
       commands.push(

@@ -80,10 +80,18 @@ describe("official invoice PDF", () => {
     expect(text).toContain("(Page 3 of 3)");
   });
 
-  it("moves overflow attendance rows before the payment details panel", () => {
-    const text = invoicePdf(fixture(6)).toString("latin1");
+  it("keeps a typical seven-day invoice and payment details on one page", () => {
+    const text = invoicePdf(fixture(7)).toString("latin1");
+    expect(text).toContain("/Count 1");
+    expect(text).toContain("(07/07/2026)");
+    expect(text).toContain("(PAYMENT AND DOCUMENT DETAILS)");
+    expect(text).toContain("(Page 1 of 1)");
+  });
+
+  it("still paginates longer attendance breakdowns", () => {
+    const text = invoicePdf(fixture(10)).toString("latin1");
     expect(text).toContain("/Count 2");
-    expect(text).toContain("(06/07/2026)");
+    expect(text).toContain("(10/07/2026)");
     expect(text).toContain("(PAYMENT AND DOCUMENT DETAILS)");
     expect(text).toContain("(Page 2 of 2)");
   });

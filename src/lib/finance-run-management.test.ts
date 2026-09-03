@@ -27,6 +27,14 @@ describe("financial run management", () => {
     expect(billingRoute).toContain('audit("BILLING_SERVICE_LINE_ADDED"');
   });
 
+  it("supports focused review of large billing runs", () => {
+    expect(reviewUi).toContain("Find billing records");
+    expect(reviewUi).toContain("All students");
+    expect(reviewUi).toContain("From date");
+    expect(reviewUi).toContain("Date, newest first");
+    expect(reviewUi).toContain("These filters do not change invoice totals or approval");
+  });
+
   it("uses illustrated vector scenes rather than generic seasonal particles", () => {
     expect(seasonalArt).toContain("haunted-house");
     expect(seasonalArt).toContain("pumpkin-candle-glow");

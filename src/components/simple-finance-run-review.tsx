@@ -38,6 +38,10 @@ export function SimpleFinanceRunReview({ mode, id }: { mode: "payroll" | "billin
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [filter, setFilter] = useState("ALL");
+  const [billingStudentId, setBillingStudentId] = useState("ALL");
+  const [billingDateFrom, setBillingDateFrom] = useState("");
+  const [billingDateTo, setBillingDateTo] = useState("");
+  const [billingSort, setBillingSort] = useState<"NAME_ASC" | "NAME_DESC" | "DATE_ASC" | "DATE_DESC">("NAME_ASC");
   const [payItemEntry, setPayItemEntry] = useState<Entry | null>(null);
   const [payItem, setPayItem] = useState({ category: "HOLIDAY", date: "", hours: "8", reason: "APPROVED_ANNUAL_LEAVE" });
   const [billingAdjustment, setBillingAdjustment] = useState<Charge | null>(null);
@@ -60,21 +64,52 @@ export function SimpleFinanceRunReview({ mode, id }: { mode: "payroll" | "billin
   useEffect(() => { load(); }, [load]);
 
   const records = useMemo(() => mode === "payroll" ? run?.entries || [] : run?.charges || [], [mode, run]);
+  const billingStudents = useMemo(() => {
+    if (mode !== "billing") return [];
+    return [...new Map((run?.charges || []).map(charge => [charge.studentId, charge.studentName])).entries()]
+      .map(([studentId, studentName]) => ({ studentId, studentName }))
+      .sort((left, right) => left.studentName.localeCompare(right.studentName, "en-GB", { sensitivity: "base" }));
+  }, [mode, run]);
   const exceptions = mode === "payroll"
     ? (run?.entries || []).filter(entry => entry.exceptionCount > 0 && !["RESOLVED", "EXCLUDED"].includes(entry.exceptionStatus))
     : (run?.charges || []).filter(charge => charge.exceptionCode && !charge.excluded);
   const excluded = mode === "payroll"
     ? (run?.entries || []).filter(entry => entry.exceptionStatus === "EXCLUDED").length
     : (run?.charges || []).filter(charge => charge.excluded).length;
-  const visible = records.filter(record => {
-    if (filter === "ALL") return true;
-    if (mode === "payroll") {
-      const entry = record as Entry;
-      return filter === "WARNINGS" ? entry.exceptionCount > 0 : entry.exceptionStatus === "EXCLUDED";
+  const visible = useMemo(() => records.filter(record => {
+    if (filter !== "ALL") {
+      if (mode === "payroll") {
+        const entry = record as Entry;
+        if (!(filter === "WARNINGS" ? entry.exceptionCount > 0 : entry.exceptionStatus === "EXCLUDED")) return false;
+      } else {
+        const charge = record as Charge;
+        if (!(filter === "WARNINGS" ? Boolean(charge.exceptionCode) : charge.excluded)) return false;
+      }
     }
+    if (mode !== "billing") return true;
     const charge = record as Charge;
-    return filter === "WARNINGS" ? Boolean(charge.exceptionCode) : charge.excluded;
-  });
+    const date = charge.sourceDate.slice(0, 10);
+    return (billingStudentId === "ALL" || charge.studentId === billingStudentId)
+      && (!billingDateFrom || date >= billingDateFrom)
+      && (!billingDateTo || date <= billingDateTo);
+  }).sort((left, right) => {
+    if (mode !== "billing") return 0;
+    const first = left as Charge, second = right as Charge;
+    const nameOrder = first.studentName.localeCompare(second.studentName, "en-GB", { sensitivity: "base" });
+    const dateOrder = first.sourceDate.localeCompare(second.sourceDate);
+    if (billingSort === "NAME_ASC") return nameOrder || dateOrder;
+    if (billingSort === "NAME_DESC") return -nameOrder || dateOrder;
+    if (billingSort === "DATE_ASC") return dateOrder || nameOrder;
+    return -dateOrder || nameOrder;
+  }), [records, filter, mode, billingStudentId, billingDateFrom, billingDateTo, billingSort]);
+
+  function resetBillingView() {
+    setFilter("ALL");
+    setBillingStudentId("ALL");
+    setBillingDateFrom("");
+    setBillingDateTo("");
+    setBillingSort("NAME_ASC");
+  }
 
   async function action(name: string, extra: Record<string, unknown> = {}, reload = true) {
     const response = await fetch(endpoint, {
@@ -286,6 +321,18 @@ function openBillingAdjustment(charge: Charge) {
       {mode === "billing" && complete && <button className="btn secondary" disabled={working} onClick={openInvoicePeriodCorrection}>Edit invoices</button>}
       {mode === "payroll" && complete && <a className="btn primary" href="/dashboard/reports/payroll">Download payroll files</a>}
     </div>
+    {mode === "billing" && <section className={`card ${styles.recordFilters}`} aria-label="Billing record filters">
+      <div className={styles.filterHeading}>
+        <div><b>Find billing records</b><small className="muted">Showing {visible.length} of {records.length} records. These filters do not change invoice totals or approval.</small></div>
+        <button type="button" className="btn secondary" onClick={resetBillingView}>Clear filters</button>
+      </div>
+      <div className={styles.filterGrid}>
+        <label className="form-label">Student<select className="field" value={billingStudentId} onChange={event => setBillingStudentId(event.target.value)}><option value="ALL">All students ({billingStudents.length})</option>{billingStudents.map(student => <option key={student.studentId} value={student.studentId}>{student.studentName}</option>)}</select></label>
+        <label className="form-label">From date<input className="field" type="date" value={billingDateFrom} onChange={event => setBillingDateFrom(event.target.value)}/></label>
+        <label className="form-label">To date<input className="field" type="date" value={billingDateTo} onChange={event => setBillingDateTo(event.target.value)}/></label>
+        <label className="form-label">Order by<select className="field" value={billingSort} onChange={event => setBillingSort(event.target.value as typeof billingSort)}><option value="NAME_ASC">Name A-Z, then date</option><option value="NAME_DESC">Name Z-A, then date</option><option value="DATE_ASC">Date, oldest first</option><option value="DATE_DESC">Date, newest first</option></select></label>
+      </div>
+    </section>}
     <section className="card table-wrap"><table className="table">
       <thead><tr><th>{mode === "payroll" ? "Employee" : "Service user"}</th><th>{mode === "payroll" ? "Payroll number" : "Date"}</th><th>{mode === "payroll" ? "Regular" : "Description"}</th><th>{mode === "payroll" ? "Overtime" : "Net"}</th><th>{mode === "payroll" ? "Adjustments" : "VAT"}</th><th>{mode === "payroll" ? "Payable" : "Total"}</th><th>Status</th><th>Action</th></tr></thead>
       <tbody>{visible.map(record => mode === "payroll" ? (() => {

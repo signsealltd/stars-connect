@@ -41,13 +41,13 @@ export async function POST(req: NextRequest) {
   return withRole(req, "MANAGER", async user => {
     const parsed = schema.safeParse(await req.json().catch(() => null));
     if (!parsed.success) {
-      const message = parsed.error.issues[0]?.message || "Please check the student details.";
+      const message = parsed.error.issues[0]?.message || "Please check the client details.";
       return NextResponse.json({ error: message, fields: parsed.error.flatten().fieldErrors }, { status: 422 });
     }
     const data = parsed.data;
     if (data.internalReference) {
       const duplicate = await prisma.student.findUnique({ where: { internalReference: data.internalReference }, select: { displayName: true, active: true } });
-      if (duplicate) return jsonError(`Internal reference “${data.internalReference}” is already used by ${duplicate.displayName}${duplicate.active ? "" : " (archived)"}. Use a different reference or restore that student.`, 409);
+      if (duplicate) return jsonError(`Internal reference “${data.internalReference}” is already used by ${duplicate.displayName}${duplicate.active ? "" : " (archived)"}. Use a different reference or restore that client.`, 409);
     }
     try {
       const student = await prisma.student.create({ data: {

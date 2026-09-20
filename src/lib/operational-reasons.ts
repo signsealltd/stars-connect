@@ -4,7 +4,7 @@ export const clockCorrectionReasons: ReasonOption[] = [
   { value: "FORGOTTEN_CLOCKING", label: "Staff member forgot to clock in or out" },
   { value: "DEVICE_UNAVAILABLE", label: "Kiosk or device was unavailable" },
   { value: "MANAGER_CORRECTION", label: "Manager correcting an inaccurate time" },
-  { value: "TRANSPORT_DUTY", label: "Student transport duty" },
+  { value: "TRANSPORT_DUTY", label: "Client transport duty" },
   { value: "OTHER", label: "Other" },
 ];
 

@@ -285,3 +285,13 @@ body:has(.clive-launcher){padding-bottom:100px}
 body:has(.clive-launcher) .help-launcher{right:208px}
 body:has(.training-coach) .clive-launcher,body:has(.training-coach) .clive-panel{visibility:hidden}
 @media(max-width:620px){.clive-welcome-image{width:140px}body:has(.clive-launcher) .help-launcher{right:188px}}
+
+/* The fixed release label has its own reserved strip, including on kiosk screens. */
+body.has-app-version{padding-bottom:calc(42px + env(safe-area-inset-bottom))}
+.application-version{position:fixed;left:max(16px,env(safe-area-inset-left));bottom:calc(8px + env(safe-area-inset-bottom));z-index:8000;font-size:12px;line-height:20px;color:#665b70;background:#f7f3f9;padding:2px 7px;border-radius:5px;letter-spacing:.02em}
+body:has(.stars-dashboard) .application-version{color:rgba(255,255,255,.7);background:#4b1c54}
+.application-version:focus-visible{outline:2px solid #b477c9;outline-offset:3px}
+body.has-app-version.has-kiosk-status-bar{padding-bottom:calc(108px + env(safe-area-inset-bottom))}
+body.has-app-version .kiosk-device-status-bar{bottom:calc(36px + env(safe-area-inset-bottom))}
+@media(max-width:620px){body.has-app-version.has-kiosk-status-bar{padding-bottom:calc(138px + env(safe-area-inset-bottom))}}
+@media print{.application-version{display:none!important}body.has-app-version,body.has-app-version.has-kiosk-status-bar{padding-bottom:0}}

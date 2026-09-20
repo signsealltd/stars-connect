@@ -4,7 +4,7 @@ import { optionalBillingProfileIdSchema } from "./student-management";
 
 const source = (file: string) => readFileSync(file, "utf8");
 
-describe("student emergency contacts and billing integration", () => {
+describe("client emergency contacts and billing integration", () => {
   it("adds protected emergency contact fields through a deployable migration", () => {
     const migration = source("prisma/migrations/202607280001_student_emergency_contacts/migration.sql");
     expect(migration).toContain("emergencyContactName");
@@ -18,7 +18,7 @@ describe("student emergency contacts and billing integration", () => {
     expect(kiosk).not.toContain("emergencyContactName");
   });
 
-  it("creates student and billing data atomically and restricts billing to elevated roles", () => {
+  it("creates client and billing data atomically and restricts billing to elevated roles", () => {
     const route = source("src/app/api/students/records/route.ts");
     expect(route).toContain("prisma.$transaction");
     expect(route).toContain("createInlineBillingProfile");
@@ -34,7 +34,7 @@ describe("student emergency contacts and billing integration", () => {
     expect(route).toContain("BILLING_PROFILE_DELETED");
   });
 
-  it("exposes emergency contacts and a protected billing summary in the student editor", () => {
+  it("exposes emergency contacts and a protected billing summary in the client editor", () => {
     const component = source("src/components/student-manager-v2.tsx");
     expect(component).toContain("Emergency contacts");
     expect(component).toContain("not downloaded to kiosk tablets");
@@ -57,13 +57,13 @@ describe("student emergency contacts and billing integration", () => {
     const updateRoute = source("src/app/api/students/records/[id]/route.ts");
     expect(updateRoute).toContain("studentValidationMessage(parsed.error)");
   });
-  it("normalises legacy empty billing profile ids while the student profile stays independent", () => {
+  it("normalises legacy empty billing profile ids while the client profile stays independent", () => {
     expect(optionalBillingProfileIdSchema.parse("")).toBeUndefined();
     expect(optionalBillingProfileIdSchema.parse(null)).toBeUndefined();
     expect(optionalBillingProfileIdSchema.parse("0191b0ea-d4b8-48ca-ae5f-8ec270b44763"))
       .toBe("0191b0ea-d4b8-48ca-ae5f-8ec270b44763");
     const component = source("src/components/student-manager-v2.tsx");
     expect(component).not.toContain("profileId: form.billing.profileId");
-    expect(component).toContain("Save this student before configuring billing.");
+    expect(component).toContain("Save this client before configuring billing.");
   });
 });

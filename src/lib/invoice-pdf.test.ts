@@ -18,7 +18,7 @@ const fixture = (rows = 1) => ({
   vatNumber: "",
   payerName: "Enfield Council",
   payerAddress: ["Civic Centre", "Enfield"],
-  studentName: "Test Student",
+  studentName: "Test Client",
   studentReference: "TEST1",
   rows: Array.from({ length: rows }, (_, index) => ({
     date: `${String(index + 1).padStart(2, "0")}/07/2026`,
@@ -42,12 +42,12 @@ const fixture = (rows = 1) => ({
 });
 
 describe("official invoice PDF", () => {
-  it("shows formal invoice, student reference, period, dates and totals without internal adjustment wording", () => {
+  it("shows formal invoice, client reference, period, dates and totals without internal adjustment wording", () => {
     const text = invoicePdf(fixture()).toString("latin1");
     expect(text.startsWith("%PDF-1.4")).toBe(true);
     expect(text).toContain("(OFFICIAL INVOICE)");
     expect(text).toContain("(STARS-2026-00001)");
-    expect(text).toContain("(Test Student)");
+    expect(text).toContain("(Test Client)");
     expect(text).toContain("(TEST1)");
     expect(text).toContain("(SERVICES)");
     expect(text).toContain("(01/07/2026)");
@@ -74,7 +74,7 @@ describe("official invoice PDF", () => {
   it("paginates a full attendance month and repeats invoice context", () => {
     const text = invoicePdf(fixture(31)).toString("latin1");
     expect(text).toContain("/Count 3");
-    expect(text).toContain("(Test Student - services continued)");
+    expect(text).toContain("(Test Client - services continued)");
     expect(text).toContain("(Page 3 of 3)");
   });
 

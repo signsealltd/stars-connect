@@ -46,7 +46,7 @@ export function SimpleFinanceConsole({ mode }: { mode: Mode }) {
     setLoading(false);
   }, [endpoint, mode]);
   useEffect(() => { load(); }, [load]);
-  useEffect(() => { if (mode !== "billing") return; fetch("/api/students/records?status=active", { cache: "no-store" }).then(async response => { const body = await response.json(); if (!response.ok) throw new Error(body.error || "Unable to load students."); setStudents(Array.isArray(body) ? body : []); }).catch(caught => setError(caught instanceof Error ? caught.message : "Unable to load students.")); }, [mode]);
+  useEffect(() => { if (mode !== "billing") return; fetch("/api/students/records?status=active", { cache: "no-store" }).then(async response => { const body = await response.json(); if (!response.ok) throw new Error(body.error || "Unable to load clients."); setStudents(Array.isArray(body) ? body : []); }).catch(caught => setError(caught instanceof Error ? caught.message : "Unable to load clients.")); }, [mode]);
   const payers = [...new Set(students.map(student => student.billingProfile?.payerName).filter((value): value is string => Boolean(value)))].sort();
   const eligibleStudents = historicalMode ? students : students.filter(student => student.startDate.slice(0, 10) <= to && (!student.endDate || student.endDate.slice(0, 10) >= from));
   const chosenPeriod=periods.find(p=>p.id===periodId);
@@ -58,7 +58,7 @@ export function SimpleFinanceConsole({ mode }: { mode: Mode }) {
   }, [students, from, to, historicalMode]);
 
   async function prepare() {
-    if (mode === "billing" && (!periodId || !runLabel.trim() || !selectedStudentIds.length)) { setError("Choose a saved billing period, enter a label and select at least one student."); return; }
+    if (mode === "billing" && (!periodId || !runLabel.trim() || !selectedStudentIds.length)) { setError("Choose a saved billing period, enter a label and select at least one client."); return; }
     setWorking(true); setError("");
     try {
       const created = await fetch(endpoint, {
@@ -116,15 +116,15 @@ export function SimpleFinanceConsole({ mode }: { mode: Mode }) {
     {mode === "billing" && <section className="card" style={{padding:"18px",marginBottom:"16px"}}>
       <label className="form-label">Billing period<select className="field" value={periodId} onChange={e=>{setPeriodId(e.target.value);setSelectedStudentIds([]);const period=periods.find(p=>p.id===e.target.value);if(period){setFrom(period.periodStart.slice(0,10));setTo(period.periodEnd.slice(0,10));setRunLabel(period.label);}}}><option value="">Select a configured period</option>{periods.map(p=><option key={p.id} value={p.id}>{p.label} · {p.periodStart.slice(0,10)} – {p.periodEnd.slice(0,10)}</option>)}</select></label>
       {!periods.length&&<p>Use “Set up billing periods” above to add the LBE dates or full monthly periods.</p>}
-      {chosenPeriod&&<p>{chosenPeriod.cycle==="LBE"?`Bank holidays deducted per student: ${chosenPeriod.bankHolidayDates.join(", ")||"None"}`:"Full calendar month. No automatic bank holiday deductions."}</p>}
+      {chosenPeriod&&<p>{chosenPeriod.cycle==="LBE"?`Bank holidays deducted per client: ${chosenPeriod.bankHolidayDates.join(", ")||"None"}`:"Full calendar month. No automatic bank holiday deductions."}</p>}
       <div className="form-grid">
         <label className="form-label">Billing run label<input className="field" maxLength={191} placeholder="For example: LBE - 29 June to 26 July 2026" value={runLabel} onChange={event=>setRunLabel(event.target.value)}/></label>
         <label className="form-label">Payer filter<select className="field" value={payerFilter} onChange={event=>setPayerFilter(event.target.value)}><option value="ALL">All payers</option>{payers.map(payer=><option key={payer} value={payer}>{payer}</option>)}</select></label>
-        <label className="form-label">Find student<input className="field" placeholder="Name or student reference" value={studentSearch} onChange={event=>setStudentSearch(event.target.value)}/></label>
+        <label className="form-label">Find a client<input className="field" placeholder="Name or client reference" value={studentSearch} onChange={event=>setStudentSearch(event.target.value)}/></label>
         <label className="form-label" style={{alignSelf:"end"}}><span><input type="checkbox" checked={historicalMode} onChange={event=>setHistoricalMode(event.target.checked)}/> Historical funded period (confirm dated funding agreements)</span></label>
       </div>
-      <div className="table-actions" style={{margin:"12px 0"}}><button type="button" className="btn secondary" onClick={()=>setSelectedStudentIds(visibleStudents.map(student=>student.id))}>Select shown only</button><button type="button" className="btn secondary" onClick={()=>setSelectedStudentIds([])}>Clear all</button><span className="muted">{selectedStudentIds.length} student{selectedStudentIds.length===1?"":"s"} selected{hiddenSelectedCount>0?` (${hiddenSelectedCount} hidden by the current filter)`:""}</span></div>
-      <div style={{maxHeight:"260px",overflow:"auto",border:"1px solid var(--border)",borderRadius:"12px",padding:"8px"}}>{visibleStudents.length?visibleStudents.map(student=><label key={student.id} style={{display:"flex",gap:"10px",alignItems:"center",padding:"9px"}}><input type="checkbox" checked={selectedStudentIds.includes(student.id)} onChange={event=>setSelectedStudentIds(event.target.checked?[...selectedStudentIds,student.id]:selectedStudentIds.filter(id=>id!==student.id))}/><span><b>{student.displayName}</b>{student.internalReference&&<small className="muted" style={{display:"block"}}>{student.internalReference}</small>}</span><span className="muted" style={{marginLeft:"auto"}}>{student.billingProfile?.payerName||"Billing not configured"}</span></label>):<div className="empty">No students match this filter.</div>}</div>
+      <div className="table-actions" style={{margin:"12px 0"}}><button type="button" className="btn secondary" onClick={()=>setSelectedStudentIds(visibleStudents.map(student=>student.id))}>Select shown only</button><button type="button" className="btn secondary" onClick={()=>setSelectedStudentIds([])}>Clear all</button><span className="muted">{selectedStudentIds.length} client{selectedStudentIds.length===1?"":"s"} selected{hiddenSelectedCount>0?` (${hiddenSelectedCount} hidden by the current filter)`:""}</span></div>
+      <div style={{maxHeight:"260px",overflow:"auto",border:"1px solid var(--border)",borderRadius:"12px",padding:"8px"}}>{visibleStudents.length?visibleStudents.map(student=><label key={student.id} style={{display:"flex",gap:"10px",alignItems:"center",padding:"9px"}}><input type="checkbox" checked={selectedStudentIds.includes(student.id)} onChange={event=>setSelectedStudentIds(event.target.checked?[...selectedStudentIds,student.id]:selectedStudentIds.filter(id=>id!==student.id))}/><span><b>{student.displayName}</b>{student.internalReference&&<small className="muted" style={{display:"block"}}>{student.internalReference}</small>}</span><span className="muted" style={{marginLeft:"auto"}}>{student.billingProfile?.payerName||"Billing not configured"}</span></label>):<div className="empty">No clients match this filter.</div>}</div>
     </section>}
     <div className="toolbar">
       <label>From<input autoComplete="off" className="field" type="date" readOnly={mode==="billing"} value={from} onChange={event => setFrom(event.target.value)}/></label>

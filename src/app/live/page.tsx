@@ -61,7 +61,7 @@ export default function Live() {
     {error && <div className="alert alert-error" role="alert">{error}</div>}
     {!data ? <div className="card empty">Loading live attendance…</div> : <div className="grid" style={{gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))"}}>
       <List title={`Staff currently in · ${data.staff.length}`} items={data.staff}/>
-      <List title={`Students present · ${data.students.length}`} items={data.students}/>
+      <List title={`Clients present · ${data.students.length}`} items={data.students}/>
       <List title={`Visitors on site · ${visitors!.length}`} items={visitors!}/>
     </div>}
   </div></main>;

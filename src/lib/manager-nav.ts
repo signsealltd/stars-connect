@@ -5,7 +5,7 @@ export type ManagerNavGroup={label:string;href?:string;items:ManagerNavItem[];ro
 const elevated:Role[]=["MANAGER","DIRECTOR","ADMINISTRATOR"],directors:Role[]=["DIRECTOR","ADMINISTRATOR"],admins:Role[]=["ADMINISTRATOR"];
 export const managerNavigation:ManagerNavGroup[]=[
  {label:"Development",roles:directors,items:[{label:"Operational calendar",href:"/dashboard/calendar",roles:directors},{label:"Health & Safety / RAMS",href:"/dashboard/health-safety",roles:directors}]},
- {label:"People",items:[{label:"Staff",href:"/dashboard/staff",roles:elevated},{label:"Staff Training",href:"/dashboard/training",roles:elevated},{label:"Students",href:"/dashboard/students",roles:elevated},{label:"Information Reviews",href:"/dashboard/information-reviews",roles:elevated},{label:"Visitors",href:"/dashboard/visitors"}]},
+ {label:"People",items:[{label:"Staff",href:"/dashboard/staff",roles:elevated},{label:"Staff Training",href:"/dashboard/training",roles:elevated},{label:"Clients",href:"/dashboard/students",roles:elevated},{label:"Information Reviews",href:"/dashboard/information-reviews",roles:elevated},{label:"Visitors",href:"/dashboard/visitors"}]},
  {label:"Staff portal",items:[{label:"Documents & guidance",href:"/staff-portal"},{label:"Operational calendar",href:"/staff-portal/calendar"}]},
  {label:"Attendance",items:[{label:"Registers",href:"/register"},{label:"Timesheets",href:"/timesheets",roles:elevated},{label:"Emergency Register",href:"/emergency"},{label:"Live attendance",href:"/live"}]},
  {label:"Safety & Compliance",roles:elevated,items:[{label:"Safety & Compliance",href:"/dashboard/premises",roles:directors},{label:"Fleet",href:"/dashboard/premises/fleet",roles:elevated},{label:"Complete Vehicle Check",href:"/VehicleCheck"}]},

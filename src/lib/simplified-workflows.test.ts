@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 
-describe("simplified student and visitor workflows", () => {
-  it("returns a useful duplicate student reference error", () => {
+describe("simplified client and visitor workflows", () => {
+  it("returns a useful duplicate client reference error", () => {
     const route = readFileSync("src/app/api/students/manage/route.ts", "utf8");
     expect(route).toContain("P2002");
     expect(route).toContain("Internal reference");

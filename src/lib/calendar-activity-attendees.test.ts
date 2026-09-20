@@ -7,8 +7,8 @@ const route = readFileSync(join(root, "src/app/api/calendar/pilot/route.ts"), "u
 const service = readFileSync(join(root, "src/lib/operations-service.ts"), "utf8");
 const client = readFileSync(join(root, "src/components/calendar-pilot.tsx"), "utf8");
 
-describe("calendar activity student planning", () => {
-  it("validates a bounded unique student selection and enforces attendee permission", () => {
+describe("calendar activity client planning", () => {
+  it("validates a bounded unique client selection and enforces attendee permission", () => {
     expect(route).toContain("studentIds: z.array(z.string().uuid()).max(250)");
     expect(route).toContain("CAPABILITIES.OPERATIONS_ASSIGN_ATTENDEES");
     expect(route).toContain("attendeeStudentIds: input.studentIds");
@@ -21,7 +21,7 @@ describe("calendar activity student planning", () => {
   });
 
   it("provides searchable selection while preserving planning-only wording", () => {
-    expect(client).toContain("Search by student name or reference");
+    expect(client).toContain("Search by client name or reference");
     expect(client).toContain("does not mark attendance");
     expect(client).toContain("linked to RAMS");
   });

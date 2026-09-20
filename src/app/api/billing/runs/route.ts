@@ -12,15 +12,15 @@ export async function POST(req:NextRequest){return withCapability(req,CAPABILITI
   if(!parsed.success||parsed.data.periodEnd<parsed.data.periodStart)return jsonError("Choose valid dates.",422);
   const d=parsed.data,periodStart=new Date(d.periodStart),periodEnd=new Date(d.periodEnd);
   if(periodEnd.getTime()-periodStart.getTime()>366*86400000)return jsonError("Select no more than one year.",422);
-  if(d.studentIds&&await prisma.student.count({where:{id:{in:d.studentIds}}})!==new Set(d.studentIds).size)return jsonError("One or more students are unavailable.",422);
+  if(d.studentIds&&await prisma.student.count({where:{id:{in:d.studentIds}}})!==new Set(d.studentIds).size)return jsonError("One or more clients are unavailable.",422);
   const existing=await prisma.billingRun.findUnique({where:{requestKey:d.requestKey}});
   if(existing)return NextResponse.json(existing);
   const period=d.billingPeriodId?await prisma.billingPeriod.findUnique({where:{id:d.billingPeriodId}}):null;
   if(d.billingPeriodId&&(!period||period.periodStart.getTime()!==periodStart.getTime()||period.periodEnd.getTime()!==periodEnd.getTime()))return jsonError("The saved period changed. Select it again.",409);
   if(!period)return jsonError("Select a configured billing period first.",422);
   const profiles=await prisma.billingProfile.findMany({where:{studentId:{in:d.studentIds||[]},activeFrom:{lte:periodEnd},OR:[{activeTo:null},{activeTo:{gte:periodStart}}]}});
-  if(!d.studentIds?.length)return jsonError("Select at least one student.",422);
-  if(profiles.some(p=>needsPurchaseOrder(`${p.payerName} ${p.fundingOrganisation||""}`)!==(period.cycle==="LBE")))return jsonError("The selected students must belong to this period's billing group.",422);
+  if(!d.studentIds?.length)return jsonError("Select at least one client.",422);
+  if(profiles.some(p=>needsPurchaseOrder(`${p.payerName} ${p.fundingOrganisation||""}`)!==(period.cycle==="LBE")))return jsonError("The selected clients must belong to this period's billing group.",422);
   const row=await prisma.$transaction(async tx=>{
     await tx.appSetting.upsert({where:{key:"billingRunLock"},update:{updatedBy:user.id},create:{key:"billingRunLock",value:true,updatedBy:user.id}});
     const duplicate=await tx.billingRun.findUnique({where:{requestKey:d.requestKey}});if(duplicate)return duplicate;

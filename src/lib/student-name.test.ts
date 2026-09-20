@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { studentFullName } from "./student-name";
 
 describe("studentFullName", () => {
-  it("uses the student's first and last name instead of their known-as name", () => {
+  it("uses the client's first and last name instead of their known-as name", () => {
     expect(studentFullName({ firstName: "Elizabeth", lastName: "Jones", displayName: "Elif" })).toBe("Elizabeth Jones");
   });
 

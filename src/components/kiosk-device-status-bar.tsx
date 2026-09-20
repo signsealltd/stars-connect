@@ -1,4 +1,5 @@
 "use client";
+import {APP_VERSION_LABEL} from "@/lib/app-version";
 
 import React, { useCallback, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
@@ -55,7 +56,7 @@ export function KioskDeviceStatusContent({
       <span className="kiosk-status-item">Last synced {sync.lastSync ? new Date(sync.lastSync).toLocaleTimeString("en-GB") : "not yet"}</span>
       <span className="kiosk-status-item">{sync.queued} queued upload{sync.queued === 1 ? "" : "s"}</span>
       <span className="kiosk-status-item">{sync.conflicts} local conflict{sync.conflicts === 1 ? "" : "s"}</span>
-      <span className="kiosk-status-item app-version">STARS Connect v1.0</span>
+      <span className="kiosk-status-item app-version">STARS Connect {APP_VERSION_LABEL}</span>
     </footer>
   );
 }

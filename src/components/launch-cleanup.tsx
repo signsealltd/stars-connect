@@ -35,7 +35,7 @@ export function LaunchCleanup() {
 
   return <section className="card" style={{ marginTop: 20, borderColor: "var(--danger,#a52a2a)" }}>
     <h2><AlertTriangle size={20}/> Prepare clean launch database</h2>
-    <p className="muted">Permanently removes all students, staff, attendance, visitors, devices, finance records, reports, documents, premises records, application settings and audit history. User accounts, password hashes and current login sessions are preserved. Devices must be provisioned again.</p>
+    <p className="muted">Permanently removes all clients, staff, attendance, visitors, devices, finance records, reports, documents, premises records, application settings and audit history. User accounts, password hashes and current login sessions are preserved. Devices must be provisioned again.</p>
     {message && <div className={message.includes("complete") ? "alert alert-success" : "alert alert-error"}>{message}</div>}
     <button className="btn secondary" style={{ color: "var(--danger,#a52a2a)" }} onClick={() => setOpen(true)}>
       <Trash2 size={17}/> Open launch cleanup

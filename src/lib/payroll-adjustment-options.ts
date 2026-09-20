@@ -4,7 +4,7 @@ export const payrollAdjustmentOptions = [
   { code: "AUTHORISED_OVERTIME", label: "Authorised overtime", category: "OVERTIME", paid: true },
   { code: "MANDATORY_TRAINING", label: "Mandatory training", category: "TRAINING", paid: true },
   { code: "UNPAID_LEAVE", label: "Unpaid leave", category: "UNPAID", paid: false },
-  { code: "TRANSPORT_DUTY", label: "Student transport duty", category: "OTHER", paid: true },
+  { code: "TRANSPORT_DUTY", label: "Client transport duty", category: "OTHER", paid: true },
   { code: "OTHER_AUTHORISED", label: "Other authorised adjustment", category: "OTHER", paid: true },
 ] as const;
 

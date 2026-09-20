@@ -29,7 +29,7 @@ describe("financial run management", () => {
 
   it("supports focused review of large billing runs", () => {
     expect(reviewUi).toContain("Find billing records");
-    expect(reviewUi).toContain("All students");
+    expect(reviewUi).toContain("All clients");
     expect(reviewUi).toContain("From date");
     expect(reviewUi).toContain("Date, newest first");
     expect(reviewUi).toContain("These filters do not change invoice totals or approval");

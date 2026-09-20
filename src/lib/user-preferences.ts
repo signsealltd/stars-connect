@@ -1,12 +1,12 @@
 import { prisma } from "./prisma";
 
 export const quickActionOptions = [
-  { id: "register", label: "Student register", href: "/register" },
+  { id: "register", label: "Client register", href: "/register" },
   { id: "live", label: "Who is on site", href: "/live" },
   { id: "emergency", label: "Emergency roll call", href: "/emergency" },
   { id: "reports", label: "Operational reports", href: "/reports" },
   { id: "staff", label: "Staff", href: "/dashboard/staff" },
-  { id: "students", label: "Students", href: "/dashboard/students" },
+  { id: "students", label: "Clients", href: "/dashboard/students" },
   { id: "visitors", label: "Visitors", href: "/dashboard/visitors" },
   { id: "training", label: "Staff training", href: "/dashboard/training" },
   { id: "premises", label: "Safety & Compliance", href: "/dashboard/premises" },
@@ -19,7 +19,7 @@ export const quickActionOptions = [
   { id: "vehicleCheck", label: "Complete Vehicle Check", href: "/VehicleCheck" },
   { id: "fleet", label: "Fleet & vehicle defects", href: "/dashboard/premises/fleet" },
   { id: "timesheets", label: "Timesheets", href: "/timesheets" },
-  { id: "informationReviews", label: "Student information reviews", href: "/dashboard/information-reviews" },
+  { id: "informationReviews", label: "Client information reviews", href: "/dashboard/information-reviews" },
   { id: "healthSafety", label: "Risk assessments & RAMS", href: "/dashboard/health-safety" },
   { id: "conflicts", label: "Sync conflicts", href: "/dashboard/conflicts" },
   { id: "accessLevels", label: "Staff access levels", href: "/dashboard/settings/access-levels" },
@@ -30,7 +30,7 @@ export const quickActionOptions = [
 
 export const preferenceDefaults = {
   colourMode: "light" as "light" | "dark" | "system",
-  quickActions: ["register", "live", "emergency", "reports"] as string[],
+  quickActions: ["emergency", "staff", "students", "billing", "calendar", "fleet"] as string[],
 };
 
 export async function getUserPreferences(userId: string) {

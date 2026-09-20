@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 
-describe("complete student record download", () => {
+describe("complete client record download", () => {
   const route = readFileSync("src/app/api/students/records/[id]/pdf/route.ts", "utf8");
   const manager = readFileSync("src/components/student-manager-v2.tsx", "utf8");
 
@@ -13,7 +13,7 @@ describe("complete student record download", () => {
     expect(route).not.toContain("storeDocument(");
   });
 
-  it("offers the download from an existing student profile", () => {
+  it("offers the download from an existing client profile", () => {
     expect(manager).toContain("Download complete record PDF");
     expect(manager).toContain("/api/students/records/${current.id}/pdf");
   });

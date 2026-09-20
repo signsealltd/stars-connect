@@ -3,7 +3,7 @@ import { createHash } from "crypto";
 import { fundedRuleForDate, needsPurchaseOrder, fundedCountAmounts } from "./funded-days";
 import {monthlyPeriods} from "./billing-periods";
 
-export async function calculateFundedRun(id:string){
+export async function calculateFundedRun(id:string,options?:{manualPeriodValidated:boolean;bankHolidaysValidated?:boolean}){
  return prisma.$transaction(async tx=>{
   const claim=await tx.billingRun.updateMany({where:{id,status:{in:["DRAFT","REQUIRES_REVIEW","REVIEWED"]}},data:{updatedAt:new Date()}});
   if(!claim.count)throw Error("Create a new revision to recalculate a completed run.");
@@ -22,10 +22,10 @@ export async function calculateFundedRun(id:string){
    const adjustment=profile?retained.get(`${student.id}:${profile.id}`):undefined;
    const count=adjustment?.fundedDays??rule?.fundedDayCount;
    const lbe=profile&&needsPurchaseOrder(`${profile.payerName} ${profile.fundingOrganisation||""}`);
-   const bankHolidayDays=lbe&&Array.isArray(run.bankHolidayDates)?run.bankHolidayDates.length:0;
+   const bankHolidayDays=(lbe||options?.bankHolidaysValidated)&&Array.isArray(run.bankHolidayDates)?run.bankHolidayDates.length:0;
    const removedDays=Number(adjustment?.removedDays||0);
    const legacyRemoval=[...previous,...existing].some(c=>c.studentId===student.id&&c.chargeRuleId&&c.fundedDays==null&&c.excluded);
-   const exceptionCode=!profile?"MISSING_BILLING_PROFILE":matching.length>1?"OVERLAPPING_FUNDING_PROFILES":!rule?"UNCONFIRMED_FUNDED_DAYS":lbe&&!run.billingPeriodId?"LBE_PERIOD_REQUIRED":count==null?"FUNDED_COUNT_REQUIRED":legacyRemoval&&!adjustment?"CONFIRM_PREVIOUS_REMOVALS":null;
+   const exceptionCode=!profile?"MISSING_BILLING_PROFILE":matching.length>1?"OVERLAPPING_FUNDING_PROFILES":!rule?"UNCONFIRMED_FUNDED_DAYS":lbe&&!run.billingPeriodId&&!options?.manualPeriodValidated?"LBE_PERIOD_REQUIRED":count==null?"FUNDED_COUNT_REQUIRED":legacyRemoval&&!adjustment?"CONFIRM_PREVIOUS_REMOVALS":null;
    const amounts=rule&&count!=null?fundedCountAmounts(Number(count),bankHolidayDays,removedDays,Number(rule.rate),Number(rule.vatRate)):{quantity:0,unitRate:rule?Number(rule.rate):0,netAmount:0,vatRate:rule?Number(rule.vatRate):0,vatAmount:0,grossAmount:0};
    await tx.billingCharge.create({data:{billingRunId:id,billingProfileId:profile?.id||"MISSING",studentId:student.id,studentName:student.displayName,payerName:profile?.payerName||"Missing payer",sourceDate:run.periodStart,chargeRuleId:rule?.id,fundedDays:count==null?null:Number(count),bankHolidayDays,removedDays,...amounts,description:exceptionCode?`Confirm billing setup: ${exceptionCode.toLowerCase().replaceAll("_"," ")}`:`Agreed funded days: ${Number(count)} less ${bankHolidayDays} bank holidays and ${removedDays} management removals`,exceptionCode,excluded:adjustment?.excluded||false,manuallyAdjusted:!!adjustment,adjustmentReason:adjustment?.adjustmentReason}});
   }

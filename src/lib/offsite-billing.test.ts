@@ -2,7 +2,7 @@
 import { readFileSync } from "fs";
 import { isBillableAttendanceStatus } from "./billing";
 
-describe("offsite student billing", () => {
+describe("offsite client billing", () => {
   it("treats offsite as attended for billing while absent remains non-billable", () => {
     expect(isBillableAttendanceStatus("OFFSITE")).toBe(true);
     expect(isBillableAttendanceStatus("PRESENT")).toBe(true);

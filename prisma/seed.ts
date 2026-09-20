@@ -1,3 +1,4 @@
+import {APP_VERSION} from "../src/lib/app-version";
 import { PrismaClient, Role, AttendanceStatus, ClockEventType } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { createHash, randomInt, randomUUID } from "crypto";
@@ -28,7 +29,7 @@ async function main() {
     const token = seedContext.generatedDeviceToken();
     const tokenHash = hash(token);
     const existing = await prisma.device.findUnique({where:{tokenHash}});
-    devices.push(existing ? await prisma.device.update({where:{id:existing.id},data:{name,isSeedData:true,status:"REVOKED",revokedAt:existing.revokedAt||new Date(),pendingEventCount:0}}) : await prisma.device.create({data:{name,tokenHash,appVersion:"1.0.0",tokenRotatedAt:new Date(),isSeedData:true,status:"REVOKED",revokedAt:new Date()}}));
+    devices.push(existing ? await prisma.device.update({where:{id:existing.id},data:{name,isSeedData:true,status:"REVOKED",revokedAt:existing.revokedAt||new Date(),pendingEventCount:0}}) : await prisma.device.create({data:{name,tokenHash,appVersion:APP_VERSION,tokenRotatedAt:new Date(),isSeedData:true,status:"REVOKED",revokedAt:new Date()}}));
   }
 
   const staff = [];

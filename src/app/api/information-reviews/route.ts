@@ -32,8 +32,8 @@ export async function POST(req: NextRequest) {
     const parsed = createSchema.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return NextResponse.json({ error: "Check the review request details.", fields: parsed.error.flatten().fieldErrors }, { status: 422 });
     const student = await prisma.student.findFirst({ where: { id: parsed.data.studentId, active: true } });
-    if (!student) return NextResponse.json({ error: "Student not found." }, { status: 404 });
-    if (parsed.data.verifyDateOfBirth && !student.dateOfBirth) return NextResponse.json({ error: "Add the student's date of birth before enabling identity verification." }, { status: 422 });
+    if (!student) return NextResponse.json({ error: "Client not found." }, { status: 404 });
+    if (parsed.data.verifyDateOfBirth && !student.dateOfBirth) return NextResponse.json({ error: "Add the client's date of birth before enabling identity verification." }, { status: 422 });
     const { token, tokenHash } = createReviewToken();
     const review = await prisma.informationReviewRequest.create({ data: {
       organisationId: user.organisationId, studentId: student.id, tokenHash,

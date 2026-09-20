@@ -9,7 +9,7 @@ The dashboard provides a safe overview of today.
 - Sign in with your own management account.
 
 ## Steps
-1. **Check live totals:** Compare staff, students and visitors with what you expect.
+1. **Check live totals:** Compare staff, clients and visitors with what you expect.
 2. **Review warnings:** Open missing clock-out, stale-device or review items.
 3. **Synchronise:** Use Force sync when current tablet data is required.
 4. **Finish the check:** Confirm queues and conflicts are clear.
@@ -21,7 +21,7 @@ The dashboard reflects current authorised-device data and exceptions have an own
 - Do not clear a tablet queue merely to remove a warning.
 
 ## Common mistakes
-- Treating enrolled students as present.
+- Treating enrolled clients as present.
 - Assuming an offline kiosk uploaded.
 
 ## If it does not work

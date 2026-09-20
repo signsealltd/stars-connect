@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
       if (result.billingProfile) await audit("BILLING_PROFILE_CREATED", { actorType: "USER", actorId: user.id, entityType: "BillingProfile", entityId: result.billingProfile.id, afterValue: { studentId: result.student.id, source: "STUDENT_FORM" }, ...requestContext(req) });
       return NextResponse.json({ ...result.student, careInformation:undefined, billingProfile: result.billingProfile }, { status: 201 });
     } catch (error) {
-      if (error instanceof Error && error.message === "ACTIVE_BILLING_PROFILE_EXISTS") return jsonError("This student already has an active billing profile. Edit that profile instead.", 409);
+      if (error instanceof Error && error.message === "ACTIVE_BILLING_PROFILE_EXISTS") return jsonError("This client already has an active billing profile. Edit that profile instead.", 409);
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") return jsonError("That internal reference is already in use.", 409);
       throw error;
     }

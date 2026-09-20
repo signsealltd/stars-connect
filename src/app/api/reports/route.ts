@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
     } else if (type === "students") {
       const entries = await studentAttendanceReport(from, to);
       data = entries;
-      headers = ["Date","Student","Status","Expected","Arrival","Departure","Notes","Source device"];
+      headers = ["Date","Client","Status","Expected","Arrival","Departure","Notes","Source device"];
       rows = entries.map((r) => [r.date,r.student,r.status,r.expected?"Yes":"No",displayTime(r.arrivalTime || undefined),displayTime(r.departureTime || undefined),r.note || "",r.device]);
     } else if (type === "visitors") {
       const entries = await visitorReport(from, to);
@@ -46,12 +46,12 @@ export async function GET(req: NextRequest) {
     } else {
       const report = await siteSummary(from);
       data = report;
-      headers = ["Date","Staff attended","Staff still in","Students present","Students absent","Students late","Students unconfirmed","Open conflicts","Emergency activity","Stale/revoked devices","Visitor count","Visitors still in"];
+      headers = ["Date","Staff attended","Staff still in","Clients present","Clients absent","Clients late","Clients unconfirmed","Open conflicts","Emergency activity","Stale/revoked devices","Visitor count","Visitors still in"];
       rows = [[report.date,report.staffAttended,report.staffStillIn,report.studentsPresent,report.studentsAbsent,report.studentsLate,report.studentsUnconfirmed,report.conflicts,report.emergencyActivity,report.staleOrRevokedDevices,report.visitorCount,report.visitorsStillIn]];
     }
     if (format === "csv") {
       await audit("REPORT_EXPORTED", { actorType:"USER",actorId:user.id,entityType:"Report",afterValue:{type,from,to},...requestContext(req) });
-      return new NextResponse(createCsv(headers, rows), { headers: { "content-type":"text/csv; charset=utf-8", "content-disposition":`attachment; filename="stars-connect-${type}-${from}-${to}.csv"` } });
+      return new NextResponse(createCsv(headers, rows), { headers: { "content-type":"text/csv; charset=utf-8", "content-disposition":`attachment; filename="stars-connect-${type==="students"?"clients":type}-${from}-${to}.csv"` } });
     }
     return NextResponse.json({ type, from, to, data });
   });

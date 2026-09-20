@@ -11,20 +11,20 @@ It uses Next.js App Router, React, TypeScript, Prisma, MariaDB, IndexedDB and a 
 ## Current capabilities
 
 - Staff PIN clock-in/out with hashed credentials and generic failures
-- Touch-first student register
+- Touch-first client register
 - Local-first visitor sign-in/out with private visit references and touch signatures
 - Immutable, versioned visitor site-rule acceptance
 - Reception-assisted visitor sign-out and manager visitor history
 - Administrator-managed visitor reasons, required fields and retention
-- Live staff/student/visitor register
-- Offline emergency roll call with separate Staff, Students and Visitors sections
+- Live staff/client/visitor register
+- Offline emergency roll call with separate Staff, Clients and Visitors sections
 - Persistent IndexedDB queue
 - Authenticated idempotent cross-tablet push/pull sync
 - Local application of pulled clock, attendance and roll-call changes
-- Staff and student create/edit/archive/restore management
+- Staff and client create/edit/archive/restore management
 - One-time tablet provisioning, rotation and revocation
 - Operational dashboard
-- Staff, student, visitor and site reports with protected CSV exports
+- Staff, client, visitor and site reports with protected CSV exports
 - Administrator settings and SMTP test summaries
 - Authenticated daily-summary cron endpoint
 - Audit records for privileged operations
@@ -227,7 +227,7 @@ npm run build
 - [ ] Confirm visitor changes propagate from Tablet A to Tablet B
 - [ ] Confirm kiosk sign-out requires name plus private reference
 - [ ] Confirm visitor signature viewing is manager-only and audited
-- [ ] Confirm staff, students and visitors appear in separate emergency sections
+- [ ] Confirm staff, clients and visitors appear in separate emergency sections
 - [ ] Run visitor retention against fake expired records
 - [ ] Create offline changes and reconnect
 - [ ] Confirm Tablet A changes appear on Tablet B
@@ -244,7 +244,7 @@ npm run build
 
 ## Deliberately excluded from V1
 
-Student invoicing, payroll-provider integration, facial recognition, biometric verification, door access, staff rotas, holiday requests and direct tablet-to-tablet networking.
+Client invoicing, payroll-provider integration, facial recognition, biometric verification, door access, staff rotas, holiday requests and direct tablet-to-tablet networking.
 
 ## Payroll, billing and immutable documents
 
@@ -282,7 +282,7 @@ pm2 restart stars-connect --update-env
 ```
 ## Preparing the live test environment
 
-After a verified MariaDB and document-storage backup, remove all demonstration devices, staff, students and their dependent operational/finance records with:
+After a verified MariaDB and document-storage backup, remove all demonstration devices, staff, clients and their dependent operational/finance records with:
 
 ```bash
 CONFIRM_LIVE_TEST_RESET=REMOVE_ALL_STAFF_STUDENTS_DEVICES npm run db:prepare-live-test
@@ -308,3 +308,11 @@ bash scripts/deploy-vps.sh
 ```
 
 The script takes a pre-deployment MariaDB backup, locks against concurrent deployments, fast-forwards `main`, installs the lockfile dependencies, applies Prisma migrations, builds production assets, and restarts/saves the `stars-connect` PM2 process. It stops immediately if any stage fails. Do not expose this script directly to unauthenticated HTTP requests.
+
+## STARS Connect release versioning
+
+Every completed production revision must update the STARS Connect version using the project’s versioning rules and report the previous and new versions.
+
+Read `package.json` before changing the application. It is the authoritative version source; `src/lib/app-version.ts` derives the visible `Vx.y.z` label and diagnostic version from it. Keep the root version entries in `package-lock.json` in sync. Do not introduce environment overrides or separate hardcoded versions.
+
+Small fixes and minor UI adjustments increment the patch (V1.5.1 → V1.5.2). Meaningful new features or substantial improvements increment the minor release and reset patch (V1.5.x → V1.6.0). Major architectural or product releases increment the major release and reset minor/patch (V1.x.x → V2.0.0). Make only one release increment for the completed revision; never decrease versions or increment for incomplete, abandoned or investigative work. Report old and new versions. The dashboard and Client terminology release establishes V1.5.1 from the previous V1.0.0 package baseline, as explicitly requested.

@@ -127,6 +127,6 @@ export function SimpleBillingProfilesV2({ initialStudentId = "", returnTo = "" }
         <td><span className={`badge ${profile.activeTo ? "badge-neutral" : "badge-success"}`}>{profile.activeTo ? `Ended ${new Date(profile.activeTo).toLocaleDateString("en-GB")}` : "Active"}</span></td>
         <td><div className="table-actions"><button className="btn ghost" onClick={() => edit(profile)}><Pencil size={16}/>Edit</button>{!profile.activeTo && <button className="btn secondary" onClick={() => end(profile)}><Square size={15}/>End</button>}<button className="btn danger" onClick={() => remove(profile)}><Trash2 size={16}/>Delete</button></div></td>
       </tr>)}</tbody>
-    </table>{!profiles.length && <div className="empty"><b>No billing profiles yet</b><p>Billing can be set up here or while adding a student.</p></div>}</section>
+    </table>{!profiles.length && <div className="empty"><b>No billing profiles yet</b><p>Billing can be set up here or while adding a client.</p></div>}</section>
   </>;
 }

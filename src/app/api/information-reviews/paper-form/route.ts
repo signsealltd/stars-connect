@@ -6,7 +6,7 @@ import { simplePdf } from "@/lib/documents";
 export async function GET(req: NextRequest) {
   return withCapability(req, CAPABILITIES.INFORMATION_REVIEW_VIEW, async () => {
     const sections = [
-      "STUDENT DETAILS", "Name:", "Date of birth:", "Address:", "Telephone / email:", "NHS / hospital number:", "",
+      "CLIENT DETAILS", "Name:", "Date of birth:", "Address:", "Telephone / email:", "NHS / hospital number:", "",
       "EMERGENCY CONTACTS", "Primary contact / relationship:", "Telephone / email:", "Second contact / relationship:", "Telephone / email:", "",
       "MEDICAL", "GP / surgery / telephone:", "Medical conditions:", "Allergies:", "Emergency and current medication:", "Instructions:", "",
       "PERSON-CENTRED INFORMATION", "Communication:", "Support strategies:", "Interests / dislikes:", "Triggers / calming strategies:", "Goals:", "",

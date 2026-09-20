@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 
 const route = () => readFileSync(join(process.cwd(), "src/app/api/students/manage/[id]/route.ts"), "utf8");
 
-describe("student management updates", () => {
+describe("client management updates", () => {
   it("accepts blank optional form fields and stores them as null", () => {
     const source = route();
     expect(source.match(/or\(z\.literal\(""\)\)/g)).toHaveLength(5);

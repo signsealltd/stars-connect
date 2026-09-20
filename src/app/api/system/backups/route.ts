@@ -3,7 +3,7 @@ import { execFile } from "child_process";
 import { mkdir, readdir, stat, unlink } from "fs/promises";
 import path from "path";
 import { promisify } from "util";
-import packageInfo from "../../../../../package.json";
+import {APP_VERSION} from "@/lib/app-version";
 import { withRole, requestContext } from "@/lib/api";
 import { audit } from "@/lib/audit";
 
@@ -18,7 +18,7 @@ async function backups() {
 
 export async function GET(req: NextRequest) {
   return withRole(req, "ADMINISTRATOR", async () => NextResponse.json({
-    version: packageInfo.version,
+    version: APP_VERSION,
     commit: process.env.GIT_COMMIT_SHA || process.env.NEXT_PUBLIC_GIT_COMMIT_SHA || "Not supplied",
     environment: process.env.APP_ENVIRONMENT || process.env.NODE_ENV || "unknown",
     backups: (await backups()).sort((a, b) => b.createdAt.localeCompare(a.createdAt)),

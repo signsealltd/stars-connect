@@ -37,7 +37,7 @@ export async function PATCH(req:NextRequest,{params}:Params){const body=await re
     const profile=await tx.billingProfile.findUnique({where:{id:String(body.billingProfileId||"")}});
     const student=await tx.student.findUnique({where:{id:String(body.studentId||"")}});
     const sourceDate=new Date(`${body.sourceDate}T00:00:00Z`),description=String(body.description||"").trim();
-    if(!profile||!student||profile.studentId!==student.id)throw new Error("Select the student's own billing profile.");
+    if(!profile||!student||profile.studentId!==student.id)throw new Error("Select the client's own billing profile.");
     if(Number.isNaN(sourceDate.getTime())||sourceDate<run.periodStart||sourceDate>run.periodEnd||description.length<2||description.length>191)throw new Error("Choose a service date within the period and a description.");
     const quantity=Number(body.quantity),unitRate=Number(body.unitRate),vatRate=Number(profile.vatRate),amounts=calculateInvoiceServiceLine(quantity,unitRate,vatRate);
     return tx.billingCharge.create({data:{billingRunId:id,billingProfileId:profile.id,studentId:student.id,studentName:student.displayName,payerName:profile.payerName,sourceDate,description,quantity,unitRate,vatRate,...amounts,manuallyAdjusted:true,adjustmentReason:reason}});

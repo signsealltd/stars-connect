@@ -28,13 +28,13 @@ export function SafeguardingBox(){
  }
  if(!allowed&&!error)return null;
  return <section>
-  <button className={`card ${styles.trigger}`} aria-haspopup="dialog" onClick={()=>{setOpened(true);setSelected(null);setHistory(false);setPage(1);setDraftPolicy(policy);dialog.current?.showModal();}}>
-   <span><ShieldAlert size={21}/> Safeguarding</span><strong>{error&&!allowed?"—":openCount}</strong><span>{openCount===1?"Open trigger to investigate":"Open triggers to investigate"}</span><small className="muted">3 recorded absences trigger an enquiry. Click to review.</small>
+  <button className={`card ${styles.trigger} ${openCount?styles.attention:styles.healthy}`} aria-haspopup="dialog" onClick={()=>{setOpened(true);setSelected(null);setHistory(false);setPage(1);setDraftPolicy(policy);dialog.current?.showModal();}}>
+   <span className={styles.title}><ShieldAlert size={24} aria-hidden="true"/> Safeguarding</span><strong>{error&&!allowed?"—":openCount}</strong><span>{openCount===1?"Open trigger to investigate":"Open triggers to investigate"}</span><small className="muted">3 recorded absences trigger an enquiry. Click to review.</small>
   </button>
   {error&&!opened&&<p role="alert">{error}</p>}
   <dialog ref={dialog} className={`${styles.dialog} ${styles.review}`} aria-labelledby="safeguarding-title" onCancel={e=>{if(busy)e.preventDefault();}} onClose={()=>{setOpened(false);setSelected(null);}}>
    <div className={styles.heading}><h2 id="safeguarding-title">Safeguarding enquiries</h2><button className="btn secondary" disabled={busy} onClick={()=>dialog.current?.close()}>Close list</button></div>
-   <p><b>{openCount} open {openCount===1?"trigger":"triggers"}</b> · Each enquiry groups a student’s qualifying absences.</p>
+   <p><b>{openCount} open {openCount===1?"trigger":"triggers"}</b> · Each enquiry groups a client’s qualifying absences.</p>
    <p className="muted">Trigger: 3 {policy.mode==="CONSECUTIVE"?"consecutive recorded absences":"accumulated absences since the previous enquiry"}{policy.windowDays?` within ${policy.windowDays} days`:""}.</p>
    <label className="check-row"><input type="checkbox" checked={history} disabled={busy} onChange={e=>{setHistory(e.target.checked);setPage(1);setSelected(null);}}/>Include closed enquiries</label>
    {error&&<p role="alert">{error} <button className="btn ghost" onClick={()=>void load()}>Retry</button></p>}

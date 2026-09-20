@@ -59,7 +59,7 @@ export async function GET(req: NextRequest) {
     });
     const now = new Date();
     const trainingFlags = training.filter(item => item.expiryDate && (item.expiryDate < now || item.expiryDate <= addDays(now, item.course?.warningDays ?? 60))).map(item => ({ id: item.id, staff: item.staff.displayName, course: item.course?.name || item.courseName, expiryDate: item.expiryDate, mandatory: item.mandatory, state: item.expiryDate && item.expiryDate < now ? "OVERDUE" : "DUE_SOON" }));
-    return NextResponse.json({ pilot: true, readOnlySources: ["student expected days", "staff schedules", "training renewals", "billing cycles"], students: students.map(student => ({ id: student.id, name: student.displayName, reference: student.internalReference })), days, trainingFlags });
+    return NextResponse.json({ pilot: true, readOnlySources: ["client expected days", "staff schedules", "training renewals", "billing cycles"], students: students.map(student => ({ id: student.id, name: student.displayName, reference: student.internalReference })), days, trainingFlags });
   });
 }
 
@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
     const parsed = createSchema.safeParse(await req.json().catch(() => null));
     if (!parsed.success || parsed.data.endTime <= parsed.data.startTime) return jsonError("Check the activity title, date and times.", 422);
     const input = parsed.data;
-    if (input.studentIds.length && !hasCapability(user.role, CAPABILITIES.OPERATIONS_ASSIGN_ATTENDEES, user.permissionOverrides)) return jsonError("You do not have permission to assign students to activities.", 403);
+    if (input.studentIds.length && !hasCapability(user.role, CAPABILITIES.OPERATIONS_ASSIGN_ATTENDEES, user.permissionOverrides)) return jsonError("You do not have permission to assign clients to activities.", 403);
     const startAt = fromZonedTime(`${input.date}T${input.startTime}:00`, APP_TIME_ZONE).toISOString();
     const endAt = fromZonedTime(`${input.date}T${input.endTime}:00`, APP_TIME_ZONE).toISOString();
     try {

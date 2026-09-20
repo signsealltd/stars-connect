@@ -165,7 +165,7 @@ story += [P("STARS Connect is a tablet-first progressive web application (PWA) f
           sub("Main capabilities"),
           bullets([
               "<b>Staff attendance:</b> PIN-based clock in and clock out, with timesheets and correction records.",
-              "<b>Student register:</b> Present, Absent and Offsite marking with protected access to student names.",
+              "<b>Client register:</b> Present, Absent and Offsite marking with protected access to client names.",
               "<b>Visitor management:</b> Sign in, site-rule acceptance, signature, private visit reference and sign out.",
               "<b>Emergency roll call:</b> A dedicated live roll-call view that takes priority over normal kiosk behaviour.",
               "<b>Management dashboard:</b> Live operational counts, exceptions, reports and device health.",
@@ -216,7 +216,7 @@ story += [bullets([
 P("Do not share a provisioning code in an email or document. If a code is exposed, allow it to expire or create a replacement.", "Warning")]
 
 section("4. Kiosk home and idle screensaver")
-story += [P("The kiosk home provides large actions for staff clocking, the student register, visitor sign in/out and the emergency register. It also shows connectivity, last sync and queued-upload information."),
+story += [P("The kiosk home provides large actions for staff clocking, the client register, visitor sign in/out and the emergency register. It also shows connectivity, last sync and queued-upload information."),
           sub("Idle screensaver"),
           bullets([
               "On a provisioned tablet home screen, the screensaver starts after the configured idle period (30 seconds by default).",
@@ -224,7 +224,7 @@ story += [P("The kiosk home provides large actions for staff clocking, the stude
               "The first touch wakes the screen and returns to kiosk home; it cannot activate a button underneath.",
               "The display becomes progressively dimmer during day, evening and night periods.",
               "The constellation animation is stored within the app and continues offline.",
-              "The screensaver is suspended during PIN entry, visitor forms, the student register, tablet setup and emergency roll call."
+              "The screensaver is suspended during PIN entry, visitor forms, the client register, tablet setup and emergency roll call."
           ]),
           P("Configure this under <b>Settings > Kiosk Screensaver</b>. Settings are cached on tablets for offline operation.", "Callout")]
 
@@ -247,22 +247,22 @@ story += [P("Staff clocking uses each staff member's private PIN."),
           ]),
           P("If clocking is unavailable, record the actual time separately and ask a manager to create a documented correction. Do not invent an approximate time.", "Warning")]
 
-section("6. Student register")
-story += [P("The register contains student names and is therefore protected."),
+section("6. Client register")
+story += [P("The register contains client names and is therefore protected."),
           bullets([
-              "A kiosk user selects <b>Student Register</b> and an active staff member enters their PIN.",
+              "A kiosk user selects <b>Client Register</b> and an active staff member enters their PIN.",
               "A signed-in Manager, Director or Administrator bypasses the register PIN prompt.",
-              "Mark each student as <b>Present</b>, <b>Absent</b> or <b>Offsite</b>.",
+              "Mark each client as <b>Present</b>, <b>Absent</b> or <b>Offsite</b>.",
               "Changes are saved locally immediately and queued for synchronisation.",
               "Use <b>Lock</b> or return to kiosk home when finished so names are no longer visible."
           ]),
           table([
               ["Status", "Meaning"],
-              ["Present", "The student is currently attending on site."],
-              ["Absent", "The student is expected or enrolled but is not attending."],
-              ["Offsite", "The student is attending the service but temporarily away from the premises."]
+              ["Present", "The client is currently attending on site."],
+              ["Absent", "The client is expected or enrolled but is not attending."],
+              ["Offsite", "The client is attending the service but temporarily away from the premises."]
           ], [32*mm, 140*mm]),
-          P("The enrolled student count and the live present count are different concepts. Dashboard presence figures should be checked against the live attendance view, not the total number of student records.", "Callout")]
+          P("The enrolled client count and the live present count are different concepts. Dashboard presence figures should be checked against the live attendance view, not the total number of client records.", "Callout")]
 
 section("7. Visitor management")
 story += [P("Visitors can sign themselves in and out without seeing other visitor records."),
@@ -299,7 +299,7 @@ story += [P("The management dashboard summarises the current operational positio
           table([
               ["Dashboard item", "Description"],
               ["Staff currently in", "Staff whose latest valid clock event leaves them clocked in."],
-              ["Students present", "Students marked Present in the live register data."],
+              ["Clients present", "Clients marked Present in the live register data."],
               ["Visitors on site", "Visitors signed in without a corresponding sign out."],
               ["Expected / not marked", "Register exceptions requiring review."],
               ["Missing clock-outs", "Staff attendance sequences that appear incomplete."],
@@ -319,10 +319,10 @@ story += [bullets([
 ]),
 P("The display name can be informal for the kiosk, but payroll reports use the full first name and surname.", "Callout")]
 
-section("11. Managing students")
+section("11. Managing clients")
 story += [bullets([
-    "Open <b>People > Students</b>.",
-    "Create or edit the student's first name, surname, display name, internal reference and attendance pattern.",
+    "Open <b>People > Clients</b>.",
+    "Create or edit the client's first name, surname, display name, internal reference and attendance pattern.",
     "Enter funding information only where it is needed for authorised billing work.",
     "Archive or remove records according to the organisation's approved retention process.",
     "After major changes, confirm that provisioned tablets have synchronised."
@@ -385,7 +385,7 @@ story += [P("Payroll uses a controlled period workflow."),
           P("The accountant or payroll provider remains responsible for PAYE, tax, National Insurance, pension, statutory payments, deductions and final pay calculations.", "Warning")]
 
 section("16. Billing")
-story += [P("Billing profiles connect students to payers and charge rules."),
+story += [P("Billing profiles connect clients to payers and charge rules."),
           bullets([
               "Configure the organisation's legal, address, payment and invoice settings.",
               "Create a billing profile for the service user and payer.",
@@ -506,7 +506,7 @@ story += [table([
 section("25. Privacy, security and safeguarding")
 story += [bullets([
     "Only collect information required for a clear operational purpose.",
-    "Keep student names behind the staff-PIN or manager-session protection.",
+    "Keep client names behind the staff-PIN or manager-session protection.",
     "Do not leave management sessions signed in on unattended devices.",
     "Treat database backups, exported reports, signatures, contact details and payroll documents as confidential.",
     "Use device revocation promptly after loss, disposal or suspected compromise.",

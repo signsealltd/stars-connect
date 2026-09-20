@@ -21,7 +21,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     if (!review) return NextResponse.json({ error: "Review not found." }, { status: 404 });
     const submission = review.submissions[0];
     const lines = [
-      `Student: ${review.student.displayName}`,
+      `Client: ${review.student.displayName}`,
       `Reference: ${review.student.internalReference || "Not configured"}`,
       `Status: ${review.status.replaceAll("_", " ")}`,
       `Created: ${review.createdAt.toLocaleString("en-GB")}`,

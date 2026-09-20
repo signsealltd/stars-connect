@@ -48,7 +48,7 @@ const fieldLabels:Record<string,string>={
 };
 export function studentValidationMessage(error:z.ZodError){
   const issue=error.issues[0],key=String(issue?.path.at(-1)||""),label=fieldLabels[key]||key;
-  return label?`Check ${label}: ${issue?.message||"invalid value"}.`:"Please check the student details.";
+  return label?`Check ${label}: ${issue?.message||"invalid value"}.`:"Please check the client details.";
 }
 
 export const directorRoles = new Set(["DIRECTOR", "ADMINISTRATOR"]);

@@ -34,7 +34,7 @@ export async function GET(req:NextRequest){
   const staffOffsite=latestStaffEvents.filter(staff=>staff.clockEvents[0]?.deviceTimestamp>=start&&staffOccupancy(staff.clockEvents[0],staff.presenceEvents[0])==="OFFSITE").length;
   const studentMetrics=studentDashboardMetrics(students,attendance,date);
   return NextResponse.json({
-   role:user.role,date,...staffMetrics,missingClockOut:missingClockOuts.length,missingClockOuts,canResolveClockOut:hasCapability(user.role,CAPABILITIES.TIMESHEETS_MANAGE,user.permissionOverrides),staffOffsite,...studentMetrics,activeVisitors,
+   role:user.role,userName:user.name,date,...staffMetrics,missingClockOut:missingClockOuts.length,missingClockOuts,canResolveClockOut:hasCapability(user.role,CAPABILITIES.TIMESHEETS_MANAGE,user.permissionOverrides),staffOffsite,...studentMetrics,activeVisitors,
    review:events.filter(e=>e.reviewRequired).length+conflicts,
    conflicts,corrections,payrollAwaiting,billingAwaiting,dailyReport,emergency:rollCall?{id:rollCall.id,startedAt:rollCall.startedAt,missing:rollCall.entries.filter(e=>!e.accountedFor).length}:null,
    email:email?{status:email.status,sentAt:email.sentAt,failureReason:email.failureReason}:null,

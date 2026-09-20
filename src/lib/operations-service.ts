@@ -63,7 +63,7 @@ export async function createOperation(user:User,input:{title:string;type:string;
   const attendeeStudentIds=[...new Set(input.attendeeStudentIds??[])];
   if(attendeeStudentIds.length){
    const available=await tx.student.count({where:{id:{in:attendeeStudentIds},active:true,archivedAt:null}});
-   if(available!==attendeeStudentIds.length)throw Object.assign(new Error("One or more selected students are no longer available."),{status:422});
+   if(available!==attendeeStudentIds.length)throw Object.assign(new Error("One or more selected clients are no longer available."),{status:422});
   }
   const operation=await tx.operation.create({data:{organisationId,title:input.title,type:input.type,description:input.description,internalNotes:input.internalNotes,createdById:user.id}});
   const series=input.recurrenceRule?await tx.operationSeries.create({data:{organisationId,operationId:operation.id,recurrenceRule:input.recurrenceRule,timezone:input.timezone??"Europe/London"}}):null;

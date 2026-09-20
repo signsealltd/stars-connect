@@ -16,7 +16,7 @@ export function holidaysInPeriod(events: Array<{date:string}>, start: string, en
   return [...new Set(events.map(event=>event.date).filter(date=>date>=start&&date<=end))].sort();
 }
 export async function englandBankHolidays() {
-  const response=await fetch(BANK_HOLIDAY_SOURCE,{signal:AbortSignal.timeout(15000),cache:"no-store"});
+  const response=await fetch(BANK_HOLIDAY_SOURCE,{signal:AbortSignal.timeout(15000),cache:"no-store"}).catch(()=>{throw new Error("Unable to verify England bank holidays. Check the connection and try again.")});
   if(!response.ok)throw new Error("Unable to verify England bank holidays. Please try saving the period again.");
   const body=await response.json();
   const events=body["england-and-wales"]?.events as Array<{date:string}>|undefined;

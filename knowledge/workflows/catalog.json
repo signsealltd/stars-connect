@@ -20,7 +20,7 @@
       "steps": [
         {
           "title": "Check live totals",
-          "instruction": "Compare staff, students and visitors with what you expect.",
+          "instruction": "Compare staff, clients and visitors with what you expect.",
           "selector": ".stat-grid"
         },
         {
@@ -41,7 +41,7 @@
         "Do not clear a tablet queue merely to remove a warning."
       ],
       "mistakes": [
-        "Treating enrolled students as present.",
+        "Treating enrolled clients as present.",
         "Assuming an offline kiosk uploaded."
       ],
       "recovery": [
@@ -57,9 +57,9 @@
     },
     {
       "id": "register",
-      "title": "Complete the student register",
+      "title": "Complete the client register",
       "summary": "Record Present, Absent, Offsite and Departed.",
-      "purpose": "The register records attendance while protecting student names.",
+      "purpose": "The register records attendance while protecting client names.",
       "route": "/register",
       "keywords": [
         "student",
@@ -76,27 +76,27 @@
       "steps": [
         {
           "title": "Unlock",
-          "instruction": "Open Student Register and enter your staff PIN if asked."
+          "instruction": "Open Client Register and enter your staff PIN if asked."
         },
         {
           "title": "Mark arrivals",
-          "instruction": "Choose Present only after the student arrives."
+          "instruction": "Choose Present only after the client arrives."
         },
         {
           "title": "Record changes",
-          "instruction": "Use Absent or Offsite accurately and Departed when the student leaves."
+          "instruction": "Use Absent when they did not attend, Offsite when they attended but are temporarily away on an activity, and Departed when they have finished for the day."
         },
         {
           "title": "Save and verify",
           "instruction": "Save and confirm the dashboard status."
         }
       ],
-      "outcome": "Every expected student has an accurate status and attended days remain billable.",
+      "outcome": "Every expected client has an accurate status and billing remains independent of attendance.",
       "warnings": [
-        "Never leave student names visible on unattended reception equipment."
+        "Never leave client names visible on unattended reception equipment."
       ],
       "mistakes": [
-        "Using Offsite instead of Departed.",
+        "Using Offsite for a client who has finished for the day.",
         "Assuming Present means enrolled."
       ],
       "recovery": [
@@ -274,58 +274,85 @@
     },
     {
       "id": "billing",
-      "title": "Prepare and approve billing",
-      "summary": "Create official invoices from attended days and additional services.",
-      "purpose": "Billing links students to payers, charge rules and approved documents.",
+      "title": "Create invoices",
+      "summary": "Choose dates and clients, review totals and create invoices.",
+      "purpose": "Bill agreed services independently of register attendance.",
       "route": "/dashboard/billing",
       "keywords": [
         "billing",
         "invoice",
         "payer",
-        "charge rule",
+        "manual total",
         "day trip",
-        "vat"
+        "vat",
+        "historic",
+        "historical",
+        "LBE",
+        "Nicola",
+        "cycle",
+        "funded days",
+        "dates"
       ],
       "before": [
-        "Configure payer, active rate, student reference and invoice details."
+        "Confirm payer, PO reference, agreed rate and funded days where known.",
+        "Use the correct LBE/Nicola or other-client billing group."
       ],
       "steps": [
         {
           "title": "Choose dates",
-          "instruction": "Confirm the period and prepare billing."
+          "instruction": "Choose a saved period or enter From and To dates manually and choose the billing group."
         },
         {
-          "title": "Review warnings",
-          "instruction": "Check student, payer, service description, quantity, VAT and total."
+          "title": "Select clients",
+          "instruction": "Select individual clients or use Select all. No clients are selected automatically."
         },
         {
-          "title": "Add services",
-          "instruction": "Use Add service for a day trip or other authorised extra."
+          "title": "Set totals",
+          "instruction": "Use agreed amounts or Enter totals myself. Funded days can remain blank if an authorised total is entered."
         },
         {
-          "title": "Resolve",
-          "instruction": "Use a standard reason and verify recalculation."
+          "title": "Review totals",
+          "instruction": "Review each client, payer and total. Explain material changes. Fix highlighted details or deselect the client."
         },
         {
-          "title": "Approve",
-          "instruction": "Preview, confirm and download official invoices."
+          "title": "Create invoices",
+          "instruction": "Confirm the count and combined total. Existing invoices require explicit replacement confirmation; older versions remain in history."
+        },
+        {
+          "title": "Download",
+          "instruction": "Download the batch or view individual invoices. Creation does not send email."
         }
       ],
-      "outcome": "Invoices show student identity/reference, correct lines, payer and payment details.",
+      "outcome": "All selected clients have invoices for the chosen dates and reviewed totals.",
       "warnings": [
-        "Never email a test invoice to a live payer."
+        "Register attendance does not change charges.",
+        "LBE bank holidays are deducted automatically.",
+        "Review existing invoices to avoid overlapping billing runs."
       ],
       "mistakes": [
-        "Using an inactive charge rule.",
-        "Expecting edited settings to change an issued PDF."
+        "Assuming the client list is automatically selected.",
+        "Expecting changed settings to rewrite issued PDFs."
       ],
       "recovery": [
-        "Refresh calculations after correcting billing setup."
+        "Use Back to retain selections and edit totals.",
+        "Open Billing settings to correct payer details, rates or saved periods."
       ],
       "faq": [
         {
-          "question": "Why no matching charge rule?",
-          "answer": "An active billing profile must cover every attendance date."
+          "question": "Does Offsite or absence change billing?",
+          "answer": "No. Billing uses agreed funded days or an authorised manual total, not the register."
+        },
+        {
+          "question": "How do I handle different payer calendars?",
+          "answer": "Select the correct saved period or enter manual dates and choose LBE or other clients."
+        },
+        {
+          "question": "What should I check before the first live approval?",
+          "answer": "Check every selected client, date range, PO, quantity, rate, VAT and total, then inspect the generated PDFs."
+        },
+        {
+          "question": "Can I add a day trip?",
+          "answer": "Advanced billing in Billing settings retains authorised additional-service controls."
         }
       ]
     },
@@ -436,7 +463,7 @@
     },
     {
       "id": "premises",
-      "title": "Manage premises and compliance",
+      "title": "Manage Safety & Compliance",
       "summary": "Track assets, tests, actions, insurance, RAMS and COSHH.",
       "purpose": "The module organises property evidence, dates and responsibilities.",
       "route": "/dashboard/premises",

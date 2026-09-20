@@ -29,7 +29,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   return withRole(req, "MANAGER", async user => {
     const { id } = await params;
     const before = await prisma.student.findUnique({ where: { id } });
-    if (!before) return jsonError("Student not found.", 404);
+    if (!before) return jsonError("Client not found.", 404);
     const parsed = schema.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return jsonError(studentValidationMessage(parsed.error), 422);
     const { billing, ...input } = parsed.data;
@@ -61,7 +61,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       if (result.billingProfile) await audit("BILLING_PROFILE_CHANGED", { actorType: "USER", actorId: user.id, entityType: "BillingProfile", entityId: result.billingProfile.id, afterValue: { studentId: id, source: "STUDENT_FORM" }, ...requestContext(req) });
       return NextResponse.json({ ...result.student, careInformation:undefined, billingProfile: result.billingProfile });
     } catch (error) {
-      if (error instanceof Error && error.message === "ACTIVE_BILLING_PROFILE_EXISTS") return jsonError("This student already has an active billing profile. Edit that profile instead.", 409);
+      if (error instanceof Error && error.message === "ACTIVE_BILLING_PROFILE_EXISTS") return jsonError("This client already has an active billing profile. Edit that profile instead.", 409);
       if (error instanceof Error && error.message === "BILLING_PROFILE_NOT_FOUND") return jsonError("The billing profile could not be found.", 404);
       throw error;
     }

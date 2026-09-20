@@ -1,3 +1,4 @@
+import {APP_VERSION} from "@/lib/app-version";
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
 import type { LocalAttendance, LocalClockEvent, LocalStaffPresenceEvent, LocalStudent, LocalVisitorVisit, PendingChange } from "./types";
 import { normalizeVisitorName } from "./visitors";
@@ -275,7 +276,7 @@ async function performSync() {
         "content-type": "application/json",
         "x-device-id": localStorage.getItem("pulse-device-id")!,
         authorization: `Bearer ${localStorage.getItem("pulse-device-token")!}`,
-        "x-app-version": process.env.NEXT_PUBLIC_APP_VERSION || "1.0.0",
+        "x-app-version": APP_VERSION,
         ...batterySyncHeaders(localStorage),
       },
       body: JSON.stringify({ cursor, events: changes }),

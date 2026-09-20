@@ -17,7 +17,7 @@ describe("invoice output regressions", () => {
       vatNumber: "",
       payerName: "Council",
       payerAddress: ["Enfield"],
-      studentName: "Test Student",
+      studentName: "Test Client",
       studentReference: "TEST1",
       rows: [{ date: "30 July 2026", days: "1.000", rate: "GBP 100.00", net: "GBP 100.00", vat: "GBP 0.00", total: "GBP 100.00" }],
       attendanceDays: "1.000",
@@ -27,7 +27,7 @@ describe("invoice output regressions", () => {
       grossTotal: "GBP 100.00",
       paymentTerms: "30 days",
       bankDetails: ["Bank line 1", "Bank line 2", "Bank line 3"],
-      remittanceInstructions: ["Reference invoice and student"],
+      remittanceInstructions: ["Reference invoice and client"],
       approvedAt: "30 July 2026 21:12",
       generatedAt: "30 July 2026 21:20",
     }).toString("latin1");
@@ -40,7 +40,7 @@ describe("invoice output regressions", () => {
     expect(pdf).toContain("(Generated: 30 July 2026 21:20)");
   });
 
-  it("creates safe student-aware document names", () => {
+  it("creates safe client-aware document names", () => {
     expect(safeDocumentName("Kellie O'Brien / Test")).toBe("Kellie-OBrien-Test");
   });
 });

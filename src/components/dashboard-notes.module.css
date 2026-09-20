@@ -19,3 +19,6 @@
 .enquiry { border-top: 1px solid var(--border); padding: 18px 0; }
 .dates { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0; }
 .investigation { margin-top: 12px; padding: 16px; border: 1px solid var(--border); border-radius: 10px; }
+
+.note {border-radius:11px;box-shadow:inset 0 0 0 1px #d8ba6224,0 3px 10px #35240e0d;border-color:#e7d59388;min-height:146px;display:flex;flex-direction:column}
+.yellow {background:#fff4c3}.actions{margin-top:auto}.actions button{min-height:44px}.title{display:flex;align-items:center;gap:12px;font-size:18px;font-weight:750}.healthy strong{color:#177e59}.attention strong{color:#986112}

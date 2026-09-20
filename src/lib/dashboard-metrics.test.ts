@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { staffDashboardMetrics, studentDashboardMetrics } from "./dashboard-metrics";
 
 describe("dashboard metrics", () => {
-  it("uses active students consistently across attendance tiles", () => {
+  it("uses active clients consistently across attendance tiles", () => {
     const metrics = studentDashboardMetrics(
       [{ id: "active", expectedDays: [1] }, { id: "offsite", expectedDays: [1] }],
       [
@@ -28,7 +28,7 @@ describe("dashboard metrics", () => {
     const route = readFileSync(join(process.cwd(), "src/app/api/dashboard/route.ts"), "utf8");
     expect(route.match(/device:\{isSeedData:false,lastSyncAt:\{not:null\}\}/g)).toHaveLength(4);
   });
-  it("counts only expected unmarked students as not marked", () => {
+  it("counts only expected unmarked clients as not marked", () => {
     const metrics = studentDashboardMetrics(
       [
         { id: "expected", expectedDays: [1] },

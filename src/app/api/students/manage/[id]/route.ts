@@ -28,7 +28,7 @@ export async function GET(req: NextRequest, { params }: Params) {
       where: { id },
       include: { attendance: { orderBy: { date: "desc" }, take: 60, include: { device: { select: { name: true } } } } },
     });
-    return student ? NextResponse.json(student) : jsonError("Student not found.", 404);
+    return student ? NextResponse.json(student) : jsonError("Client not found.", 404);
   });
 }
 
@@ -36,9 +36,9 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   return withRole(req, "MANAGER", async (user) => {
     const { id } = await params;
     const before = await prisma.student.findUnique({ where: { id } });
-    if (!before) return jsonError("Student not found.", 404);
+    if (!before) return jsonError("Client not found.", 404);
     const parsed = schema.safeParse(await req.json().catch(() => null));
-    if (!parsed.success) return jsonError("Please check the student details.", 422);
+    if (!parsed.success) return jsonError("Please check the client details.", 422);
     const d = parsed.data;
     const after = await prisma.student.update({ where: { id }, data: {
       ...d,

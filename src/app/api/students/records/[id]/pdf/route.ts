@@ -45,7 +45,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         },
       },
     });
-    if (!student) return NextResponse.json({ error: "Student not found." }, { status: 404 });
+    if (!student) return NextResponse.json({ error: "Client not found." }, { status: 404 });
 
     const billingProfiles = await prisma.billingProfile.findMany({
       where: { studentId: student.id },
@@ -55,10 +55,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const organisation = await getOrganisationSettings();
     const active = student.active && !student.archivedAt;
     const sections: StudentRecordPdfSection[] = [
-      { title: "Student details", rows: [
+      { title: "Client details", rows: [
         { label: "Legal name", value: `${student.firstName} ${student.lastName}`.trim() },
         { label: "Display name", value: student.displayName },
-        { label: "Student reference", value: recorded(student.internalReference) },
+        { label: "Client reference", value: recorded(student.internalReference) },
         { label: "Date of birth", value: date(student.dateOfBirth) },
         { label: "Status", value: active ? "Active" : "Archived" },
         { label: "Start date", value: date(student.startDate) },
@@ -107,7 +107,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       { title: "Record metadata", rows: [
         { label: "Profile created", value: dateTime(student.createdAt) },
         { label: "Profile last updated", value: dateTime(student.updatedAt) },
-        { label: "Disclosure scope", value: "Current student profile and linked attendance, consent, billing, information-review, activity and outing records held in STARS Connect at the time of generation." },
+        { label: "Disclosure scope", value: "Current client profile and linked attendance, consent, billing, information-review, activity and outing records held in STARS Connect at the time of generation." },
       ] },
     ];
     const generatedAt = new Date();

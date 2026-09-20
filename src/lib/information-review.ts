@@ -7,12 +7,12 @@ export const REVIEW_LOCK_MINUTES = 15;
 export const REVIEW_MAX_VERIFICATION_FAILURES = 5;
 
 export const reviewFieldDefinitions = [
-  ["firstName", "Student details", true], ["lastName", "Student details", true],
-  ["displayName", "Student details", false], ["dateOfBirth", "Student details", true],
-  ["addressLine1", "Student details", false], ["addressLine2", "Student details", false],
-  ["town", "Student details", false], ["postcode", "Student details", false],
-  ["phone", "Student details", false], ["email", "Student details", false],
-  ["nhsNumber", "Student details", true], ["hospitalNumber", "Student details", true],
+  ["firstName", "Client details", true], ["lastName", "Client details", true],
+  ["displayName", "Client details", false], ["dateOfBirth", "Client details", true],
+  ["addressLine1", "Client details", false], ["addressLine2", "Client details", false],
+  ["town", "Client details", false], ["postcode", "Client details", false],
+  ["phone", "Client details", false], ["email", "Client details", false],
+  ["nhsNumber", "Client details", true], ["hospitalNumber", "Client details", true],
   ["emergencyContactName", "Emergency contacts", true],
   ["emergencyContactRelationship", "Emergency contacts", true],
   ["emergencyContactPhone", "Emergency contacts", true],

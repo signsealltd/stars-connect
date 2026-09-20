@@ -57,7 +57,7 @@ function pageHeader(input: StudentRecordPdfInput, continued: boolean) {
     "q 100 0 0 73 42 747 cm /Logo Do Q",
     rect(354, 758, 199, 64, PURPLE),
     text("CONFIDENTIAL", 370, 801, 7.5, true, "1 1 1"),
-    text("COMPLETE STUDENT RECORD", 370, 779, 10.5, true, "1 1 1"),
+    text("COMPLETE CLIENT RECORD", 370, 779, 10.5, true, "1 1 1"),
     line(42, 735, 553, 735, PURPLE),
     text(continued ? `${input.studentName} - record continued` : input.studentName, 42, 710, 15, true),
     text(`Reference: ${input.studentReference}`, 42, 693, 8.5, false, MUTED),
@@ -170,7 +170,7 @@ function ramsRecordPdf(input: StudentRecordPdfInput) {
   label("Assessment / review", `${control.get("Assessment date") || "Not recorded"} / ${control.get("Review date") || "Not recorded"}`, 590, 215);
   y = 374;
   label("Responsible person", control.get("Responsible person") || "Not recorded", 36, 210);
-  label("People involved", `${scope.get("Selected students") || "None linked"}; ${scope.get("Assigned staff") || "None linked"}`, 256, 550);
+  label("People involved", `${scope.get("Selected clients") || "None linked"}; ${scope.get("Assigned staff") || "None linked"}`, 256, 550);
   y = 338;
   const columns = [28, 112, 198, 284, 430, 454, 478, 516, 668, 692, 716, 754, 814];
   const headings = ["HAZARD", "WHO MAY BE HARMED", "HOW HARM MAY OCCUR", "EXISTING CONTROLS", "INIT. L", "INIT. S", "INIT. RISK", "FURTHER CONTROLS", "RES. L", "RES. S", "RES. RISK", "OWNER"];

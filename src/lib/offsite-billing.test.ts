@@ -9,9 +9,9 @@ describe("offsite student billing", () => {
     expect(isBillableAttendanceStatus("ABSENT")).toBe(false);
   });
 
-  it("uses the shared billable-status rule when selecting attended charge rules", () => {
+  it("routes new calculations through funding agreements independently of register status", () => {
     const route = readFileSync("src/app/api/billing/runs/[id]/route.ts", "utf8");
-    expect(route).toContain('isBillableAttendanceStatus(a.status)||r.attendanceDependency!=="ATTENDED"');
-    expect(route).not.toContain('a.status==="PRESENT"||a.status==="LATE"||r.attendanceDependency!=="ATTENDED"');
+    expect(route).toContain('calculateFundedRun(id)');
+    expect(route).not.toContain('studentAttendance');
   });
 });

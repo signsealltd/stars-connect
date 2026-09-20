@@ -58,7 +58,7 @@ export function SimpleFinanceConsole({ mode }: { mode: Mode }) {
     try {
       const created = await fetch(endpoint, {
         method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ periodStart: from, periodEnd: to, ...(mode === "billing" ? { label: runLabel.trim(), studentIds: selectedStudentIds, historicalMode } : {}) }),
+        body: JSON.stringify({ periodStart: from, periodEnd: to, requestKey: crypto.randomUUID(), ...(mode === "billing" ? { label: runLabel.trim(), studentIds: selectedStudentIds, historicalMode } : {}) }),
       });
       const run = await created.json();
       if (!created.ok) throw new Error(run.error || `Unable to create ${mode}.`);
@@ -76,7 +76,7 @@ export function SimpleFinanceConsole({ mode }: { mode: Mode }) {
   }
 
   async function refresh(item: Item) {
-    if (!await appConfirm("Refresh this run from the latest attendance records?")) return;
+    if (!await appConfirm(mode === "billing" ? "Refresh this run from the latest agreed schedules?" : "Refresh this run from the latest attendance records?")) return;
     setWorking(true); setError("");
     const response = await fetch(`${endpoint}/${item.id}`, {
       method: "PATCH", headers: { "content-type": "application/json" },
@@ -98,9 +98,10 @@ export function SimpleFinanceConsole({ mode }: { mode: Mode }) {
     if (!response.ok) return setError(body.error || `Unable to delete the ${mode} run.`);
     setDeleteItem(null); setDeletePassword(""); await load();
   }
+  const visibleItems=mode === "billing"?items.filter(item=>item.status!=="INVOICES_GENERATED"):items;
   return <>
     <div className={styles.steps}>
-      <div className={`card ${styles.step} ${styles.current}`}><b>1. Choose dates</b><span>Attendance is gathered automatically.</span></div>
+      <div className={`card ${styles.step} ${styles.current}`}><b>1. Choose dates</b><span>{mode === "billing" ? "Agreed funded days are calculated automatically." : "Attendance is gathered automatically."}</span></div>
       <div className={`card ${styles.step}`}><b>2. Check warnings</b><span>Only missing or unusual information needs attention.</span></div>
       <div className={`card ${styles.step}`}><b>3. Approve and download</b><span>One final action creates the documents.</span></div>
     </div>
@@ -112,7 +113,7 @@ export function SimpleFinanceConsole({ mode }: { mode: Mode }) {
         <label className="form-label">Billing run label<input className="field" maxLength={191} placeholder="For example: LBE - 29 June to 26 July 2026" value={runLabel} onChange={event=>setRunLabel(event.target.value)}/></label>
         <label className="form-label">Payer filter<select className="field" value={payerFilter} onChange={event=>setPayerFilter(event.target.value)}><option value="ALL">All payers</option>{payers.map(payer=><option key={payer} value={payer}>{payer}</option>)}</select></label>
         <label className="form-label">Find student<input className="field" placeholder="Name or student reference" value={studentSearch} onChange={event=>setStudentSearch(event.target.value)}/></label>
-        <label className="form-label" style={{alignSelf:"end"}}><span><input type="checkbox" checked={historicalMode} onChange={event=>setHistoricalMode(event.target.checked)}/> Historical attendance (enter attended days manually)</span></label>
+        <label className="form-label" style={{alignSelf:"end"}}><span><input type="checkbox" checked={historicalMode} onChange={event=>setHistoricalMode(event.target.checked)}/> Historical funded period (confirm dated funding agreements)</span></label>
       </div>
       <div className="table-actions" style={{margin:"12px 0"}}><button type="button" className="btn secondary" onClick={()=>setSelectedStudentIds(visibleStudents.map(student=>student.id))}>Select shown only</button><button type="button" className="btn secondary" onClick={()=>setSelectedStudentIds([])}>Clear all</button><span className="muted">{selectedStudentIds.length} student{selectedStudentIds.length===1?"":"s"} selected{hiddenSelectedCount>0?` (${hiddenSelectedCount} hidden by the current filter)`:""}</span></div>
       <div style={{maxHeight:"260px",overflow:"auto",border:"1px solid var(--border)",borderRadius:"12px",padding:"8px"}}>{visibleStudents.length?visibleStudents.map(student=><label key={student.id} style={{display:"flex",gap:"10px",alignItems:"center",padding:"9px"}}><input type="checkbox" checked={selectedStudentIds.includes(student.id)} onChange={event=>setSelectedStudentIds(event.target.checked?[...selectedStudentIds,student.id]:selectedStudentIds.filter(id=>id!==student.id))}/><span><b>{student.displayName}</b>{student.internalReference&&<small className="muted" style={{display:"block"}}>{student.internalReference}</small>}</span><span className="muted" style={{marginLeft:"auto"}}>{student.billingProfile?.payerName||"Billing not configured"}</span></label>):<div className="empty">No students match this filter.</div>}</div>
@@ -124,20 +125,20 @@ export function SimpleFinanceConsole({ mode }: { mode: Mode }) {
       {mode === "billing" && <a className="btn secondary" href="/dashboard/billing/profiles">Manage billing setup</a>}
     </div>
     {error && <div className="alert alert-error">{error}</div>}
-    <section className="card table-wrap">
-      {loading ? <div className="empty">Loading...</div> : items.length ? <table className="table">
+    <details open><summary>{mode === "billing" ? "Open billing runs — completed invoices are in the archive below" : "Payroll runs"}</summary><section className="card table-wrap">
+      {loading ? <div className="empty">Loading...</div> : visibleItems.length ? <table className="table">
         <thead><tr><th>Period</th><th>Status</th><th>Records</th><th>Next action</th></tr></thead>
-        <tbody>{items.map(item => <tr key={item.id}>
+        <tbody>{visibleItems.map(item => <tr key={item.id}>
           <td>{mode === "billing" && item.label && <b style={{display:"block"}}>{item.label}</b>}{new Date(item.periodStart).toLocaleDateString("en-GB")} to {new Date(item.periodEnd).toLocaleDateString("en-GB")}</td>
           <td><span className="status-pill">{label(item.status)}</span></td>
           <td>{item._count?.entries ?? item._count?.charges ?? 0}</td>
           <td><div className="table-actions">
             <a className="btn primary" href={`/dashboard/${mode}/runs/${item.id}`}>{["EXPORTED", "INVOICES_GENERATED"].includes(item.status) ? "View completed run" : "Continue"}</a>
-            {["DRAFT", "REQUIRES_REVIEW", "REVIEWED"].includes(item.status) && <button className="btn secondary" disabled={working} onClick={() => refresh(item)}>Refresh calculations</button>}<button className="btn danger" disabled={working} onClick={()=>{setDeleteItem(item);setDeletePassword("");setError("")}}>Delete run</button>
+            {["DRAFT", "REQUIRES_REVIEW", "REVIEWED"].includes(item.status) && <button className="btn secondary" disabled={working} onClick={() => refresh(item)}>Refresh calculations</button>}<button className="btn danger" onClick={()=>{setDeleteItem(item);setDeletePassword("");setError("")}} disabled={working || (mode === "billing" && item.status === "INVOICES_GENERATED")}>Delete run</button>
           </div></td>
         </tr>)}</tbody>
       </table> : <div className="empty"><b>No {mode} runs yet</b><p>Choose dates above to prepare the first one.</p></div>}
-    </section>
+    </section></details>
     {deleteItem&&<div className="modal-backdrop"><form className="modal" onSubmit={deleteRun}><h2>Delete {mode} run?</h2><p>This permanently removes the selected run and its generated records. The deletion itself remains in the audit log.</p><label className="form-label">Enter your password to confirm<input autoComplete="current-password" className="field" type="password" required value={deletePassword} onChange={event=>setDeletePassword(event.target.value)}/></label><div className="modal-actions"><button type="button" className="btn secondary" onClick={()=>setDeleteItem(null)}>Cancel</button><button className="btn danger" disabled={working||!deletePassword}>{working?"Deleting...":"Delete permanently"}</button></div></form></div>}
   </>;
 }

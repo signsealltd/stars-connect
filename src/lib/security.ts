@@ -1,3 +1,4 @@
+import {CAPABILITIES} from "./permission-catalog";
 import { createHash, randomBytes, timingSafeEqual } from "crypto";
 import { cookies } from "next/headers";
 import { prisma } from "./prisma";
@@ -74,11 +75,21 @@ export async function getSession() {
   if (session.lastSeenAt.getTime() < now.getTime() - SESSION_TOUCH_MS) {
     await prisma.session.updateMany({ where: { id: session.id, lastSeenAt: session.lastSeenAt }, data: { lastSeenAt: now } });
   }
+  if (session.user.accessLevelId) {
+    const level=await prisma.accessLevel.findUnique({where:{id:session.user.accessLevelId}});
+    if(!level?.active)return null;
+    session.user.role=level.baseRole;
+    session.user.permissionOverrides={...Object.fromEntries(Object.values(CAPABILITIES).map(c=>[c,false])),...(level.permissions as Record<string,boolean>)};
+  }
+  const linkedStaff=await prisma.staffMember.findUnique({where:{userId:session.user.id},select:{active:true}});
+  if(linkedStaff&&!linkedStaff.active)return null;
   const user = await ensureSingleOrganisationAssignment(session.user);
   return { ...session, user };
 }
 
 const rank: Record<Role, number> = {
+  TEAM_LEADER: 0,
+  CARE_ASSISTANT: 0,
   RECEPTION: 1,
   MANAGER: 2,
   ADMINISTRATOR: 4,

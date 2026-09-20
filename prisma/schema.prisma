@@ -8,6 +8,8 @@ datasource db {
 }
 
 enum Role {
+  TEAM_LEADER
+  CARE_ASSISTANT
   ADMINISTRATOR
   DIRECTOR
   MANAGER
@@ -222,6 +224,7 @@ enum ComplianceActionStatus {
 }
 
 model User {
+  accessLevelId       String?           @db.Char(36)
   id                  String            @id @default(uuid()) @db.Char(36)
   username            String            @unique @db.VarChar(32)
   email               String?           @unique @db.VarChar(191)
@@ -273,6 +276,8 @@ model StaffMember {
   startDate             DateTime                   @db.Date
   endDate               DateTime?                  @db.Date
   notes                 String?                    @db.Text
+  accessLevelId String? @db.Char(36)
+  userId String? @unique @db.Char(36)
   credentials           StaffCredential[]
   clockEvents           ClockEvent[]
   presenceEvents        StaffPresenceEvent[]
@@ -396,6 +401,7 @@ model Student {
   lastName                         String                     @db.VarChar(80)
   displayName                      String                     @db.VarChar(120)
   profilePhotoUrl                  String?                    @db.VarChar(500)
+  careInformation Json?
   expectedDays                     Json
   active                           Boolean                    @default(true)
   sortOrder                        Int                        @default(0)
@@ -1035,6 +1041,7 @@ model BillingRun {
   updatedAt          DateTime        @updatedAt
   charges            BillingCharge[]
   invoices           Invoice[]
+  requestKey String? @unique @db.VarChar(100)
 
   @@unique([periodStart, periodEnd, version])
   @@index([status, periodStart])
@@ -1090,6 +1097,8 @@ model Invoice {
   reissueData      Json?
   createdAt        DateTime   @default(now())
   updatedAt        DateTime   @updatedAt
+  purchaseOrderNumber String? @db.VarChar(100)
+  studentName String? @db.VarChar(120)
 
   @@index([billingRunId, payerName])
 }
@@ -1859,4 +1868,81 @@ model OperationReadinessSnapshot {
 
   @@index([organisationId, occurrenceId, calculatedAt])
   @@index([organisationId, level, calculatedAt])
+}
+
+model SafeguardingEnquiry {
+  id           String    @id @default(uuid()) @db.Char(36)
+  studentId    String    @db.Char(36)
+  episodeKey   String    @unique @db.VarChar(100)
+  absenceIds   Json
+  absenceDates Json
+  status       String    @default("OPEN") @db.VarChar(30)
+  notes        String?   @db.Text
+  closedById   String?   @db.Char(36)
+  closedByName String?   @db.VarChar(120)
+  closedAt     DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([studentId, status])
+}
+
+model OperationalTask {
+  id           String   @id @default(uuid()) @db.Char(36)
+  sourceKey    String?  @unique @db.VarChar(191)
+  title        String   @db.VarChar(191)
+  startDate    DateTime @db.Date
+  endDate      DateTime @db.Date
+  dueDate      DateTime @db.Date
+  status       String   @default("OPEN") @db.VarChar(30)
+  owner        String?  @db.VarChar(120)
+  notes        String?  @db.Text
+  billingRunId String?  @db.Char(36)
+  createdById  String   @db.Char(36)
+  updatedAt    DateTime @updatedAt
+
+  @@index([startDate, status])
+}
+
+model StaffResource {
+  id            String    @id @default(uuid()) @db.Char(36)
+  seriesId      String    @db.Char(36)
+  version       Int       @default(1)
+  category      String    @db.VarChar(30)
+  title         String    @db.VarChar(191)
+  content       String    @db.LongText
+  studentId     String?   @db.Char(36)
+  documentId    String?   @db.Char(36)
+  status        String    @default("DRAFT") @db.VarChar(30)
+  reviewDate    DateTime? @db.Date
+  createdById   String    @db.Char(36)
+  publishedById String?   @db.Char(36)
+  publishedAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([seriesId, version])
+  @@index([category, status])
+  @@index([studentId])
+}
+
+model StaffResourceReceipt {
+  id         String    @id @default(uuid()) @db.Char(36)
+  resourceId String    @db.Char(36)
+  userId     String    @db.Char(36)
+  viewedAt   DateTime?
+  readAt     DateTime?
+  agreedAt   DateTime?
+
+  @@unique([resourceId, userId])
+}
+
+model AccessLevel {
+  id          String   @id @default(uuid()) @db.Char(36)
+  name        String   @unique @db.VarChar(100)
+  baseRole    Role     @default(CARE_ASSISTANT)
+  permissions Json
+  active      Boolean  @default(true)
+  updatedById String   @db.Char(36)
+  updatedAt   DateTime @updatedAt
 }

@@ -6,7 +6,7 @@ import { activeManagerSection,managerNavForRole } from "./manager-nav";
 describe("manager navigation permissions",()=>{
   it("groups manager modules without exposing administrator settings",()=>{
     const groups=managerNavForRole("MANAGER");
-    expect(groups.map(group=>group.label)).toEqual(["People","Attendance","Finance","Reports","Settings"]);
+    expect(groups.map(group=>group.label)).toEqual(["People","Staff portal","Attendance","Finance","Reports","Settings"]);
     const labels=groups.flatMap(group=>group.items.map(item=>item.label));
     expect(labels).toContain("Payroll");
     expect(labels).toContain("Billing");
@@ -65,6 +65,6 @@ describe("shell structure and interaction hooks",()=>{
     expect(header).toContain("onMouseLeave");
   });
   it("protects the dashboard shell server-side",()=>{
-    expect(readFileSync(join(process.cwd(),"src/app/dashboard/layout.tsx"),"utf8")).toContain('requireRole("RECEPTION")');
+    expect(readFileSync(join(process.cwd(),"src/app/dashboard/layout.tsx"),"utf8")).toContain('if(!session)redirect("/login")');
   });
 });

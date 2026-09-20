@@ -1,1 +1,1 @@
-import{requireRole}from"@/lib/security";export default async function ConflictsLayout({children}:{children:React.ReactNode}){await requireRole("MANAGER");return children}
+import{requirePageCapability,CAPABILITIES}from"@/lib/permissions";export default async function ConflictsLayout({children}:{children:React.ReactNode}){await requirePageCapability(CAPABILITIES.CONFLICTS_VIEW);return children}

@@ -1,10 +1,11 @@
+import {hasCapability,CAPABILITIES} from "@/lib/permissions";
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { withRole, jsonError, requestContext } from "@/lib/api";
 import { audit } from "@/lib/audit";
-import { directorRoles, emergencyContactFields, inlineBillingSchema, nullableEmergencyContacts, optionalBillingProfileIdSchema, studentValidationMessage } from "@/lib/student-management";
+import { emergencyContactFields, inlineBillingSchema, nullableEmergencyContacts, optionalBillingProfileIdSchema, studentValidationMessage } from "@/lib/student-management";
 import { createInlineBillingProfile } from "@/lib/billing-profile-management";
 import { nullableProfileText, studentProfileFields } from "@/lib/student-profile";
 
@@ -39,6 +40,7 @@ export async function GET(req: NextRequest) {
     const status = req.nextUrl.searchParams.get("status") || "active";
     const search = req.nextUrl.searchParams.get("search")?.trim();
     const students = await prisma.student.findMany({
+      omit:{careInformation:true},
       where: {
         ...(status === "active" ? { active: true } : status === "archived" ? { active: false } : {}),
         ...(search ? { OR: [{ displayName: { contains: search } }, { internalReference: { contains: search } }] } : {}),
@@ -49,10 +51,10 @@ export async function GET(req: NextRequest) {
         informationReviews: { select: { id: true, status: true, submittedAt: true, completedAt: true, nextReviewDate: true }, orderBy: { createdAt: "desc" }, take: 10 },
       },
     });
-    if (!directorRoles.has(user.role) || !students.length) return NextResponse.json(students);
+    if (!hasCapability(user.role,CAPABILITIES.BILLING_EDIT,user.permissionOverrides) || !students.length) return NextResponse.json(students);
     const profiles = await prisma.billingProfile.findMany({
       where: { studentId: { in: students.map(student => student.id) } },
-      include: { chargeRules: { where: { active: true }, orderBy: { createdAt: "desc" } } },
+      include: { chargeRules: { where: { active: true }, orderBy: [{ activeFrom: "desc" },{createdAt:"desc"}] } },
       orderBy: { createdAt: "desc" },
     });
     return NextResponse.json(students.map(student => ({
@@ -67,7 +69,7 @@ export async function POST(req: NextRequest) {
     const parsed = schema.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return NextResponse.json({ error: studentValidationMessage(parsed.error), fields: parsed.error.flatten().fieldErrors }, { status: 422 });
     const { billing, ...input } = parsed.data;
-    if (billing?.enabled && !directorRoles.has(user.role)) return jsonError("Only a director or administrator can configure billing.", 403);
+    if (billing?.enabled && !hasCapability(user.role,CAPABILITIES.BILLING_EDIT,user.permissionOverrides)) return jsonError("Billing management permission is required.", 403);
     try {
       const result = await prisma.$transaction(async tx => {
         const data = nullableProfileText(nullableEmergencyContacts(input));
@@ -86,7 +88,7 @@ export async function POST(req: NextRequest) {
       });
       await audit("STUDENT_CREATED", { actorType: "USER", actorId: user.id, entityType: "Student", entityId: result.student.id, afterValue: publicAuditValue(result.student), ...requestContext(req) });
       if (result.billingProfile) await audit("BILLING_PROFILE_CREATED", { actorType: "USER", actorId: user.id, entityType: "BillingProfile", entityId: result.billingProfile.id, afterValue: { studentId: result.student.id, source: "STUDENT_FORM" }, ...requestContext(req) });
-      return NextResponse.json({ ...result.student, billingProfile: result.billingProfile }, { status: 201 });
+      return NextResponse.json({ ...result.student, careInformation:undefined, billingProfile: result.billingProfile }, { status: 201 });
     } catch (error) {
       if (error instanceof Error && error.message === "ACTIVE_BILLING_PROFILE_EXISTS") return jsonError("This student already has an active billing profile. Edit that profile instead.", 409);
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") return jsonError("That internal reference is already in use.", 409);

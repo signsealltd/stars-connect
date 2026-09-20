@@ -24,7 +24,7 @@ describe("financial run management", () => {
     expect(reviewUi).toContain("Service description");
     expect(reviewUi).toContain("Add service and recalculate");
     expect(billingRoute).toContain("calculateInvoiceServiceLine(quantity,unitRate,vatRate)");
-    expect(billingRoute).toContain('audit("BILLING_SERVICE_LINE_ADDED"');
+    expect(billingRoute).toContain('`BILLING_${action.toUpperCase().replaceAll("-","_")}`');
   });
 
   it("supports focused review of large billing runs", () => {

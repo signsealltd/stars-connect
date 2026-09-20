@@ -24,6 +24,7 @@ export async function GET(req: NextRequest, { params }: Params) {
   return withRole(req, "MANAGER", async () => {
     const { id } = await params;
     const student = await prisma.student.findUnique({
+      omit:{careInformation:true},
       where: { id },
       include: { attendance: { orderBy: { date: "desc" }, take: 60, include: { device: { select: { name: true } } } } },
     });
@@ -50,7 +51,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       ...(d.active === false ? { archivedAt: new Date() } : d.active === true ? { archivedAt: null } : {}),
     } });
     const action = before.active !== after.active ? (after.active ? "STUDENT_RESTORED" : "STUDENT_ARCHIVED") : "STUDENT_UPDATED";
-    await audit(action, { actorType: "USER", actorId: user.id, entityType: "Student", entityId: id, beforeValue: before, afterValue: after, ...requestContext(req) });
-    return NextResponse.json(after);
+    await audit(action, { actorType: "USER", actorId: user.id, entityType: "Student", entityId: id, beforeValue: {displayName:before.displayName,active:before.active}, afterValue: {displayName:after.displayName,active:after.active}, ...requestContext(req) });
+    return NextResponse.json({...after,careInformation:undefined});
   });
 }

@@ -1,7 +1,6 @@
+import {requirePageCapability,CAPABILITIES} from "@/lib/permissions";
 import { Header } from "@/components/header";
 import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/security";
-
 export const dynamic = "force-dynamic";
 
 function clientName(userAgent?: string | null) {
@@ -12,7 +11,7 @@ function clientName(userAgent?: string | null) {
 }
 
 export default async function AuditPage() {
-  await requireRole("ADMINISTRATOR");
+  await requirePageCapability(CAPABILITIES.AUDIT_VIEW);
   const rows = await prisma.auditLog.findMany({ orderBy: { createdAt: "desc" }, take: 1000 });
   const userIds = [...new Set(rows.filter(row => row.actorType === "USER" && row.actorId).map(row => row.actorId!))];
   const deviceIds = [...new Set(rows.map(row => row.deviceId).filter((id): id is string => Boolean(id)))];

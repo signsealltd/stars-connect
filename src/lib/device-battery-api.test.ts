@@ -31,6 +31,7 @@ vi.mock("@/lib/security", async importOriginal => {
   const actual = await importOriginal<typeof import("@/lib/security")>();
   return {
     ...actual,
+    getSession: vi.fn(async () => ({user:{id:"admin-1",name:"Synthetic administrator",email:"admin@example.test",role:state.authorised?"ADMINISTRATOR":"CARE_ASSISTANT",active:true,permissionOverrides:null}})),
     requireRole: vi.fn(async () => {
       if (!state.authorised) throw new actual.AccessError(403, "FORBIDDEN");
       return {

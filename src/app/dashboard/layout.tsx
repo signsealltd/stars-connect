@@ -1,2 +1,2 @@
-import{requireRole}from"@/lib/security";
-export default async function DashboardLayout({children}:{children:React.ReactNode}){await requireRole("RECEPTION");return children}
+import{getSession}from"@/lib/security";import{redirect}from"next/navigation";
+export default async function DashboardLayout({children}:{children:React.ReactNode}){const session=await getSession();if(!session)redirect("/login");return children}

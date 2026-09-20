@@ -2,11 +2,12 @@
 "use client";
 import{appConfirm}from"@/lib/app-dialog";
 
+import {StaffAccess} from "./staff-access";
 import { useCallback, useEffect, useState } from "react";
 import { Archive, KeyRound, Pencil, Plus, RotateCcw, Search } from "lucide-react";
 
 type Staff = {
-  id: string; firstName: string; lastName: string; displayName: string; email: string;
+  id: string; accessLevelId?: string; userId?: string; firstName: string; lastName: string; displayName: string; email: string;
   phone?: string; jobRole: string; active: boolean; clockingEnabled: boolean; cameraRequired: boolean;
   startDate: string; endDate?: string; notes?: string; pinEnabled: boolean;
   payrollNumber?: string; contractedWeeklyHours?: number; hourlyRate?: number; overtimeHourlyRate?: number; profilePhotoUrl?: string;
@@ -100,6 +101,7 @@ export function StaffManager() {
       <form autoComplete="off" className="modal" onSubmit={save}>
         <h2 style={{ marginTop: 0 }}>{editing === "new" ? "Add staff member" : `Edit ${(editing as Staff).displayName}`}</h2>
         {error && <div className="alert alert-error">{error}</div>}
+        {editing !== "new" && <StaffAccess id={(editing as Staff).id} levelId={(editing as Staff).accessLevelId} hasAccount={!!(editing as Staff).userId}/>}
         <div className="form-grid" style={{ marginTop: 16 }}>
           <label className="form-label">First name<input autoComplete="off" className="field" value={form.firstName} onChange={(e) => setForm({ ...form, firstName: e.target.value })} required /></label>
           <label className="form-label">Surname<input autoComplete="off" className="field" value={form.lastName} onChange={(e) => setForm({ ...form, lastName: e.target.value })} required /></label>

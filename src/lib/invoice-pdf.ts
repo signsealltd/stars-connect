@@ -22,6 +22,7 @@ export type InvoicePdfInput = {
   payerAddress: string[];
   studentName: string;
   studentReference: string;
+  purchaseOrderNumber?: string;
   rows: InvoicePdfRow[];
   attendanceDays: string;
   dayRate: string;
@@ -88,7 +89,7 @@ function pageHeader(input: InvoicePdfInput, page: number) {
   ];
   if (page > 1) {
     commands.push(
-      text(`${input.studentName} - attendance continued`, 42, 712, 14, true),
+      text(`${input.studentName} - services continued`, 42, 712, 14, true),
       text(`Invoice ${input.invoiceNumber}`, 390, 712, 8, false, MUTED),
     );
   }
@@ -98,12 +99,12 @@ function pageHeader(input: InvoicePdfInput, page: number) {
 function tableHeader(y: number, showVat: boolean) {
   return [
     rect(42, y - 4, 511, 24, PURPLE_SOFT, BORDER),
-    text("ATTENDANCE", 50, y + 5, 7, true, PURPLE),
-    text("SERVICE", 181, y + 5, 7, true, PURPLE),
-    text("DAYS", 280, y + 5, 7, true, PURPLE),
-    text("DAY RATE", 322, y + 5, 7, true, PURPLE),
-    text("NET", 386, y + 5, 7, true, PURPLE),
-    ...(showVat ? [text("VAT", 439, y + 5, 7, true, PURPLE)] : []),
+    text("FROM - TO", 50, y + 5, 7, true, PURPLE),
+    text("SERVICE", 149, y + 5, 7, true, PURPLE),
+    text("DAYS", 260, y + 5, 7, true, PURPLE),
+    text("DAY RATE", 306, y + 5, 7, true, PURPLE),
+    text("NET", 374, y + 5, 7, true, PURPLE),
+    ...(showVat ? [text("VAT", 433, y + 5, 7, true, PURPLE)] : []),
     text("TOTAL", 487, y + 5, 7, true, PURPLE),
   ];
 }
@@ -112,12 +113,12 @@ function tableRow(row: InvoicePdfRow, y: number, alternate: boolean, showVat: bo
   const commands = [];
   if (alternate) commands.push(rect(42, y - 14, 511, ATTENDANCE_ROW_HEIGHT, "0.985 0.98 0.99"));
   commands.push(
-    text(fit(row.date, 35), 50, y - 1, 6.8),
-    text(fit(row.service || "Attendance", 18), 181, y - 1, 7.5, true),
-    text(row.days, 280, y - 1, 7.5),
-    text(row.rate, 322, y - 1, 7.5),
-    text(row.net, 386, y - 1, 7.5),
-    ...(showVat ? [text(row.vat, 439, y - 1, 7.5)] : []),
+    text(row.date, 50, y - 1, 6.2),
+    text(fit(row.service || "Attendance", 22), 149, y - 1, 7.5, true),
+    text(row.days, 260, y - 1, 7.5),
+    text(row.rate, 306, y - 1, 7.5),
+    text(row.net, 374, y - 1, 7.5),
+    ...(showVat ? [text(row.vat, 433, y - 1, 7.5)] : []),
     text(row.total, 487, y - 1, 7.5, true),
     line(42, y - 14, 553, y - 14),
   );
@@ -180,8 +181,11 @@ export function invoicePdf(input: InvoicePdfInput) {
         text("BILLING PERIOD", 392, 537, 6.5, true, MUTED),
         text(input.periodLabel, 392, 518, 8.5, true),
       );
+      const reference=`Client payment reference / PO: ${input.purchaseOrderNumber || "Not supplied"}`;
+      commands.push(text(reference.slice(0,95),54,491,8,true));
+      if(reference.length>95)commands.push(text(reference.slice(95),54,479,8,true));
       const summary = [
-        ["ATTENDANCE DAYS", input.attendanceDays],
+        ["FUNDED DAYS", input.attendanceDays],
         ["DAY RATE", input.dayRate],
         ["NET", input.netTotal],
         ...(showVat ? [["VAT", input.vatTotal]] : []),
@@ -191,12 +195,12 @@ export function invoicePdf(input: InvoicePdfInput) {
         const width = 511 / summary.length;
         const x = 42 + index * width;
         const total = index === summary.length - 1;
-        commands.push(rect(x, 438, width - 7, 48, total ? PURPLE : PURPLE_SOFT, total ? PURPLE : BORDER));
-        commands.push(text(item[0], x + 8, 469, 6.1, true, total ? "1 1 1" : MUTED));
-        commands.push(text(item[1], x + 8, 450, 10, true, total ? "1 1 1" : PURPLE));
+        commands.push(rect(x, 416, width - 7, 48, total ? PURPLE : PURPLE_SOFT, total ? PURPLE : BORDER));
+        commands.push(text(item[0], x + 8, 447, 6.1, true, total ? "1 1 1" : MUTED));
+        commands.push(text(item[1], x + 8, 428, 10, true, total ? "1 1 1" : PURPLE));
       });
-      commands.push(text("ATTENDANCE BREAKDOWN", 42, 414, 9, true, PURPLE));
-      tableY = 386;
+      commands.push(text("FUNDED SERVICE SUMMARY", 42, 392, 9, true, PURPLE));
+      tableY = 364;
     }
     commands.push(...tableHeader(tableY, showVat));
     page.forEach((row, index) => commands.push(...tableRow(row, tableY - 25 - index * ATTENDANCE_ROW_HEIGHT, index % 2 === 1, showVat)));

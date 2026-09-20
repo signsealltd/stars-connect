@@ -1,3 +1,4 @@
+import {needsPurchaseOrder} from "@/lib/funded-days";
 import bcrypt from "bcryptjs";
 import { formatInTimeZone } from "date-fns-tz";
 import { NextRequest, NextResponse } from "next/server";
@@ -51,6 +52,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const settings = await getBillingSettings();
   const logoJpeg = await loadInvoiceLogo(settings.invoiceLogoUrl);
   const profiles = await prisma.billingProfile.findMany({ where: { id: { in: run.invoices.map(invoice => invoice.billingProfileId) } } });
+  if(profiles.some(profile=>needsPurchaseOrder(profile.payerName)&&!profile.purchaseOrderNumber?.trim()))return NextResponse.json({error:"Add client PO numbers to the billing profiles before correcting invoices."},{status:422});
   const studentIds = run.invoices.map(invoice => invoice.studentId).filter((value): value is string => Boolean(value));
   const students = await prisma.student.findMany({ where: { id: { in: studentIds } }, select: { id: true, firstName: true, lastName: true, displayName: true, internalReference: true } });
   const previousDocuments = await prisma.documentRecord.findMany({ where: { id: { in: run.invoices.map(invoice => invoice.documentId).filter((value): value is string => Boolean(value)) } } });
@@ -78,6 +80,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       payerAddress: profile.billingAddress.split(/\r?\n/),
       studentName: studentFullName(student),
       studentReference: student.internalReference || "Not supplied",
+      purchaseOrderNumber: invoice.purchaseOrderNumber||profile.purchaseOrderNumber||undefined,
       rows: charges.sort((a, b) => a.sourceDate.getTime() - b.sourceDate.getTime()).map(charge => ({
         date: parsed.data.showPeriodAsAttendance
           ? `${formatInTimeZone(periodStart, APP_TIME_ZONE, "d MMMM yyyy")} - ${formatInTimeZone(periodEnd, APP_TIME_ZONE, "d MMMM yyyy")}`

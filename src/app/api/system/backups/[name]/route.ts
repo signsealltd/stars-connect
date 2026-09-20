@@ -1,12 +1,12 @@
+import {requireCapability,CAPABILITIES} from "@/lib/permissions";
 import { NextRequest, NextResponse } from "next/server";
 import { readFile, unlink } from "fs/promises";
 import path from "path";
-import { requireRole } from "@/lib/security";
 import { audit } from "@/lib/audit";
 import { requestContext } from "@/lib/api";
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ name: string }> }) {
-  try { await requireRole("ADMINISTRATOR"); } catch { return NextResponse.json({ error: "You do not have permission to do that." }, { status: 403 }); }
+  try { await requireCapability(CAPABILITIES.SYSTEM_MANAGE); } catch { return NextResponse.json({ error: "You do not have permission to do that." }, { status: 403 }); }
   const { name } = await params;
   if (!/^stars-connect-\d{8}-\d{6}\.sql$/.test(name)) return NextResponse.json({ error: "Backup not found." }, { status: 404 });
   try {
@@ -18,7 +18,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ name: 
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ name: string }> }) {
   let user;
-  try { user = await requireRole("ADMINISTRATOR"); } catch { return NextResponse.json({ error: "You do not have permission to do that." }, { status: 403 }); }
+  try { user = await requireCapability(CAPABILITIES.SYSTEM_MANAGE); } catch { return NextResponse.json({ error: "You do not have permission to do that." }, { status: 403 }); }
   const { name } = await params;
   if (!/^stars-connect-\d{8}-\d{6}\.sql$/.test(name)) return NextResponse.json({ error: "Backup not found." }, { status: 404 });
   const directory = path.resolve(process.env.DATABASE_BACKUP_PATH || path.join(process.cwd(), "storage", "backups"));

@@ -1,8 +1,9 @@
+import {moduleCapability} from "./module-access";
 import { NextRequest, NextResponse } from "next/server";
 import type { Role, User } from "@prisma/client";
 import { AccessError, requireRole } from "./security";
 import { audit } from "./audit";
-import { requireCapability, type Capability } from "./permissions";
+import { requireCapability, hasCapability, type Capability } from "./permissions";
 
 export function requestContext(req: NextRequest) {
   const hops = Number.parseInt(process.env.TRUSTED_PROXY_HOPS ?? "0", 10);
@@ -29,7 +30,11 @@ export async function withRole(
 ) {
   if (!mutationOriginAllowed(req)) return NextResponse.json({ error: "Request origin was rejected." }, { status: 403 });
   try {
-    const user = await requireRole(role);
+    const {getSession,AccessError}=await import("./security");
+    const session=await getSession();if(!session)throw new AccessError(401,"AUTHENTICATION_REQUIRED");
+    const cap=moduleCapability(req.nextUrl.pathname,req.method!=="GET");
+    const user=cap?session.user:await requireRole(role);
+    if(cap&&!hasCapability(user.role,cap,user.permissionOverrides))throw new AccessError(403,"FORBIDDEN");
     return await handler(user);
   } catch (error) {
     await audit("PRIVILEGED_OPERATION_DENIED", {

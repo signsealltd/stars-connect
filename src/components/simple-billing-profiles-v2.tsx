@@ -8,11 +8,11 @@ import { billingProfileReasons } from "@/lib/operational-reasons";
 type Student = { id: string; displayName: string };
 type Profile = {
   id: string; studentId: string; payerType: string; payerName: string; billingAddress: string;
-  billingEmail?: string; activeFrom: string; activeTo?: string; vatTreatment: string;
-  vatRate: number | string; chargeRules: Array<{ rate?: number | string }>;
+  purchaseOrderNumber?: string; billingEmail?: string; activeFrom: string; activeTo?: string; vatTreatment: string;
+  vatRate: number | string; chargeRules: Array<{ rate?: number | string; applicableWeekdays:number[]; attendanceDependency:string; activeFrom:string }>;
 };
 const empty = {
-  studentId: "", payerType: "Local authority", payerName: "", billingAddress: "", billingEmail: "",
+  fundedDays: [] as number[], purchaseOrderNumber:"", studentId: "", payerType: "Local authority", payerName: "", billingAddress: "", billingEmail: "",
   activeFrom: new Date().toISOString().slice(0, 10), vatTreatment: "OUTSIDE_SCOPE", vatRate: 0, rate: 0,
 };
 
@@ -33,7 +33,7 @@ export function SimpleBillingProfilesV2({ initialStudentId = "", returnTo = "" }
       const selected = initialStudentId ? loadedProfiles.find(profile => profile.studentId === initialStudentId && !profile.activeTo) : undefined;
       if (selected) {
         setEditingId(selected.id);
-        setForm({ studentId:selected.studentId,payerType:selected.payerType,payerName:selected.payerName,billingAddress:selected.billingAddress,billingEmail:selected.billingEmail||"",activeFrom:selected.activeFrom.slice(0,10),vatTreatment:selected.vatTreatment,vatRate:Number(selected.vatRate),rate:Number(selected.chargeRules[0]?.rate||0) });
+        setForm({ fundedDays:selected.chargeRules[0]?.attendanceDependency==="FUNDED"?selected.chargeRules[0].applicableWeekdays:[],purchaseOrderNumber:selected.purchaseOrderNumber||"",studentId:selected.studentId,payerType:selected.payerType,payerName:selected.payerName,billingAddress:selected.billingAddress,billingEmail:selected.billingEmail||"",activeFrom:(selected.chargeRules[0]?.activeFrom||selected.activeFrom).slice(0,10),vatTreatment:selected.vatTreatment,vatRate:Number(selected.vatRate),rate:Number(selected.chargeRules[0]?.rate||0) });
       }
     }
     if (studentResponse.ok) setStudents(await studentResponse.json());
@@ -43,9 +43,9 @@ export function SimpleBillingProfilesV2({ initialStudentId = "", returnTo = "" }
   function edit(profile: Profile) {
     setEditingId(profile.id); setError(""); setSuccess("");
     setForm({
-      studentId: profile.studentId, payerType: profile.payerType, payerName: profile.payerName,
+      fundedDays:profile.chargeRules[0]?.attendanceDependency==="FUNDED"?profile.chargeRules[0].applicableWeekdays:[],purchaseOrderNumber:profile.purchaseOrderNumber||"",studentId: profile.studentId, payerType: profile.payerType, payerName: profile.payerName,
       billingAddress: profile.billingAddress, billingEmail: profile.billingEmail || "",
-      activeFrom: profile.activeFrom.slice(0, 10), vatTreatment: profile.vatTreatment,
+      activeFrom: (profile.chargeRules[0]?.activeFrom||profile.activeFrom).slice(0, 10), vatTreatment: profile.vatTreatment,
       vatRate: Number(profile.vatRate), rate: Number(profile.chargeRules[0]?.rate || 0),
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -60,15 +60,15 @@ export function SimpleBillingProfilesV2({ initialStudentId = "", returnTo = "" }
     const reason = editingId ? await appReasonPrompt("Why are these billing details being changed?", billingProfileReasons) : null;
     if (editingId && (!reason || reason.trim().length < 5)) { setSaving(false); return setError("Enter a reason of at least five characters."); }
     const common = {
-      payerType: form.payerType, payerName: form.payerName, billingAddress: form.billingAddress,
+      fundedDays:form.fundedDays,purchaseOrderNumber:form.purchaseOrderNumber,payerType: form.payerType, payerName: form.payerName, billingAddress: form.billingAddress,
       billingEmail: form.billingEmail, activeFrom: form.activeFrom, vatTreatment: form.vatTreatment,
       vatRate: Number(form.vatRate), rate: Number(form.rate),
     };
     const body = editingId ? { action: "update", ...common, reason } : {
       studentId: form.studentId, ...common, paymentTermsDays: 30, consolidatedByPayer: false,
       chargeRules: [{
-        chargeType: "FULL_DAY", description: "Attended day", unitType: "DAY", rate: Number(form.rate),
-        attendanceDependency: "ATTENDED", applicableWeekdays: [1, 2, 3, 4, 5, 6, 7],
+        chargeType: "FULL_DAY", description: "Agreed funded day", unitType: "DAY", rate: Number(form.rate),
+        attendanceDependency: "FUNDED", applicableWeekdays: form.fundedDays,
         vatTreatment: form.vatTreatment, vatRate: Number(form.vatRate),
       }],
     };
@@ -108,7 +108,7 @@ export function SimpleBillingProfilesV2({ initialStudentId = "", returnTo = "" }
     <form autoComplete="off" className="card form-grid" onSubmit={save}>
       <h2 className="full">{editingId ? `Edit billing for ${selectedName || "service user"}` : selectedName ? `Set up billing for ${selectedName}` : "Set up a service user"}</h2>
       <label className="form-label">Service user<select className="field" required disabled={Boolean(editingId)} value={form.studentId} onChange={event => setForm({ ...form, studentId: event.target.value })}><option value="">Choose a service user</option>{students.map(student => <option key={student.id} value={student.id}>{student.displayName}</option>)}</select></label>
-      <label className="form-label">Who pays?<select className="field" value={form.payerType} onChange={event => setForm({ ...form, payerType: event.target.value })}>{["Local authority", "Funding organisation", "Private payer", "Family member", "Care provider", "Business", "Other"].map(value => <option key={value}>{value}</option>)}</select></label>
+      <label className="form-label full">PO / client payment reference<input className="field" value={form.purchaseOrderNumber} onChange={e=>setForm({...form,purchaseOrderNumber:e.target.value})}/></label><fieldset className="full"><legend>Agreed funded days (confirmed funding agreement)</legend>{["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map((label,i)=><label key={label}><input type="checkbox" checked={form.fundedDays.includes(i+1)} onChange={e=>setForm({...form,fundedDays:e.target.checked?[...form.fundedDays,i+1]:form.fundedDays.filter(d=>d!==i+1)})}/>{label} </label>)}</fieldset><label className="form-label">Who pays?<select className="field" value={form.payerType} onChange={event => setForm({ ...form, payerType: event.target.value })}>{["Local authority", "Funding organisation", "Private payer", "Family member", "Care provider", "Business", "Other"].map(value => <option key={value}>{value}</option>)}</select></label>
       <label className="form-label">Payer or organisation name<input autoComplete="off" className="field" required value={form.payerName} onChange={event => setForm({ ...form, payerName: event.target.value })}/></label>
       <label className="form-label">Agreed day rate (£)<input className="field" type="number" min="0" step="0.01" required value={form.rate} onChange={event => setForm({ ...form, rate: Number(event.target.value) })}/></label>
       <label className="form-label">Invoice email<input autoComplete="off" className="field" type="email" value={form.billingEmail} onChange={event => setForm({ ...form, billingEmail: event.target.value })}/></label>

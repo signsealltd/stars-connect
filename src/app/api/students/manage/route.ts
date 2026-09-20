@@ -26,6 +26,7 @@ export async function GET(req: NextRequest) {
     const status = req.nextUrl.searchParams.get("status") || "active";
     const search = req.nextUrl.searchParams.get("search")?.trim();
     const rows = await prisma.student.findMany({
+      omit:{careInformation:true},
       where: {
         ...(status === "active" ? { active: true } : status === "archived" ? { active: false } : {}),
         ...(search ? { OR: [{ displayName: { contains: search } }, { internalReference: { contains: search } }] } : {}),

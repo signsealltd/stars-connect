@@ -28,6 +28,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       await prisma.user.findUnique({ where: { username: parsed.data.username } })) {
       return jsonError("An account already uses that username.", 409);
     }
+    if(before.accessLevelId&&(parsed.data.role||parsed.data.permissionOverrides))return jsonError("This account uses a staff access level. Change the level in the staff record or edit Access Levels.",409);
     const { password, permissionOverrides, ...data } = parsed.data;
     const user = await prisma.$transaction(async (tx) => {
       const updated = await tx.user.update({

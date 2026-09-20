@@ -22,7 +22,7 @@ describe("student emergency contacts and billing integration", () => {
     const route = source("src/app/api/students/records/route.ts");
     expect(route).toContain("prisma.$transaction");
     expect(route).toContain("createInlineBillingProfile");
-    expect(route).toContain("directorRoles.has(user.role)");
+    expect(route).toContain("hasCapability(user.role,CAPABILITIES.BILLING_EDIT,user.permissionOverrides)");
   });
 
   it("allows billing edits but protects used financial history from deletion", () => {
@@ -40,7 +40,7 @@ describe("student emergency contacts and billing integration", () => {
     expect(component).toContain("not downloaded to kiosk tablets");
     expect(component).toContain("Billing setup");
     expect(component).toContain("/dashboard/billing/profiles?studentId=");
-    expect(component).toContain("A director or administrator can change billing setup.");
+    expect(component).toContain("A manager with billing editing permission can change billing setup.");
     expect(component).not.toContain("form.fundingCategory");
     expect(component).not.toContain("form.fundingOrganisation");
   });

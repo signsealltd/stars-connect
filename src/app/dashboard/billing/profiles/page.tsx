@@ -5,7 +5,7 @@ import { requirePageCapability, CAPABILITIES } from "@/lib/permissions";
 export const dynamic = "force-dynamic";
 
 export default async function Page({ searchParams }: { searchParams: Promise<{ studentId?: string; returnTo?: string }> }) {
-  await requirePageCapability(CAPABILITIES.BILLING_APPROVE);
+  await requirePageCapability(CAPABILITIES.BILLING_EDIT);
   const query = await searchParams;
   const safeReturn = query.returnTo?.startsWith("/dashboard/billing/") ? query.returnTo : "";
   return <main className="shell"><Header manager/><div className="content">

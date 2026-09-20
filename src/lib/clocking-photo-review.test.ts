@@ -5,7 +5,7 @@ const source = (file: string) => readFileSync(file, "utf8");
 
 describe("clocking photograph review", () => {
   it("restricts the review page and image delivery to directors and administrators", () => {
-    expect(source("src/app/dashboard/reports/clocking-photos/page.tsx")).toContain('requireRole("DIRECTOR")');
+    expect(source("src/app/dashboard/reports/clocking-photos/page.tsx")).toContain('requirePageCapability(CAPABILITIES.PHOTO_VIEW)');
     expect(source("src/app/api/attendance-photos/[id]/route.ts")).toContain('withRole(req, "DIRECTOR"');
   });
 

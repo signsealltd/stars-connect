@@ -1,9 +1,10 @@
+import {hasCapability,CAPABILITIES} from "@/lib/permissions";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { withRole, jsonError, requestContext } from "@/lib/api";
 import { audit } from "@/lib/audit";
-import { directorRoles, emergencyContactFields, inlineBillingSchema, nullableEmergencyContacts, optionalBillingProfileIdSchema, studentValidationMessage } from "@/lib/student-management";
+import { emergencyContactFields, inlineBillingSchema, nullableEmergencyContacts, optionalBillingProfileIdSchema, studentValidationMessage } from "@/lib/student-management";
 import { createInlineBillingProfile, updateInlineBillingProfile } from "@/lib/billing-profile-management";
 import { nullableProfileText, studentProfileFields } from "@/lib/student-profile";
 
@@ -32,7 +33,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const parsed = schema.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return jsonError(studentValidationMessage(parsed.error), 422);
     const { billing, ...input } = parsed.data;
-    if (billing?.enabled && !directorRoles.has(user.role)) return jsonError("Only a director or administrator can configure billing.", 403);
+    if (billing?.enabled && !hasCapability(user.role,CAPABILITIES.BILLING_EDIT,user.permissionOverrides)) return jsonError("Billing management permission is required.", 403);
     try {
       const result = await prisma.$transaction(async tx => {
         const data = nullableProfileText(nullableEmergencyContacts(input));
@@ -58,7 +59,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       const action = before.active !== result.student.active ? (result.student.active ? "STUDENT_RESTORED" : "STUDENT_ARCHIVED") : "STUDENT_UPDATED";
       await audit(action, { actorType: "USER", actorId: user.id, entityType: "Student", entityId: id, afterValue: { displayName: result.student.displayName, emergencyContactConfigured: Boolean(result.student.emergencyContactName) }, ...requestContext(req) });
       if (result.billingProfile) await audit("BILLING_PROFILE_CHANGED", { actorType: "USER", actorId: user.id, entityType: "BillingProfile", entityId: result.billingProfile.id, afterValue: { studentId: id, source: "STUDENT_FORM" }, ...requestContext(req) });
-      return NextResponse.json({ ...result.student, billingProfile: result.billingProfile });
+      return NextResponse.json({ ...result.student, careInformation:undefined, billingProfile: result.billingProfile });
     } catch (error) {
       if (error instanceof Error && error.message === "ACTIVE_BILLING_PROFILE_EXISTS") return jsonError("This student already has an active billing profile. Edit that profile instead.", 409);
       if (error instanceof Error && error.message === "BILLING_PROFILE_NOT_FOUND") return jsonError("The billing profile could not be found.", 404);

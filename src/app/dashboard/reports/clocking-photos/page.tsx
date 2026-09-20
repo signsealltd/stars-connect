@@ -1,7 +1,7 @@
+import {requirePageCapability,CAPABILITIES} from "@/lib/permissions";
 import { Header } from "@/components/header";
 import { ClockingPhotoReview, type ClockingPhotoRow } from "@/components/clocking-photo-review";
 import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/security";
 import { localDateKey, localDayBounds } from "@/lib/dates";
 
 export const dynamic = "force-dynamic";
@@ -10,7 +10,7 @@ type Search = Promise<{ from?: string; to?: string; staff?: string; device?: str
 const validDate = (value?: string) => value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : undefined;
 
 export default async function ClockingPhotosPage({ searchParams }: { searchParams: Search }) {
-  await requireRole("DIRECTOR");
+  await requirePageCapability(CAPABILITIES.PHOTO_VIEW);
   const params = await searchParams;
   const today = localDateKey();
   const weekAgo = localDateKey(new Date(Date.now() - 6 * 86_400_000));

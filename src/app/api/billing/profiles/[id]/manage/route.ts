@@ -1,5 +1,6 @@
+import {updateInlineBillingProfile} from "@/lib/billing-profile-management";
+import {inlineBillingSchema} from "@/lib/student-management";
 import { NextRequest, NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { CAPABILITIES, requireCapability } from "@/lib/permissions";
@@ -10,6 +11,8 @@ import { localDateAsDatabaseDate } from "@/lib/dates";
 const updateSchema = z.discriminatedUnion("action", [
   z.object({
     action: z.literal("update"),
+    fundedDays: z.array(z.number().int().min(1).max(7)).min(1).max(7),
+    purchaseOrderNumber:z.string().trim().max(100).optional(),
     payerType: z.string().min(1).max(40),
     payerName: z.string().min(1).max(191),
     billingAddress: z.string().min(1).max(2000),
@@ -28,7 +31,7 @@ const updateSchema = z.discriminatedUnion("action", [
 ]);
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const user = await requireCapability(CAPABILITIES.BILLING_APPROVE);
+  const user = await requireCapability(CAPABILITIES.BILLING_EDIT);
   const { id } = await params;
   const parsed = updateSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return jsonError("Check the billing change and provide a reason of at least five characters.", 422);
@@ -40,25 +43,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       await tx.chargeRule.updateMany({ where: { billingProfileId: id, active: true }, data: { activeTo: localDateAsDatabaseDate(data.activeTo) } });
       return tx.billingProfile.update({ where: { id }, data: { activeTo: localDateAsDatabaseDate(data.activeTo) }, include: { chargeRules: true } });
     }
-    const activeFrom = localDateAsDatabaseDate(data.activeFrom);
-    await tx.billingProfile.update({ where: { id }, data: {
-      payerType: data.payerType, payerName: data.payerName, billingAddress: data.billingAddress,
-      billingEmail: data.billingEmail || null, activeFrom, vatTreatment: data.vatTreatment,
-      vatRate: new Prisma.Decimal(data.vatRate),
-    } });
-    const rule = before.chargeRules[0];
-    if (rule) await tx.chargeRule.update({ where: { id: rule.id }, data: {
-      rate: new Prisma.Decimal(data.rate), activeFrom, activeTo: null, active: true,
-      attendanceDependency: "ATTENDED", applicableWeekdays: [1, 2, 3, 4, 5, 6, 7],
-      vatTreatment: data.vatTreatment, vatRate: new Prisma.Decimal(data.vatRate),
-    } });
-    else await tx.chargeRule.create({ data: {
-      billingProfileId: id, chargeType: "FULL_DAY", description: "Attended day", unitType: "DAY",
-      rate: new Prisma.Decimal(data.rate), attendanceDependency: "ATTENDED",
-      applicableWeekdays: [1, 2, 3, 4, 5, 6, 7], activeFrom,
-      vatTreatment: data.vatTreatment, vatRate: new Prisma.Decimal(data.vatRate),
-    } });
-    return tx.billingProfile.findUniqueOrThrow({ where: { id }, include: { chargeRules: true } });
+    return updateInlineBillingProfile(tx,id,before.studentId,inlineBillingSchema.parse({...data,enabled:true}),[]);
   });
   await audit(data.action === "end" ? "BILLING_PROFILE_ENDED" : "BILLING_PROFILE_CHANGED", {
     actorType: "USER", actorId: user.id, entityType: "BillingProfile", entityId: id,
@@ -70,7 +55,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const user = await requireCapability(CAPABILITIES.BILLING_APPROVE);
+  const user = await requireCapability(CAPABILITIES.BILLING_EDIT);
   const { id } = await params;
   const parsed = z.object({ reason: z.string().trim().min(5).max(1000) }).safeParse(await req.json().catch(() => null));
   if (!parsed.success) return jsonError("Provide a reason of at least five characters.", 422);

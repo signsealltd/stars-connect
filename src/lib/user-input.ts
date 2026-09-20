@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { CAPABILITIES } from "./permissions";
 
-export const roles = ["ADMINISTRATOR", "DIRECTOR", "MANAGER", "RECEPTION"] as const;
+export const roles = ["ADMINISTRATOR", "DIRECTOR", "MANAGER", "RECEPTION", "TEAM_LEADER", "CARE_ASSISTANT"] as const;
 const capabilityKeys=Object.values(CAPABILITIES) as [string,...string[]];
 const permissionOverrides=z.partialRecord(z.enum(capabilityKeys),z.boolean()).optional();
 export const usernameSchema=z.string().trim().toLowerCase().min(3,"Username must be at least 3 characters.").max(32).regex(/^[a-z0-9][a-z0-9._-]*$/,"Use letters, numbers, dots, dashes or underscores only.");

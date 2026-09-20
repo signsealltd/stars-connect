@@ -1,7 +1,7 @@
+import {requireCapability,CAPABILITIES} from "@/lib/permissions";
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
-import { requireRole } from "@/lib/security";
 import { prisma } from "@/lib/prisma";
 import { audit } from "@/lib/audit";
 import { requestContext } from "@/lib/api";
@@ -24,12 +24,12 @@ const schema = z.object({
 });
 
 export async function GET() {
-  await requireRole("ADMINISTRATOR");
+  await requireCapability(CAPABILITIES.SETTINGS_MANAGE);
   return NextResponse.json(await getOrganisationSettings());
 }
 
 export async function PUT(req: NextRequest) {
-  const user = await requireRole("ADMINISTRATOR");
+  const user = await requireCapability(CAPABILITIES.SETTINGS_MANAGE);
   const parsed = schema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Please check the organisation and theme details." }, { status: 422 });
   if (!isThemePreset(parsed.data.themePreset)) {

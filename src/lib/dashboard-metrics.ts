@@ -6,6 +6,7 @@ type Attendance = {
   status: "NOT_MARKED" | "PRESENT" | "ABSENT" | "OFFSITE" | "LATE" | "CANCELLED";
 };
 type LatestClockEvent = {
+  missingClockOutResolvedAt?: Date|null;
   type: "CLOCK_IN" | "CLOCK_OUT";
   deviceTimestamp: Date;
 };
@@ -47,6 +48,6 @@ export function staffDashboardMetrics(
   const open = latestEvents.filter((event) => event.type === "CLOCK_IN");
   return {
     staffIn: open.filter((event) => event.deviceTimestamp >= dayStart).length,
-    missingClockOut: open.filter((event) => event.deviceTimestamp < dayStart).length,
+    missingClockOut: open.filter((event) => event.deviceTimestamp < dayStart && !event.missingClockOutResolvedAt).length,
   };
 }

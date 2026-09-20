@@ -5,7 +5,7 @@ const optionalText = (max: number) => z.string().trim().max(max).optional().or(z
 export const inlineBillingSchema = z.object({
   enabled: z.boolean().default(false),
   purchaseOrderNumber: z.string().trim().max(100).optional(),
-  fundedDayCount: z.number().min(0).max(366).multipleOf(0.5),
+  fundedDayCount: z.number().min(0).max(366).multipleOf(0.5).nullable().optional().default(null),
   payerType: z.string().trim().min(1).max(40),
   payerName: z.string().trim().min(1).max(191),
   billingAddress: z.string().trim().min(1).max(2000),

@@ -11,7 +11,7 @@ import { localDateAsDatabaseDate } from "@/lib/dates";
 const updateSchema = z.discriminatedUnion("action", [
   z.object({
     action: z.literal("update"),
-    fundedDayCount: z.number().min(0).max(366).multipleOf(0.5),
+    fundedDayCount: z.number().min(0).max(366).multipleOf(0.5).nullable().optional().default(null),
     purchaseOrderNumber:z.string().trim().max(100).optional(),
     payerType: z.string().min(1).max(40),
     payerName: z.string().min(1).max(191),

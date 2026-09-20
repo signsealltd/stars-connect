@@ -538,6 +538,7 @@ model StudentConsentHistory {
 }
 
 model Device {
+  deletedAt DateTime?
   id                String                   @id @default(uuid()) @db.Char(36)
   name              String                   @db.VarChar(120)
   tokenHash         String                   @unique @db.Char(64)
@@ -684,6 +685,7 @@ model VisitorSignature {
 }
 
 model ClockEvent {
+  missingClockOutResolvedAt DateTime?
   id               String            @id @db.Char(36)
   staffId          String            @db.Char(36)
   staff            StaffMember       @relation(fields: [staffId], references: [id])
@@ -1983,6 +1985,7 @@ model BillingPeriod {
 }
 
 model FleetVehicle {
+  deletedAt DateTime?
  id String @id @default(uuid()) @db.Char(36)
  name String @db.VarChar(120)
  registration String @db.VarChar(30)

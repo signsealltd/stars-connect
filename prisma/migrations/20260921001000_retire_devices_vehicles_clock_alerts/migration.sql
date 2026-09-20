@@ -1,0 +1,3 @@
+ALTER TABLE `Device` ADD COLUMN `deletedAt` DATETIME(3) NULL;
+ALTER TABLE `FleetVehicle` ADD COLUMN `deletedAt` DATETIME(3) NULL;
+ALTER TABLE `ClockEvent` ADD COLUMN `missingClockOutResolvedAt` DATETIME(3) NULL;

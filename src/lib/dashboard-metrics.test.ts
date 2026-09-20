@@ -57,3 +57,5 @@ describe("dashboard metrics", () => {
 });
 
 describe("old clock-ins",()=>{it("keeps an old missing clock-out out of today's presence count",()=>{expect(staffDashboardMetrics([{type:"CLOCK_IN",deviceTimestamp:new Date("2026-09-18T09:00:00Z")}],new Date("2026-09-19T23:00:00Z"))).toEqual({staffIn:0,missingClockOut:1})})});
+
+it("does not recount an investigated and closed historical alert",()=>{expect(staffDashboardMetrics([{type:"CLOCK_IN",deviceTimestamp:new Date("2026-09-18T09:00:00Z"),missingClockOutResolvedAt:new Date()}],new Date("2026-09-20T00:00:00Z"))).toEqual({staffIn:0,missingClockOut:0})});

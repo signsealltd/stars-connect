@@ -49,7 +49,7 @@ describe("official invoice PDF", () => {
     expect(text).toContain("(STARS-2026-00001)");
     expect(text).toContain("(Test Student)");
     expect(text).toContain("(TEST1)");
-    expect(text).toContain("(FUNDED SERVICE SUMMARY)");
+    expect(text).toContain("(SERVICES)");
     expect(text).toContain("(01/07/2026)");
     expect(text).toContain("(Day trip)");
     expect(text).not.toContain("Manager confirmed");
@@ -94,3 +94,5 @@ describe("official invoice PDF", () => {
     expect(text).toContain("(Page 2 of 2)");
   });
 });
+
+it("uses simple client columns and repeats a supplied PO below the invoice number",()=>{const pdf=invoicePdf({...fixture(),purchaseOrderNumber:"PO-123"}).toString("latin1");for(const label of ["CLIENT","QTY","RATE","NET","TOTAL","Your Ref: PO-123","PO: PO-123"])expect(pdf).toContain(`(${label})`);expect(pdf).not.toContain("FUNDED");expect(pdf).not.toContain("SERVICE USER")});

@@ -14,3 +14,5 @@ describe("funded invoice generation",()=>{
  it("returns existing output when the same generation request is retried",async()=>{state.claim=false;const output=await generateFundedInvoices("run","manager");expect(output).toEqual([{id:"already-issued"}]);expect(state.created).toHaveLength(0)});
  it("supports an all-days-removed zero invoice without changing the allocation",async()=>{state.excluded=true;await generateFundedInvoices("run","manager");expect(state.created[0]).toMatchObject({grossTotal:0});const input=state.pdf.mock.calls[0][0] as unknown as {attendanceDays:string};expect(input.attendanceDays).toBe("0.00")});
 });
+
+it("blocks a concurrent invoice that was not in the reviewed selection",async()=>{await expect(generateFundedInvoices("run","manager",{expectedPrevious:{student:null}})).rejects.toThrow("another invoice was created");expect(state.created).toHaveLength(0)});

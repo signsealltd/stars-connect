@@ -82,9 +82,10 @@ function pageHeader(input: InvoicePdfInput, page: number) {
   const commands = [
     rect(0, 0, PAGE_WIDTH, PAGE_HEIGHT, "1 1 1"),
     "q 100 0 0 73 42 747 cm /Logo Do Q",
-    rect(366, 758, 187, 64, PURPLE),
+    rect(366, 738, 187, 84, PURPLE),
     text("INVOICE NUMBER", 382, 801, 7.5, true, "1 1 1"),
-    text(input.invoiceNumber, 382, 779, 12, true, "1 1 1"),
+    text(input.invoiceNumber, 382, 784, 12, true, "1 1 1"),
+    ...(input.purchaseOrderNumber?(`Your Ref: ${input.purchaseOrderNumber}`.match(/.{1,42}/g)||[]).slice(0,3).map((part,index)=>text(part,382,770-index*10,6.8,false,"1 1 1")):[]),
     line(42, 735, 553, 735, PURPLE),
   ];
   if (page > 1) {
@@ -101,8 +102,8 @@ function tableHeader(y: number, showVat: boolean) {
     rect(42, y - 4, 511, 24, PURPLE_SOFT, BORDER),
     text("FROM - TO", 50, y + 5, 7, true, PURPLE),
     text("SERVICE", 149, y + 5, 7, true, PURPLE),
-    text("DAYS", 260, y + 5, 7, true, PURPLE),
-    text("DAY RATE", 306, y + 5, 7, true, PURPLE),
+    text("QTY", 260, y + 5, 7, true, PURPLE),
+    text("RATE", 306, y + 5, 7, true, PURPLE),
     text("NET", 374, y + 5, 7, true, PURPLE),
     ...(showVat ? [text("VAT", 433, y + 5, 7, true, PURPLE)] : []),
     text("TOTAL", 487, y + 5, 7, true, PURPLE),
@@ -131,7 +132,7 @@ export function invoicePdf(input: InvoicePdfInput) {
   const firstPageRows = 10;
   const continuedRows = 20;
   const finalPageRows = 15;
-  const firstPageRowsWithPaymentDetails = 9;
+  const firstPageRowsWithPaymentDetails = 7;
   const pageRows: InvoicePdfRow[][] = [];
   if (rows.length <= firstPageRowsWithPaymentDetails) {
     pageRows.push(rows);
@@ -174,39 +175,30 @@ export function invoicePdf(input: InvoicePdfInput) {
         ...(input.companyNumber ? [text(`Company number: ${input.companyNumber}`, 42, 586, 8)] : []),
         ...(showVat && input.vatNumber ? [text(`VAT number: ${input.vatNumber}`, 42, 571, 8)] : []),
         rect(42, 502, 511, 52, PURPLE_SOFT, BORDER),
-        text("SERVICE USER", 54, 537, 6.5, true, MUTED),
+        text("CLIENT", 54, 537, 6.5, true, MUTED),
         text(input.studentName, 54, 518, 11, true, PURPLE),
         text("REFERENCE", 258, 537, 6.5, true, MUTED),
         text(input.studentReference, 258, 518, 10, true),
         text("BILLING PERIOD", 392, 537, 6.5, true, MUTED),
         text(input.periodLabel, 392, 518, 8.5, true),
       );
-      const reference=`Client payment reference / PO: ${input.purchaseOrderNumber || "Not supplied"}`;
-      commands.push(text(reference.slice(0,95),54,491,8,true));
-      if(reference.length>95)commands.push(text(reference.slice(95),54,479,8,true));
-      const summary = [
-        ["FUNDED DAYS", input.attendanceDays],
-        ["DAY RATE", input.dayRate],
-        ["NET", input.netTotal],
-        ...(showVat ? [["VAT", input.vatTotal]] : []),
-        ["INVOICE TOTAL", input.grossTotal],
-      ];
-      summary.forEach((item, index) => {
-        const width = 511 / summary.length;
-        const x = 42 + index * width;
-        const total = index === summary.length - 1;
-        commands.push(rect(x, 416, width - 7, 48, total ? PURPLE : PURPLE_SOFT, total ? PURPLE : BORDER));
-        commands.push(text(item[0], x + 8, 447, 6.1, true, total ? "1 1 1" : MUTED));
-        commands.push(text(item[1], x + 8, 428, 10, true, total ? "1 1 1" : PURPLE));
-      });
-      commands.push(text("FUNDED SERVICE SUMMARY", 42, 392, 9, true, PURPLE));
-      tableY = 364;
+      if(input.purchaseOrderNumber){
+        const reference=`PO: ${input.purchaseOrderNumber}`;
+        commands.push(text(reference.slice(0,95),54,487,8,true));
+        if(reference.length>95)commands.push(text(reference.slice(95),54,475,8,true));
+      }
+      commands.push(text("SERVICES",42,453,9,true,PURPLE));
+      tableY = 427;
     }
     commands.push(...tableHeader(tableY, showVat));
     page.forEach((row, index) => commands.push(...tableRow(row, tableY - 25 - index * ATTENDANCE_ROW_HEIGHT, index % 2 === 1, showVat)));
 
     if (pageIndex === pageCount - 1) {
-      const detailsY = Math.max(78, tableY - 38 - page.length * ATTENDANCE_ROW_HEIGHT - 132);
+      const totalY=tableY-40-page.length*ATTENDANCE_ROW_HEIGHT;
+      commands.push(text(`NET: ${input.netTotal}`,310,totalY,8,true));
+      if(showVat)commands.push(text(`VAT: ${input.vatTotal}`,310,totalY-14,8,true));
+      commands.push(text(`TOTAL: ${input.grossTotal}`,420,totalY,10,true,PURPLE));
+      const detailsY = Math.max(78, totalY - 160);
       const bankLines = input.bankDetails.filter(Boolean).slice(0, 5);
       const remittanceLines = input.remittanceInstructions.filter(Boolean).slice(0, 3);
       commands.push(

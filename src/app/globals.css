@@ -259,3 +259,29 @@ html[data-page-visibility="hidden"] .monthly-scene *{animation-play-state:paused
 .placeholder-star{transform-box:fill-box;transform-origin:center;animation:placeholder-star-twinkle 3.2s ease-in-out infinite alternate;opacity:.26;filter:drop-shadow(0 0 2px #fff)}
 @keyframes placeholder-star-twinkle{0%{opacity:.18;transform:scale(.72)}55%{opacity:.95;transform:scale(1.18);filter:drop-shadow(0 0 7px #d7e8ff)}100%{opacity:.38;transform:scale(.86)}}
 @media(prefers-reduced-motion:reduce){.placeholder-star{animation:none!important;opacity:.72}}
+
+/* Official Clive artwork: contain the complete image without cropping. */
+.clive-launcher[hidden]{display:none}
+.clive-launcher{gap:6px;padding:4px 16px 4px 6px;right:max(16px,env(safe-area-inset-right));bottom:max(16px,env(safe-area-inset-bottom));min-height:60px}
+.clive-launcher-image{display:block;width:clamp(56px,6vw,68px);flex:none}
+.clive-launcher-image img,.clive-header-image img,.clive-welcome-image img{display:block;width:100%;height:auto;object-fit:contain}
+.clive-panel{right:max(16px,env(safe-area-inset-right));bottom:max(16px,env(safe-area-inset-bottom));height:min(760px,calc(100dvh - 100px));max-width:calc(100vw - 24px)}
+.clive-head,.clive-privacy,.clive-form,.clive-disclaimer{flex-shrink:0}
+.clive-head>button{width:44px;height:44px;border-radius:10px}
+.clive-head>button:focus-visible{outline:3px solid #fff;outline-offset:2px}
+.clive-avatar{width:48px;height:48px;border-radius:50%;flex:none;background:#fff}
+.clive-header-image{display:block;width:44px}
+.clive-messages{min-height:0}
+.clive-welcome{text-align:center;margin:0 auto 12px}
+.clive-welcome-image{display:block;width:clamp(140px,32vw,200px);max-width:65%;margin:0 auto 8px}
+.clive-welcome h2{font-size:20px;margin:0;color:var(--ink)}
+.clive-suggestions{flex-shrink:0;max-height:100px}
+.clive-suggestions button{min-height:44px}
+.clive-message a{max-width:100%;width:auto;overflow-wrap:anywhere}
+body:has(.clive-launcher){padding-bottom:100px}
+@media(max-width:620px){.clive-launcher-image{width:56px}.clive-launcher{right:12px;bottom:max(12px,env(safe-area-inset-bottom))}.clive-panel{right:8px;bottom:max(8px,env(safe-area-inset-bottom));width:calc(100vw - 16px);max-width:none;height:min(720px,calc(100dvh - 88px))}.clive-head{padding:8px 12px}.clive-welcome-image{width:140px}.clive-privacy{font-size:11px}}
+@media(prefers-reduced-motion:reduce){.clive-panel *,.clive-launcher{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+.clive-welcome-image{width:clamp(140px,26vw,180px)}
+body:has(.clive-launcher) .help-launcher{right:208px}
+body:has(.training-coach) .clive-launcher,body:has(.training-coach) .clive-panel{visibility:hidden}
+@media(max-width:620px){.clive-welcome-image{width:140px}body:has(.clive-launcher) .help-launcher{right:188px}}

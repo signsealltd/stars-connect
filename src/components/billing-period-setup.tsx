@@ -2,12 +2,12 @@
 import {useCallback,useEffect,useState} from "react";
 export type BillingPeriodOption={id:string;label:string;cycle:string;invoiceMonth:string;periodStart:string;periodEnd:string;bankHolidayDates:string[]};
 const blank={label:"",cycle:"LBE",invoiceMonth:"",periodStart:"",periodEnd:""};
-export function BillingPeriodSetup(){
+export function BillingPeriodSetup({initiallyOpen=false}:{initiallyOpen?:boolean}){
  const [rows,setRows]=useState<BillingPeriodOption[]>([]),[form,setForm]=useState<typeof blank&{id?:string}>(blank),[year,setYear]=useState(new Date().getFullYear()),[busy,setBusy]=useState(false),[message,setMessage]=useState("");
  const load=useCallback(async()=>{const r=await fetch("/api/billing/periods",{cache:"no-store"});if(r.ok)setRows(await r.json());},[]);
  useEffect(()=>{void load();},[load]);
  async function save(body:unknown){setBusy(true);setMessage("");try{const r=await fetch("/api/billing/periods",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});const result=await r.json();if(!r.ok)throw Error(result.error);setMessage("Periods saved. Billing tasks are on the operational calendar.");setForm(blank);await load();window.dispatchEvent(new Event("billing-periods-changed"));}catch(e){setMessage(e instanceof Error?e.message:"Unable to save periods.");}finally{setBusy(false);}}
- return <details className="card" style={{padding:20,marginBottom:20}}><summary><b>Set up billing periods</b> · {rows.length} saved</summary>
+ return <details open={initiallyOpen||undefined} className="card" style={{padding:20,marginBottom:20}}><summary><b>Set up billing periods</b> · {rows.length} saved</summary>
   <p>LBE uses the council’s From–To dates. Other clients use complete calendar months. Each saved period creates a billing task due on its final day.</p>
   <div className="toolbar"><label>Calendar year<input className="field" type="number" min={2020} max={2100} value={year} onChange={e=>setYear(Number(e.target.value))}/></label><button className="btn secondary" disabled={busy} onClick={()=>void save({preset:"MONTHLY",year})}>Add full monthly periods</button></div>
   <p className="muted">Existing periods are kept when loading a year. LBE bank holidays come from the <a href="https://www.gov.uk/bank-holidays" target="_blank" rel="noreferrer">GOV.UK England and Wales calendar</a>.</p>

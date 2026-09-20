@@ -1,0 +1,12 @@
+import {describe,it,expect} from "vitest";
+import {plannedStaffShifts,workingDaysInput,staffAbsenceInput} from "./staff-planning";
+const date=(value:string)=>new Date(`${value}T00:00:00Z`);
+const pattern={id:"pattern",staffId:"staff",effectiveStart:date("2026-01-01"),effectiveEnd:null,timezone:"Europe/London",cycleWeeks:1,intervals:[{id:"monday",weekIndex:1,dayOfWeek:1,startTime:"09:00",endTime:"17:00"}],staff:{displayName:"Example",startDate:date("2026-01-01"),endDate:null}};
+describe("staff planning",()=>{
+ it("projects agreed days beyond a fixed 90-day horizon",()=>{const shifts=plannedStaffShifts([pattern],[],[],date("2027-01-01"),date("2027-01-31"));expect(shifts).toHaveLength(4);expect(shifts[0].startAt.toISOString()).toBe("2027-01-04T09:00:00.000Z")});
+ it("uses UK summer time and suppresses approved absences",()=>{const shifts=plannedStaffShifts([pattern],[],[{staffId:"staff",startDate:date("2026-09-07"),endDate:date("2026-09-08")}],date("2026-09-01"),date("2026-09-30"));expect(shifts).toHaveLength(3);expect(shifts[0].startAt.toISOString()).toBe("2026-09-14T08:00:00.000Z")});
+ it("retains stored cancellations instead of projecting duplicate shifts",()=>{const stored=plannedStaffShifts([pattern],[],[],date("2026-09-07"),date("2026-09-07"));expect(plannedStaffShifts([pattern],[{...stored[0],status:"CANCELLED"}],[],date("2026-09-07"),date("2026-09-07"))).toHaveLength(0)});
+ it("respects employment end dates and schedule changes",()=>{const ended={...pattern,effectiveEnd:date("2026-09-14"),staff:{...pattern.staff,endDate:date("2026-09-10")}};expect(plannedStaffShifts([ended],[],[],date("2026-09-01"),date("2026-09-30"))).toHaveLength(1)});
+ it("validates weekly times, duplicate weekdays and clearing the schedule",()=>{expect(workingDaysInput.safeParse({effectiveStart:"2026-09-21",days:[]}).success).toBe(true);const day={dayOfWeek:1,startTime:"09:00",endTime:"17:00"};expect(workingDaysInput.safeParse({effectiveStart:"2026-09-21",days:[day,day]}).success).toBe(false);expect(workingDaysInput.safeParse({effectiveStart:"2026-09-21",days:[{...day,endTime:"08:00"}]}).success).toBe(false)});
+ it("validates holiday and sickness dates",()=>{const base={staffId:"8f1cb58c-567b-45d1-962b-7532e20925e2",startDate:"2026-09-21",endDate:"2026-09-25"};for(const type of ["SICKNESS","ANNUAL_LEAVE"])expect(staffAbsenceInput.safeParse({...base,type}).success).toBe(true);expect(staffAbsenceInput.safeParse({...base,type:"SICKNESS",endDate:"2026-09-20"}).success).toBe(false)});
+});

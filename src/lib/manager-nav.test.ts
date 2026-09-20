@@ -6,7 +6,7 @@ import { activeManagerSection,managerNavForRole } from "./manager-nav";
 describe("manager navigation permissions",()=>{
   it("groups manager modules without exposing administrator settings",()=>{
     const groups=managerNavForRole("MANAGER");
-    expect(groups.map(group=>group.label)).toEqual(["People","Staff portal","Attendance","Safety & Compliance","Finance","Reports","Settings"]);
+    expect(groups.map(group=>group.label)).toEqual(["Calendar","People","Staff portal","Attendance","Safety & Compliance","Finance","Reports","Settings"]);
     const labels=groups.flatMap(group=>group.items.map(item=>item.label));
     expect(labels).toContain("Payroll");
     expect(labels).toContain("Billing");
@@ -68,3 +68,5 @@ describe("shell structure and interaction hooks",()=>{
     expect(readFileSync(join(process.cwd(),"src/app/dashboard/layout.tsx"),"utf8")).toContain('if(!session)redirect("/login")');
   });
 });
+
+it("places the calendar directly in navigation and RAMS under safety",()=>{const groups=managerNavForRole("ADMINISTRATOR");expect(groups.some(g=>g.label==="Development")).toBe(false);expect(groups.find(g=>g.label==="Calendar")?.href).toBe("/dashboard/calendar");expect(groups.find(g=>g.label==="Safety & Compliance")?.items.some(i=>i.href==="/dashboard/health-safety")).toBe(true);expect(activeManagerSection("/dashboard/calendar")).toBe("Calendar")});

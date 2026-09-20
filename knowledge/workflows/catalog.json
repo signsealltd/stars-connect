@@ -300,7 +300,7 @@
       "steps": [
         {
           "title": "Choose dates",
-          "instruction": "Choose a saved period or enter From and To dates manually and choose the billing group."
+          "instruction": "Choose a saved period or enter From and To dates manually ; all clients are shown. Apply the dates to calculate amounts."
         },
         {
           "title": "Select clients",
@@ -316,7 +316,7 @@
         },
         {
           "title": "Create invoices",
-          "instruction": "Confirm the count and combined total. Existing invoices require explicit replacement confirmation; older versions remain in history."
+          "instruction": "Confirm the count and combined total. Confirm issuing again when invoices exist. Exact periods replace older versions; overlapping interim periods create additional invoices. Older documents remain in history. Missing PO references do not prevent issuing."
         },
         {
           "title": "Download",
@@ -344,7 +344,7 @@
         },
         {
           "question": "How do I handle different payer calendars?",
-          "answer": "Select the correct saved period or enter manual dates and choose LBE or other clients."
+          "answer": "Select the correct saved period or enter manual dates to see all clients across billing groups."
         },
         {
           "question": "What should I check before the first live approval?",

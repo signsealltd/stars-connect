@@ -2,6 +2,8 @@
 "use client";
 import{appConfirm}from"@/lib/app-dialog";
 
+import {StaffAbsences} from "./staff-absences";
+import {StaffWorkingDays} from "./staff-working-days";
 import {StaffAccess} from "./staff-access";
 import { useCallback, useEffect, useState } from "react";
 import { Archive, KeyRound, Pencil, Plus, RotateCcw, Search } from "lucide-react";
@@ -74,6 +76,7 @@ export function StaffManager() {
   }
 
   return <>
+    <StaffAbsences/>
     <div className="toolbar">
       <label style={{ position: "relative" }}><Search size={18} style={{ position: "absolute", left: 13, top: 16 }} />
         <input autoComplete="off" className="field" style={{ paddingLeft: 40 }} placeholder="Search staff" value={search} onChange={(e) => setSearch(e.target.value)} />
@@ -118,6 +121,7 @@ export function StaffManager() {
           <label className="form-label full">Restricted manager notes<textarea autoComplete="off" className="field" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></label>
           <label className="full"><input autoComplete="off" type="checkbox" checked={form.clockingEnabled} onChange={(e) => setForm({ ...form, clockingEnabled: e.target.checked })} /> Allow this staff member to clock in and out</label><label className="full"><input autoComplete="off" type="checkbox" checked={form.cameraRequired} onChange={(e) => setForm({ ...form, cameraRequired: e.target.checked })} /> Require a front-camera confirmation when camera mode is “Required for selected staff”</label>
         </div>
+        {editing!=="new"?<StaffWorkingDays staffId={editing.id}/>:<p className="muted">Save this staff member, then reopen their profile to set working days.</p>}
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 9, marginTop: 20 }}>
           <button type="button" className="btn secondary" onClick={() => setEditing(null)}>Cancel</button>
           <button className="btn primary">Save staff member</button>

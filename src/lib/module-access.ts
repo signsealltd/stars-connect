@@ -10,6 +10,7 @@ export function moduleCapability(path:string,write=false):Capability|undefined {
  if(path.includes("settings/email"))return CAPABILITIES.REPORT_SETTINGS_MANAGE;
  if(path.includes("access-levels"))return CAPABILITIES.USERS_MANAGE;
  if(path.includes("clocking-photos")||path.includes("attendance-photos"))return CAPABILITIES.PHOTO_VIEW;
+ if(path.startsWith("/dashboard/billing/profiles")||path.startsWith("/dashboard/billing/periods"))return CAPABILITIES.BILLING_EDIT;
  if(path.startsWith("/staff-portal/calendar"))return CAPABILITIES.STAFF_CALENDAR;
  if(path.startsWith("/staff-portal"))return CAPABILITIES.STAFF_PORTAL;
  if(path.includes("settings/users"))return CAPABILITIES.USERS_MANAGE;

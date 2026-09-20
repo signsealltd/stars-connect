@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { requireOrganisation } from "@/lib/compliance-service";
 import { APP_TIME_ZONE, localDateAsDatabaseDate } from "@/lib/dates";
 import { calendarDateKeys, calendarPilotEnabled, expectedOnDate } from "@/lib/calendar-pilot";
+import {plannedStaffShifts} from "@/lib/staff-planning";
 import { createOperation } from "@/lib/operations-service";
 import { CAPABILITIES, hasCapability } from "@/lib/permissions";
 
@@ -24,7 +25,7 @@ const createSchema = z.object({
 const dateKey = (value: Date) => formatInTimeZone(value, APP_TIME_ZONE, "yyyy-MM-dd");
 
 export async function GET(req: NextRequest) {
-  return withRole(req, "DIRECTOR", async user => {
+  return withRole(req, "MANAGER", async user => {
     if (!calendarPilotEnabled()) return jsonError("The calendar pilot is currently disabled.", 404);
     if (!hasCapability(user.role, CAPABILITIES.CALENDAR_VIEW, user.permissionOverrides)) return jsonError("You do not have permission to view the calendar.", 403);
     const startKey = req.nextUrl.searchParams.get("start") || "";
@@ -37,19 +38,24 @@ export async function GET(req: NextRequest) {
     const startDate = localDateAsDatabaseDate(startKey);
     const endDate = localDateAsDatabaseDate(endKey);
     const trainingHorizon = addDays(endDate, 60);
-    const [students, shifts, operations, training, billingRuns, billingTasks] = await Promise.all([
+    const [students, storedShifts, operations, training, billingRuns, billingTasks, patterns, absences, staffOptions] = await Promise.all([
       prisma.student.findMany({ where: { active: true, archivedAt: null }, select: { id: true, displayName: true, internalReference: true, expectedDays: true, startDate: true, endDate: true }, orderBy: [{ sortOrder: "asc" }, { displayName: "asc" }] }),
-      prisma.staffScheduleOccurrence.findMany({ where: { organisationId, startAt: { lte: endExclusive }, endAt: { gte: start }, status: { not: "CANCELLED" } }, include: { staff: { select: { displayName: true } } }, orderBy: { startAt: "asc" }, take: 500 }),
+      prisma.staffScheduleOccurrence.findMany({ where: { organisationId, startAt: { lte: endExclusive }, endAt: { gte: start }, staff:{active:true,archivedAt:null} }, include: { staff: { select: { displayName: true,startDate:true,endDate:true } } }, orderBy: { startAt: "asc" } }),
       prisma.operationOccurrence.findMany({ where: { organisationId, startAt: { lte: endExclusive }, endAt: { gte: start }, status: { not: "CANCELLED" } }, include: { operation: { select: { title: true, type: true, description: true } }, assignments: { where: { status: "ASSIGNED" }, include: { staff: { select: { displayName: true } } } }, attendees: { include: { student: { select: { displayName: true } } } } }, orderBy: { startAt: "asc" }, take: 250 }),
       prisma.staffTrainingRecord.findMany({ where: { active: true, expiryDate: { not: null, lte: trainingHorizon }, staff: { active: true, archivedAt: null } }, include: { staff: { select: { displayName: true } }, course: { select: { name: true, warningDays: true } } }, orderBy: { expiryDate: "asc" }, take: 250 }),
       prisma.billingRun.findMany({ where: { periodStart: { lte: endDate }, periodEnd: { gte: startDate } }, select: { id: true, label: true, periodStart: true, periodEnd: true, status: true, selectedStudentIds: true }, orderBy: { periodStart: "asc" }, take: 100 }),
       prisma.operationalTask.findMany({where:{sourceKey:{startsWith:"billing-period:"},dueDate:{gte:startDate,lte:endDate}},orderBy:{dueDate:"asc"}}),
+      prisma.staffWorkingPattern.findMany({where:{organisationId,active:true,effectiveStart:{lte:endDate},OR:[{effectiveEnd:null},{effectiveEnd:{gte:startDate}}],staff:{active:true,archivedAt:null}},include:{intervals:true,staff:{select:{displayName:true,startDate:true,endDate:true}}}}),
+      prisma.staffScheduleException.findMany({where:{organisationId,approvalStatus:"APPROVED",type:{in:["ANNUAL_LEAVE","SICKNESS"]},startDate:{lte:endDate},endDate:{gte:startDate}},include:{staff:{select:{displayName:true}}}}),
+      prisma.staffMember.findMany({where:{active:true,archivedAt:null},select:{id:true,displayName:true},orderBy:{displayName:"asc"}}),
     ]);
+    const shifts=plannedStaffShifts(patterns,storedShifts,absences,startDate,endDate);
     const days = keys.map(key => {
       const dayStart = localDateAsDatabaseDate(key);
       const activeStudents = students.filter(student => student.startDate <= dayStart && (!student.endDate || student.endDate >= dayStart) && expectedOnDate(student.expectedDays, key));
       return {
         date: key,
+        absences:absences.filter(item=>item.startDate<=dayStart&&item.endDate>=dayStart).map(item=>({id:item.id,staffId:item.staffId,name:item.staff.displayName,type:item.type,startDate:item.startDate,endDate:item.endDate})),
         expectedStudents: activeStudents.map(student => ({ id: student.id, name: student.displayName })),
         expectedStaff: shifts.filter(shift => dateKey(shift.startAt) === key).map(shift => ({ id: shift.staffId, name: shift.staff.displayName, start: shift.startAt, end: shift.endAt, status: shift.status, role: shift.role })),
         activities: operations.filter(item => dateKey(item.startAt) === key).map(item => ({ id: item.id, title: item.operation.title, type: item.operation.type, description: item.operation.description, start: item.startAt, end: item.endAt, location: item.location || item.premisesName, status: item.status, readiness: item.readiness, staff: item.assignments.map(row => row.staff.displayName), students: item.attendees.map(row => row.student.displayName) })),
@@ -59,12 +65,12 @@ export async function GET(req: NextRequest) {
     });
     const now = new Date();
     const trainingFlags = training.filter(item => item.expiryDate && (item.expiryDate < now || item.expiryDate <= addDays(now, item.course?.warningDays ?? 60))).map(item => ({ id: item.id, staff: item.staff.displayName, course: item.course?.name || item.courseName, expiryDate: item.expiryDate, mandatory: item.mandatory, state: item.expiryDate && item.expiryDate < now ? "OVERDUE" : "DUE_SOON" }));
-    return NextResponse.json({ pilot: true, readOnlySources: ["client expected days", "staff schedules", "training renewals", "billing cycles"], students: students.map(student => ({ id: student.id, name: student.displayName, reference: student.internalReference })), days, trainingFlags });
+    return NextResponse.json({ pilot: true, canManageAbsences:hasCapability(user.role,CAPABILITIES.STAFF_SCHEDULE_MANAGE,user.permissionOverrides), staff:staffOptions.map(item=>({id:item.id,name:item.displayName})), readOnlySources: ["client expected days", "staff schedules", "training renewals", "billing cycles"], students: students.map(student => ({ id: student.id, name: student.displayName, reference: student.internalReference })), days, trainingFlags });
   });
 }
 
 export async function POST(req: NextRequest) {
-  return withRole(req, "DIRECTOR", async user => {
+  return withRole(req, "MANAGER", async user => {
     if (!calendarPilotEnabled()) return jsonError("The calendar pilot is currently disabled.", 404);
     if (!hasCapability(user.role, CAPABILITIES.CALENDAR_MANAGE, user.permissionOverrides)) return jsonError("You do not have permission to manage the calendar.", 403);
     const parsed = createSchema.safeParse(await req.json().catch(() => null));

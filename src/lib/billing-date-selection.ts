@@ -3,7 +3,7 @@ import { z } from "zod";
 export const manualBillingPeriodSchema = z.object({
   periodStart: z.string().date(),
   periodEnd: z.string().date(),
-  cycle: z.enum(["LBE", "MONTHLY"]),
+  cycle: z.enum(["LBE", "MONTHLY", "ALL"]),
 }).refine(value => {
   const days = (Date.parse(value.periodEnd) - Date.parse(value.periodStart)) / 86400000 + 1;
   return days >= 1 && days <= 62;

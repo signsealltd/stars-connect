@@ -4,12 +4,12 @@ import {createHash} from "crypto";
 import {prisma} from "@/lib/prisma";
 import {withCapability,jsonError} from "@/lib/api";
 import {CAPABILITIES,hasCapability} from "@/lib/permissions";
-import {billingChoices,manualInvoiceAmounts,needsAmendmentReason} from "@/lib/billing-wizard";
+import {billingClientRoster,billingChoices,manualInvoiceAmounts,needsAmendmentReason} from "@/lib/billing-wizard";
 import {calculateFundedRun} from "@/lib/funded-billing-service";
 import {generateFundedInvoices} from "@/lib/funded-invoices";
 import {invoiceDayAmounts} from "@/lib/billing-total-rules";
 import {manualBillingPeriodSchema} from "@/lib/billing-date-selection";
-export async function GET(req:NextRequest){return withCapability(req,CAPABILITIES.BILLING_REVIEW,async()=>{try{return NextResponse.json(await billingChoices(req.nextUrl.searchParams.get("period")||{periodStart:req.nextUrl.searchParams.get("from")||"",periodEnd:req.nextUrl.searchParams.get("to")||"",cycle:req.nextUrl.searchParams.get("cycle") as "LBE"|"MONTHLY"},req.nextUrl.searchParams.has("excludeBankHolidays")?req.nextUrl.searchParams.get("excludeBankHolidays")==="true":undefined),{headers:{"cache-control":"private, no-store"}})}catch(e){return jsonError(e instanceof Error?e.message:"Unable to load clients.",422)}})}
+export async function GET(req:NextRequest){return withCapability(req,CAPABILITIES.BILLING_REVIEW,async()=>{try{if(req.nextUrl.searchParams.get("clients")==="all")return NextResponse.json(await billingClientRoster(),{headers:{"cache-control":"private, no-store"}});return NextResponse.json(await billingChoices(req.nextUrl.searchParams.get("period")||{periodStart:req.nextUrl.searchParams.get("from")||"",periodEnd:req.nextUrl.searchParams.get("to")||"",cycle:req.nextUrl.searchParams.get("cycle") as "LBE"|"MONTHLY"|"ALL"},req.nextUrl.searchParams.has("excludeBankHolidays")?req.nextUrl.searchParams.get("excludeBankHolidays")==="true":undefined),{headers:{"cache-control":"private, no-store"}})}catch(e){return jsonError(e instanceof Error?e.message:"Unable to load clients.",422)}})}
 const schema=z.object({periodId:z.string().uuid().optional(),manualPeriod:manualBillingPeriodSchema.optional(),excludeBankHolidays:z.boolean().optional(),token:z.string().length(64),requestKey:z.string().uuid(),replaceExisting:z.boolean(),entries:z.array(z.object({studentId:z.string().uuid(),quantity:z.number().positive().max(62).optional(),total:z.number().positive().max(1000000),reason:z.string().trim().max(2000).default("")})).min(1).max(500)});
 export async function POST(req:NextRequest){return withCapability(req,CAPABILITIES.BILLING_APPROVE,async user=>{
  if(!hasCapability(user.role,CAPABILITIES.BILLING_EDIT,user.permissionOverrides))return jsonError("Invoice preparation access is required.",403);
@@ -22,7 +22,7 @@ export async function POST(req:NextRequest){return withCapability(req,CAPABILITI
   if(run?.status==="INVOICES_GENERATED")return NextResponse.json({runId:run.id,invoices:await prisma.invoice.findMany({where:{billingRunId:run.id}})});
   const choices=await billingChoices(d.manualPeriod||d.periodId!,d.excludeBankHolidays);
   if(choices.token!==d.token)throw Error("Client details or invoices have changed. Refresh the choices and check the totals again.");
-  const selected=d.entries.map(entry=>{const row=choices.rows.find(r=>r.id===entry.studentId);if(!row)throw Error("A selected client is no longer eligible for this period.");if(row.error)throw Error(`${row.name}: ${row.error}`);if(row.existing&&!d.replaceExisting)throw Error(`${row.name} already has an invoice. Confirm replacement before continuing.`);manualInvoiceAmounts(entry.total,row.vatRate);if(entry.quantity!==undefined&&Math.abs(invoiceDayAmounts(entry.quantity,row.rate||0,row.vatRate).grossAmount-entry.total)>0.001)throw Error(`${row.name}: the days and total do not match. Refresh and review.`);if(needsAmendmentReason(row.total,entry.total)&&entry.reason.length<5)throw Error(`${row.name}: give a short reason for the changed total.`);return {entry,row}});
+  const selected=d.entries.map(entry=>{const row=choices.rows.find(r=>r.id===entry.studentId);if(!row)throw Error("A selected client is no longer eligible for this period.");if(row.error)throw Error(`${row.name}: ${row.error}`);if((row.existing||row.overlap)&&!d.replaceExisting)throw Error(`${row.name} already has an invoice. Confirm issuing again before continuing.`);manualInvoiceAmounts(entry.total,row.vatRate);if(entry.quantity!==undefined&&Math.abs(invoiceDayAmounts(entry.quantity,row.rate||0,row.vatRate).grossAmount-entry.total)>0.001)throw Error(`${row.name}: the days and total do not match. Refresh and review.`);if(needsAmendmentReason(row.total,entry.total)&&entry.reason.length<5)throw Error(`${row.name}: give a short reason for the changed total.`);return {entry,row}});
   if(!run)run=await prisma.$transaction(async tx=>{
    await tx.appSetting.upsert({where:{key:"billingRunLock"},update:{updatedBy:user.id},create:{key:"billingRunLock",value:true,updatedBy:user.id}});
    const duplicate=await tx.billingRun.findUnique({where:{requestKey:d.requestKey}});if(duplicate)return duplicate;
@@ -47,7 +47,7 @@ export async function POST(req:NextRequest){return withCapability(req,CAPABILITI
     await tx.auditLog.create({data:{action:"BILLING_WIZARD_APPROVED",actorType:"USER",actorId:user.id,entityType:"BillingRun",entityId:id,afterValue:{clientCount:selected.length,replacementsConfirmed:d.replaceExisting}}});
    });
   }
-  const invoices=await generateFundedInvoices(run.id,user.id,{expectedPrevious:Object.fromEntries(selected.map(({row})=>[row.id,row.existing?.id||null]))});
+  const invoices=await generateFundedInvoices(run.id,user.id,{allowOverlapping:d.replaceExisting,expectedPrevious:Object.fromEntries(selected.map(({row})=>[row.id,row.existing?.id||null]))});
   return NextResponse.json({runId:run.id,invoices});
  }catch(e){return jsonError(e instanceof Error?e.message:"Invoices could not be created. Please retry.",409)}
  });}

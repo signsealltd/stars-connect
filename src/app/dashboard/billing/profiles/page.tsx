@@ -10,7 +10,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
   const safeReturn = query.returnTo?.startsWith("/dashboard/billing/") ? query.returnTo : "";
   return <main className="shell"><Header manager/><div className="content">
     <h1 className="page-title">Billing setup</h1>
-    <p className="muted">Tell STARS Connect who pays for each service user and what rate to charge.</p>
+    <p className="muted">Find clients, check payment references and manage their agreed billing details.</p>
     <SimpleBillingProfilesV2 initialStudentId={query.studentId} returnTo={safeReturn}/>
   </div></main>;
 }

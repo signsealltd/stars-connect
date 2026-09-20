@@ -1,6 +1,5 @@
 import {studentFullName} from "./student-name";
 import { prisma } from "./prisma";
-import { needsPurchaseOrder } from "./funded-days";
 import { getBillingSettings } from "./billing-settings";
 import { loadInvoiceLogo, safeDocumentName } from "./invoice-logo";
 import { invoicePdf } from "./invoice-pdf";
@@ -8,7 +7,7 @@ import { storeDocument, deleteStoredDocument } from "./documents";
 import { invoiceNumber } from "./billing";
 import { audit } from "./audit";
 
-export async function generateFundedInvoices(id:string,actorId:string,options?:{expectedPrevious:Record<string,string|null>}) {
+export async function generateFundedInvoices(id:string,actorId:string,options?:{expectedPrevious:Record<string,string|null>;allowOverlapping?:boolean}) {
   const settings=await getBillingSettings(),logoJpeg=await loadInvoiceLogo(settings.invoiceLogoUrl);
   const stored:Array<{id:string;storagePath:string}>=[];
   const result=await prisma.$transaction(async tx=>{
@@ -25,7 +24,6 @@ export async function generateFundedInvoices(id:string,actorId:string,options?:{
     const charges=run.charges;
     if(!charges.length||charges.some(c=>!c.excluded&&c.exceptionCode))throw new Error("Resolve funding setup warnings before generating.");
     const profiles=await tx.billingProfile.findMany({where:{id:{in:[...new Set(charges.map(c=>c.billingProfileId))]}}});
-    for(const p of profiles)if(needsPurchaseOrder(`${p.payerName} ${p.fundingOrganisation||""}`)&&!p.purchaseOrderNumber?.trim())throw new Error(`PO number required for ${p.payerName}. Update the client billing profile.`);
     // One database row serializes number allocation across different runs.
     let sequence=Math.max(Number(counter.value)||0,await tx.invoice.count());
     const groups=new Map<string,typeof charges>();
@@ -36,7 +34,7 @@ export async function generateFundedInvoices(id:string,actorId:string,options?:{
     for(const group of groups.values()) {
       const p=profiles.find(p=>p.id===group[0].billingProfileId)!;
       const student=await tx.student.findUniqueOrThrow({where:{id:group[0].studentId}});
-      if(options){const overlap=await tx.invoice.findFirst({where:{studentId:student.id,status:"ISSUED",grossTotal:{gte:0},billingRun:{periodStart:{lte:run.periodEnd},periodEnd:{gte:run.periodStart}},NOT:{billingRun:{periodStart:run.periodStart,periodEnd:run.periodEnd}}}});if(overlap)throw Error(`${student.displayName}: these dates overlap another invoice. Refresh and review the dates.`);}
+      if(options&&!options.allowOverlapping){const overlap=await tx.invoice.findFirst({where:{studentId:student.id,status:"ISSUED",grossTotal:{gte:0},billingRun:{periodStart:{lte:run.periodEnd},periodEnd:{gte:run.periodStart}},NOT:{billingRun:{periodStart:run.periodStart,periodEnd:run.periodEnd}}}});if(overlap)throw Error(`${student.displayName}: these dates overlap another invoice. Refresh and review the dates.`);}
       const previous=await tx.invoice.findFirst({where:{studentId:student.id,billingProfileId:p.id,status:"ISSUED",grossTotal:{gte:0},billingRun:{periodStart:run.periodStart,periodEnd:run.periodEnd}},orderBy:{createdAt:"desc"}});
       if(options&&(previous?.id||null)!==options.expectedPrevious[student.id])throw Error(`${student.displayName}: another invoice was created for this period. Refresh and review before replacing it.`);
       const included=group.filter(c=>!c.excluded);

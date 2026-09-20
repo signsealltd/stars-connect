@@ -10,11 +10,11 @@ Bill agreed services independently of register attendance.
 - Use the correct LBE/Nicola or other-client billing group.
 
 ## Steps
-1. **Choose dates:** Choose a saved period or enter From and To dates manually and choose the billing group.
+1. **Choose dates:** Choose a saved period or enter From and To dates manually ; all clients are shown. Apply the dates to calculate amounts.
 2. **Select clients:** Select individual clients or use Select all. No clients are selected automatically.
 3. **Set totals:** Use agreed amounts or Enter totals myself. Funded days can remain blank if an authorised total is entered.
 4. **Review totals:** Review each client, payer and total. Explain material changes. Fix highlighted details or deselect the client.
-5. **Create invoices:** Confirm the count and combined total. Existing invoices require explicit replacement confirmation; older versions remain in history.
+5. **Create invoices:** Confirm the count and combined total. Confirm issuing again when invoices exist. Exact periods replace older versions; overlapping interim periods create additional invoices. Older documents remain in history. Missing PO references do not prevent issuing.
 6. **Download:** Download the batch or view individual invoices. Creation does not send email.
 
 ## Expected outcome
@@ -38,7 +38,7 @@ All selected clients have invoices for the chosen dates and reviewed totals.
 No. Billing uses agreed funded days or an authorised manual total, not the register.
 
 ### How do I handle different payer calendars?
-Select the correct saved period or enter manual dates and choose LBE or other clients.
+Select the correct saved period or enter manual dates to see all clients across billing groups.
 
 ### What should I check before the first live approval?
 Check every selected client, date range, PO, quantity, rate, VAT and total, then inspect the generated PDFs.

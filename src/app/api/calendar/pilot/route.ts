@@ -37,12 +37,13 @@ export async function GET(req: NextRequest) {
     const startDate = localDateAsDatabaseDate(startKey);
     const endDate = localDateAsDatabaseDate(endKey);
     const trainingHorizon = addDays(endDate, 60);
-    const [students, shifts, operations, training, billingRuns] = await Promise.all([
+    const [students, shifts, operations, training, billingRuns, billingTasks] = await Promise.all([
       prisma.student.findMany({ where: { active: true, archivedAt: null }, select: { id: true, displayName: true, internalReference: true, expectedDays: true, startDate: true, endDate: true }, orderBy: [{ sortOrder: "asc" }, { displayName: "asc" }] }),
       prisma.staffScheduleOccurrence.findMany({ where: { organisationId, startAt: { lte: endExclusive }, endAt: { gte: start }, status: { not: "CANCELLED" } }, include: { staff: { select: { displayName: true } } }, orderBy: { startAt: "asc" }, take: 500 }),
       prisma.operationOccurrence.findMany({ where: { organisationId, startAt: { lte: endExclusive }, endAt: { gte: start }, status: { not: "CANCELLED" } }, include: { operation: { select: { title: true, type: true, description: true } }, assignments: { where: { status: "ASSIGNED" }, include: { staff: { select: { displayName: true } } } }, attendees: { include: { student: { select: { displayName: true } } } } }, orderBy: { startAt: "asc" }, take: 250 }),
       prisma.staffTrainingRecord.findMany({ where: { active: true, expiryDate: { not: null, lte: trainingHorizon }, staff: { active: true, archivedAt: null } }, include: { staff: { select: { displayName: true } }, course: { select: { name: true, warningDays: true } } }, orderBy: { expiryDate: "asc" }, take: 250 }),
       prisma.billingRun.findMany({ where: { periodStart: { lte: endDate }, periodEnd: { gte: startDate } }, select: { id: true, label: true, periodStart: true, periodEnd: true, status: true, selectedStudentIds: true }, orderBy: { periodStart: "asc" }, take: 100 }),
+      prisma.operationalTask.findMany({where:{sourceKey:{startsWith:"billing-period:"},dueDate:{gte:startDate,lte:endDate}},orderBy:{dueDate:"asc"}}),
     ]);
     const days = keys.map(key => {
       const dayStart = localDateAsDatabaseDate(key);
@@ -53,7 +54,7 @@ export async function GET(req: NextRequest) {
         expectedStaff: shifts.filter(shift => dateKey(shift.startAt) === key).map(shift => ({ id: shift.staffId, name: shift.staff.displayName, start: shift.startAt, end: shift.endAt, status: shift.status, role: shift.role })),
         activities: operations.filter(item => dateKey(item.startAt) === key).map(item => ({ id: item.id, title: item.operation.title, type: item.operation.type, description: item.operation.description, start: item.startAt, end: item.endAt, location: item.location || item.premisesName, status: item.status, readiness: item.readiness, staff: item.assignments.map(row => row.staff.displayName), students: item.attendees.map(row => row.student.displayName) })),
         training: training.filter(item => item.expiryDate && dateKey(item.expiryDate) === key).map(item => ({ id: item.id, staff: item.staff.displayName, course: item.course?.name || item.courseName, expiryDate: item.expiryDate, mandatory: item.mandatory })),
-        billingCycles: billingRuns.filter(run => dateKey(run.periodStart) === key).map(run => ({ id: run.id, label: run.label || "Unlabelled billing cycle", start: run.periodStart, end: run.periodEnd, status: run.status, studentCount: Array.isArray(run.selectedStudentIds) ? run.selectedStudentIds.length : 0 })),
+        billingCycles: billingRuns.filter(run => dateKey(run.periodStart) === key).map(run => ({ id: run.id, label: run.label || "Unlabelled billing cycle", start: run.periodStart, end: run.periodEnd, status: run.status, studentCount: Array.isArray(run.selectedStudentIds) ? run.selectedStudentIds.length : 0 })).concat(billingTasks.filter(task=>dateKey(task.dueDate)===key).map(task=>({id:task.id,label:task.title,start:task.startDate,end:task.endDate,status:task.status,studentCount:0}))),
       };
     });
     const now = new Date();

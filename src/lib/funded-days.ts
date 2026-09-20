@@ -1,4 +1,4 @@
-export type Allocation = { id: string; active: boolean; activeFrom: Date; activeTo: Date | null; applicableWeekdays: unknown; attendanceDependency: string; unitType: string; rate: unknown; vatRate: unknown };
+export type Allocation = { id: string; fundedDayCount?: unknown; active: boolean; activeFrom: Date; activeTo: Date | null; applicableWeekdays: unknown; attendanceDependency: string; unitType: string; rate: unknown; vatRate: unknown };
 export function dateKeys(from: Date, to: Date) {
   const days: Date[] = [];
   if (to < from || (to.getTime() - from.getTime()) / 86400000 > 366) throw new Error("Choose a billing period of no more than one year.");
@@ -20,4 +20,10 @@ export function fundedAmounts(rule: Allocation) {
   const netAmount = Math.round(quantity * unitRate * 100) / 100;
   const vatAmount = Math.round(netAmount * vatRate) / 100;
   return { quantity, unitRate, netAmount, vatRate, vatAmount, grossAmount: Math.round((netAmount + vatAmount) * 100) / 100 };
+}
+
+export function fundedCountAmounts(days:number,bankHolidays:number,removed:number,rate:number,vatRate:number){
+ if(![days,bankHolidays,removed,rate,vatRate].every(Number.isFinite)||days<0||days>366||days*2%1||bankHolidays<0||!Number.isInteger(bankHolidays)||removed<0||removed*2%1||removed>Math.max(0,days-bankHolidays)||rate<0||vatRate<0||vatRate>100)throw new Error("Check funded days, holiday deductions, removals and rate.");
+ const quantity=Math.max(0,days-bankHolidays-removed),netAmount=Math.round(quantity*rate*100)/100,vatAmount=Math.round(netAmount*vatRate)/100;
+ return {quantity,unitRate:rate,netAmount,vatRate,vatAmount,grossAmount:Math.round((netAmount+vatAmount)*100)/100};
 }

@@ -1,3 +1,4 @@
+import {BillingPeriodSetup} from "@/components/billing-period-setup";
 import {BillingAutomation} from "@/components/billing-automation";
 import { InvoiceArchive } from "@/components/invoice-archive";
 import { Header } from "@/components/header";
@@ -11,6 +12,6 @@ export default async function Page() {
   return <main className="shell"><Header manager/><div className="content">
     <h1 className="page-title">Billing</h1>
     <p className="muted">Invoice agreed funded days. Attendance does not affect charges.</p>
-    <BillingAutomation/><SimpleFinanceConsole mode="billing"/><InvoiceArchive/>
+    <BillingPeriodSetup/><BillingAutomation/><SimpleFinanceConsole mode="billing"/><InvoiceArchive/>
   </div></main>;
 }

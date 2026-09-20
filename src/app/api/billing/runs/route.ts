@@ -1,3 +1,4 @@
+import {needsPurchaseOrder} from "@/lib/funded-days";
 import {NextRequest,NextResponse} from "next/server";
 import {z} from "zod";
 import {prisma} from "@/lib/prisma";
@@ -5,7 +6,7 @@ import {withCapability,jsonError} from "@/lib/api";
 import {CAPABILITIES} from "@/lib/permissions";
 import {calculateFundedRun,createBillingTask} from "@/lib/funded-billing-service";
 export async function GET(req:NextRequest){return withCapability(req,CAPABILITIES.BILLING_REVIEW,async()=>NextResponse.json(await prisma.billingRun.findMany({include:{_count:{select:{charges:true,invoices:true}}},orderBy:{periodStart:"desc"}})));}
-const schema=z.object({periodStart:z.string().date(),periodEnd:z.string().date(),requestKey:z.string().uuid(),label:z.string().trim().min(1).max(191).optional(),studentIds:z.array(z.string().uuid()).min(1).max(500).optional(),historicalMode:z.boolean().default(false),notes:z.string().max(2000).optional()});
+const schema=z.object({periodStart:z.string().date(),periodEnd:z.string().date(),requestKey:z.string().uuid(),billingPeriodId:z.string().uuid().optional(),label:z.string().trim().min(1).max(191).optional(),studentIds:z.array(z.string().uuid()).min(1).max(500).optional(),historicalMode:z.boolean().default(false),notes:z.string().max(2000).optional()});
 export async function POST(req:NextRequest){return withCapability(req,CAPABILITIES.BILLING_EDIT,async user=>{
   const parsed=schema.safeParse(await req.json().catch(()=>null));
   if(!parsed.success||parsed.data.periodEnd<parsed.data.periodStart)return jsonError("Choose valid dates.",422);
@@ -14,12 +15,21 @@ export async function POST(req:NextRequest){return withCapability(req,CAPABILITI
   if(d.studentIds&&await prisma.student.count({where:{id:{in:d.studentIds}}})!==new Set(d.studentIds).size)return jsonError("One or more students are unavailable.",422);
   const existing=await prisma.billingRun.findUnique({where:{requestKey:d.requestKey}});
   if(existing)return NextResponse.json(existing);
+  const period=d.billingPeriodId?await prisma.billingPeriod.findUnique({where:{id:d.billingPeriodId}}):null;
+  if(d.billingPeriodId&&(!period||period.periodStart.getTime()!==periodStart.getTime()||period.periodEnd.getTime()!==periodEnd.getTime()))return jsonError("The saved period changed. Select it again.",409);
+  if(!period)return jsonError("Select a configured billing period first.",422);
+  const profiles=await prisma.billingProfile.findMany({where:{studentId:{in:d.studentIds||[]},activeFrom:{lte:periodEnd},OR:[{activeTo:null},{activeTo:{gte:periodStart}}]}});
+  if(!d.studentIds?.length)return jsonError("Select at least one student.",422);
+  if(profiles.some(p=>needsPurchaseOrder(`${p.payerName} ${p.fundingOrganisation||""}`)!==(period.cycle==="LBE")))return jsonError("The selected students must belong to this period's billing group.",422);
   const row=await prisma.$transaction(async tx=>{
     await tx.appSetting.upsert({where:{key:"billingRunLock"},update:{updatedBy:user.id},create:{key:"billingRunLock",value:true,updatedBy:user.id}});
     const duplicate=await tx.billingRun.findUnique({where:{requestKey:d.requestKey}});if(duplicate)return duplicate;
+    const currentPeriod=await tx.billingPeriod.findUnique({where:{id:period.id}});
+    if(!currentPeriod||currentPeriod.updatedAt.getTime()!==period.updatedAt.getTime())return null;
     const previous=await tx.billingRun.findFirst({where:{periodStart,periodEnd},orderBy:{version:"desc"}});
-    return tx.billingRun.create({data:{periodStart,periodEnd,requestKey:d.requestKey,notes:d.notes,label:d.label,selectedStudentIds:d.studentIds,historicalMode:d.historicalMode,version:(previous?.version||0)+1,createdById:user.id,supersedesRunId:previous?.id,revisionReason:previous?"Manager requested regeneration":null}});
+    return tx.billingRun.create({data:{periodStart,periodEnd,requestKey:d.requestKey,billingPeriodId:period.id,bankHolidayDates:period.bankHolidayDates!,notes:d.notes,label:d.label,selectedStudentIds:d.studentIds,historicalMode:d.historicalMode,version:(previous?.version||0)+1,createdById:user.id,supersedesRunId:previous?.id,revisionReason:previous?"Manager requested regeneration":null}});
   });
+  if(!row)return jsonError("The saved period changed. Select it again.",409);
   await calculateFundedRun(row.id);
   const payers=await prisma.billingCharge.findMany({where:{billingRunId:row.id},select:{payerName:true},distinct:["payerName"]});
   for(const payer of payers)await createBillingTask(row.id,payer.payerName,periodStart,periodEnd,user.id);

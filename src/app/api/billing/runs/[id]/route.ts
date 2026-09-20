@@ -1,3 +1,4 @@
+import {fundedCountAmounts} from "@/lib/funded-days";
 import {NextRequest,NextResponse} from "next/server";
 import bcrypt from "bcryptjs";
 import {prisma} from "@/lib/prisma";
@@ -42,6 +43,12 @@ export async function PATCH(req:NextRequest,{params}:Params){const body=await re
     return tx.billingCharge.create({data:{billingRunId:id,billingProfileId:profile.id,studentId:student.id,studentName:student.displayName,payerName:profile.payerName,sourceDate,description,quantity,unitRate,vatRate,...amounts,manuallyAdjusted:true,adjustmentReason:reason}});
    }
    const charge=run.charges.find(c=>c.id===String(body.chargeId));if(!charge)throw new Error("Charge not found in this billing run.");
+   if(action==="set-funded-days"){
+    if(!charge.chargeRuleId||["MISSING_BILLING_PROFILE","OVERLAPPING_FUNDING_PROFILES","LBE_PERIOD_REQUIRED"].includes(charge.exceptionCode||""))throw Error("Correct the funding profile or period first.");
+    const days=Number(body.fundedDays),removed=Number(body.removedDays);
+    const amounts=fundedCountAmounts(days,charge.bankHolidayDays,removed,Number(charge.unitRate),Number(charge.vatRate));
+    return tx.billingCharge.update({where:{id:charge.id},data:{...amounts,fundedDays:days,removedDays:removed,description:`Agreed funded days: ${days} less ${charge.bankHolidayDays} bank holidays and ${removed} management removals`,exceptionCode:null,manuallyAdjusted:true,adjustmentReason:reason}});
+   }
    if(action==="note-charge")return {ok:true};
    if(charge.exceptionCode)throw new Error("Correct the funding profile and refresh calculations. Missing allocations cannot be waived or removed.");
    if(action==="exclude-charge"||action==="restore-charge")return tx.billingCharge.update({where:{id:charge.id},data:{excluded:action==="exclude-charge",manuallyAdjusted:true,adjustmentReason:reason}});

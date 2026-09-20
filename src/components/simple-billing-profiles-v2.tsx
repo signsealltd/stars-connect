@@ -9,10 +9,10 @@ type Student = { id: string; displayName: string };
 type Profile = {
   id: string; studentId: string; payerType: string; payerName: string; billingAddress: string;
   purchaseOrderNumber?: string; billingEmail?: string; activeFrom: string; activeTo?: string; vatTreatment: string;
-  vatRate: number | string; chargeRules: Array<{ rate?: number | string; applicableWeekdays:number[]; attendanceDependency:string; activeFrom:string }>;
+  vatRate: number | string; chargeRules: Array<{ rate?: number | string; fundedDayCount?:number|string|null; attendanceDependency:string; activeFrom:string }>;
 };
 const empty = {
-  fundedDays: [] as number[], purchaseOrderNumber:"", studentId: "", payerType: "Local authority", payerName: "", billingAddress: "", billingEmail: "",
+  fundedDayCount: "" as number|"", purchaseOrderNumber:"", studentId: "", payerType: "Local authority", payerName: "", billingAddress: "", billingEmail: "",
   activeFrom: new Date().toISOString().slice(0, 10), vatTreatment: "OUTSIDE_SCOPE", vatRate: 0, rate: 0,
 };
 
@@ -33,7 +33,7 @@ export function SimpleBillingProfilesV2({ initialStudentId = "", returnTo = "" }
       const selected = initialStudentId ? loadedProfiles.find(profile => profile.studentId === initialStudentId && !profile.activeTo) : undefined;
       if (selected) {
         setEditingId(selected.id);
-        setForm({ fundedDays:selected.chargeRules[0]?.attendanceDependency==="FUNDED"?selected.chargeRules[0].applicableWeekdays:[],purchaseOrderNumber:selected.purchaseOrderNumber||"",studentId:selected.studentId,payerType:selected.payerType,payerName:selected.payerName,billingAddress:selected.billingAddress,billingEmail:selected.billingEmail||"",activeFrom:(selected.chargeRules[0]?.activeFrom||selected.activeFrom).slice(0,10),vatTreatment:selected.vatTreatment,vatRate:Number(selected.vatRate),rate:Number(selected.chargeRules[0]?.rate||0) });
+        setForm({ fundedDayCount:selected.chargeRules[0]?.fundedDayCount!=null?Number(selected.chargeRules[0].fundedDayCount):"",purchaseOrderNumber:selected.purchaseOrderNumber||"",studentId:selected.studentId,payerType:selected.payerType,payerName:selected.payerName,billingAddress:selected.billingAddress,billingEmail:selected.billingEmail||"",activeFrom:(selected.chargeRules[0]?.activeFrom||selected.activeFrom).slice(0,10),vatTreatment:selected.vatTreatment,vatRate:Number(selected.vatRate),rate:Number(selected.chargeRules[0]?.rate||0) });
       }
     }
     if (studentResponse.ok) setStudents(await studentResponse.json());
@@ -43,7 +43,7 @@ export function SimpleBillingProfilesV2({ initialStudentId = "", returnTo = "" }
   function edit(profile: Profile) {
     setEditingId(profile.id); setError(""); setSuccess("");
     setForm({
-      fundedDays:profile.chargeRules[0]?.attendanceDependency==="FUNDED"?profile.chargeRules[0].applicableWeekdays:[],purchaseOrderNumber:profile.purchaseOrderNumber||"",studentId: profile.studentId, payerType: profile.payerType, payerName: profile.payerName,
+      fundedDayCount:profile.chargeRules[0]?.fundedDayCount!=null?Number(profile.chargeRules[0].fundedDayCount):"",purchaseOrderNumber:profile.purchaseOrderNumber||"",studentId: profile.studentId, payerType: profile.payerType, payerName: profile.payerName,
       billingAddress: profile.billingAddress, billingEmail: profile.billingEmail || "",
       activeFrom: (profile.chargeRules[0]?.activeFrom||profile.activeFrom).slice(0, 10), vatTreatment: profile.vatTreatment,
       vatRate: Number(profile.vatRate), rate: Number(profile.chargeRules[0]?.rate || 0),
@@ -60,7 +60,7 @@ export function SimpleBillingProfilesV2({ initialStudentId = "", returnTo = "" }
     const reason = editingId ? await appReasonPrompt("Why are these billing details being changed?", billingProfileReasons) : null;
     if (editingId && (!reason || reason.trim().length < 5)) { setSaving(false); return setError("Enter a reason of at least five characters."); }
     const common = {
-      fundedDays:form.fundedDays,purchaseOrderNumber:form.purchaseOrderNumber,payerType: form.payerType, payerName: form.payerName, billingAddress: form.billingAddress,
+      fundedDayCount:Number(form.fundedDayCount),purchaseOrderNumber:form.purchaseOrderNumber,payerType: form.payerType, payerName: form.payerName, billingAddress: form.billingAddress,
       billingEmail: form.billingEmail, activeFrom: form.activeFrom, vatTreatment: form.vatTreatment,
       vatRate: Number(form.vatRate), rate: Number(form.rate),
     };
@@ -68,7 +68,7 @@ export function SimpleBillingProfilesV2({ initialStudentId = "", returnTo = "" }
       studentId: form.studentId, ...common, paymentTermsDays: 30, consolidatedByPayer: false,
       chargeRules: [{
         chargeType: "FULL_DAY", description: "Agreed funded day", unitType: "DAY", rate: Number(form.rate),
-        attendanceDependency: "FUNDED", applicableWeekdays: form.fundedDays,
+        attendanceDependency: "FUNDED", fundedDayCount: Number(form.fundedDayCount), applicableWeekdays: [],
         vatTreatment: form.vatTreatment, vatRate: Number(form.vatRate),
       }],
     };
@@ -104,11 +104,11 @@ export function SimpleBillingProfilesV2({ initialStudentId = "", returnTo = "" }
 
   const selectedName = students.find(student => student.id === form.studentId)?.displayName;
   return <>
-    <div className="alert alert-warning"><b>Plain English:</b> the payer receives and pays the invoice. The day rate is the agreed charge when the service user attends.</div>
+    <div className="alert alert-warning"><b>Plain English:</b> the payer receives and pays the invoice. The day rate applies to agreed funded days, regardless of attendance.</div>
     <form autoComplete="off" className="card form-grid" onSubmit={save}>
       <h2 className="full">{editingId ? `Edit billing for ${selectedName || "service user"}` : selectedName ? `Set up billing for ${selectedName}` : "Set up a service user"}</h2>
       <label className="form-label">Service user<select className="field" required disabled={Boolean(editingId)} value={form.studentId} onChange={event => setForm({ ...form, studentId: event.target.value })}><option value="">Choose a service user</option>{students.map(student => <option key={student.id} value={student.id}>{student.displayName}</option>)}</select></label>
-      <label className="form-label full">PO / client payment reference<input className="field" value={form.purchaseOrderNumber} onChange={e=>setForm({...form,purchaseOrderNumber:e.target.value})}/></label><fieldset className="full"><legend>Agreed funded days (confirmed funding agreement)</legend>{["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map((label,i)=><label key={label}><input type="checkbox" checked={form.fundedDays.includes(i+1)} onChange={e=>setForm({...form,fundedDays:e.target.checked?[...form.fundedDays,i+1]:form.fundedDays.filter(d=>d!==i+1)})}/>{label} </label>)}</fieldset><label className="form-label">Who pays?<select className="field" value={form.payerType} onChange={event => setForm({ ...form, payerType: event.target.value })}>{["Local authority", "Funding organisation", "Private payer", "Family member", "Care provider", "Business", "Other"].map(value => <option key={value}>{value}</option>)}</select></label>
+      <label className="form-label full">PO / client payment reference<input className="field" value={form.purchaseOrderNumber} onChange={e=>setForm({...form,purchaseOrderNumber:e.target.value})}/></label><label className="form-label">Agreed funded days per billing period<input className="field" type="number" required min={0} max={366} step={0.5} value={form.fundedDayCount} onChange={e=>setForm({...form,fundedDayCount:e.target.value===""?"":Number(e.target.value)})}/><small>Enter the number before bank holiday deductions. You can correct the count for each period when reviewing the draft. Register weekdays do not affect billing.</small></label><label className="form-label">Who pays?<select className="field" value={form.payerType} onChange={event => setForm({ ...form, payerType: event.target.value })}>{["Local authority", "Funding organisation", "Private payer", "Family member", "Care provider", "Business", "Other"].map(value => <option key={value}>{value}</option>)}</select></label>
       <label className="form-label">Payer or organisation name<input autoComplete="off" className="field" required value={form.payerName} onChange={event => setForm({ ...form, payerName: event.target.value })}/></label>
       <label className="form-label">Agreed day rate (£)<input className="field" type="number" min="0" step="0.01" required value={form.rate} onChange={event => setForm({ ...form, rate: Number(event.target.value) })}/></label>
       <label className="form-label">Invoice email<input autoComplete="off" className="field" type="email" value={form.billingEmail} onChange={event => setForm({ ...form, billingEmail: event.target.value })}/></label>

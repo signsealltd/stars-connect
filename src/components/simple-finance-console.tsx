@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { localDateKey } from "@/lib/dates";
+import type {BillingPeriodOption} from "./billing-period-setup";
+import {needsPurchaseOrder} from "@/lib/funded-days";
 import styles from "./finance-workflow.module.css";
 
 type Mode = "payroll" | "billing";
@@ -18,6 +20,8 @@ const label = (status: string) => ({
 export function SimpleFinanceConsole({ mode }: { mode: Mode }) {
   const router = useRouter();
   const endpoint = mode === "payroll" ? "/api/payroll/periods" : "/api/billing/runs";
+  const [periods,setPeriods]=useState<BillingPeriodOption[]>([]),[periodId,setPeriodId]=useState("");
+  useEffect(()=>{if(mode!=="billing")return;const reload=()=>{fetch("/api/billing/periods",{cache:"no-store"}).then(r=>r.ok?r.json():[]).then(setPeriods);};reload();window.addEventListener("billing-periods-changed",reload);return()=>window.removeEventListener("billing-periods-changed",reload);},[mode]);
   const [items, setItems] = useState<Item[]>([]);
   const [from, setFrom] = useState(localDateKey());
   const [to, setTo] = useState(localDateKey());
@@ -45,7 +49,8 @@ export function SimpleFinanceConsole({ mode }: { mode: Mode }) {
   useEffect(() => { if (mode !== "billing") return; fetch("/api/students/records?status=active", { cache: "no-store" }).then(async response => { const body = await response.json(); if (!response.ok) throw new Error(body.error || "Unable to load students."); setStudents(Array.isArray(body) ? body : []); }).catch(caught => setError(caught instanceof Error ? caught.message : "Unable to load students.")); }, [mode]);
   const payers = [...new Set(students.map(student => student.billingProfile?.payerName).filter((value): value is string => Boolean(value)))].sort();
   const eligibleStudents = historicalMode ? students : students.filter(student => student.startDate.slice(0, 10) <= to && (!student.endDate || student.endDate.slice(0, 10) >= from));
-  const visibleStudents = eligibleStudents.filter(student => (payerFilter === "ALL" || student.billingProfile?.payerName === payerFilter) && (!studentSearch.trim() || (student.displayName + " " + (student.internalReference || "")).toLowerCase().includes(studentSearch.trim().toLowerCase())));
+  const chosenPeriod=periods.find(p=>p.id===periodId);
+  const visibleStudents = eligibleStudents.filter(student => (!chosenPeriod||needsPurchaseOrder(student.billingProfile?.payerName||"")===(chosenPeriod.cycle==="LBE")) && (payerFilter === "ALL" || student.billingProfile?.payerName === payerFilter) && (!studentSearch.trim() || (student.displayName + " " + (student.internalReference || "")).toLowerCase().includes(studentSearch.trim().toLowerCase())));
   const hiddenSelectedCount = selectedStudentIds.filter(id => !visibleStudents.some(student => student.id === id)).length;
   useEffect(() => {
     const eligibleIds = new Set((historicalMode ? students : students.filter(student => student.startDate.slice(0, 10) <= to && (!student.endDate || student.endDate.slice(0, 10) >= from))).map(student => student.id));
@@ -53,12 +58,12 @@ export function SimpleFinanceConsole({ mode }: { mode: Mode }) {
   }, [students, from, to, historicalMode]);
 
   async function prepare() {
-    if (mode === "billing" && (!runLabel.trim() || !selectedStudentIds.length)) { setError("Enter a billing run label and select at least one student."); return; }
+    if (mode === "billing" && (!periodId || !runLabel.trim() || !selectedStudentIds.length)) { setError("Choose a saved billing period, enter a label and select at least one student."); return; }
     setWorking(true); setError("");
     try {
       const created = await fetch(endpoint, {
         method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ periodStart: from, periodEnd: to, requestKey: crypto.randomUUID(), ...(mode === "billing" ? { label: runLabel.trim(), studentIds: selectedStudentIds, historicalMode } : {}) }),
+        body: JSON.stringify({ periodStart: from, periodEnd: to, billingPeriodId: periodId||undefined, requestKey: crypto.randomUUID(), ...(mode === "billing" ? { label: runLabel.trim(), studentIds: selectedStudentIds, historicalMode } : {}) }),
       });
       const run = await created.json();
       if (!created.ok) throw new Error(run.error || `Unable to create ${mode}.`);
@@ -109,6 +114,9 @@ export function SimpleFinanceConsole({ mode }: { mode: Mode }) {
       <b>What are payer and billing profiles?</b> The payer is the council, organisation, family member or other party receiving the invoice. A billing profile links that payer and the agreed rate to one service user. It is configured once per service user.
     </div>}
     {mode === "billing" && <section className="card" style={{padding:"18px",marginBottom:"16px"}}>
+      <label className="form-label">Billing period<select className="field" value={periodId} onChange={e=>{setPeriodId(e.target.value);setSelectedStudentIds([]);const period=periods.find(p=>p.id===e.target.value);if(period){setFrom(period.periodStart.slice(0,10));setTo(period.periodEnd.slice(0,10));setRunLabel(period.label);}}}><option value="">Select a configured period</option>{periods.map(p=><option key={p.id} value={p.id}>{p.label} · {p.periodStart.slice(0,10)} – {p.periodEnd.slice(0,10)}</option>)}</select></label>
+      {!periods.length&&<p>Use “Set up billing periods” above to add the LBE dates or full monthly periods.</p>}
+      {chosenPeriod&&<p>{chosenPeriod.cycle==="LBE"?`Bank holidays deducted per student: ${chosenPeriod.bankHolidayDates.join(", ")||"None"}`:"Full calendar month. No automatic bank holiday deductions."}</p>}
       <div className="form-grid">
         <label className="form-label">Billing run label<input className="field" maxLength={191} placeholder="For example: LBE - 29 June to 26 July 2026" value={runLabel} onChange={event=>setRunLabel(event.target.value)}/></label>
         <label className="form-label">Payer filter<select className="field" value={payerFilter} onChange={event=>setPayerFilter(event.target.value)}><option value="ALL">All payers</option>{payers.map(payer=><option key={payer} value={payer}>{payer}</option>)}</select></label>
@@ -119,9 +127,9 @@ export function SimpleFinanceConsole({ mode }: { mode: Mode }) {
       <div style={{maxHeight:"260px",overflow:"auto",border:"1px solid var(--border)",borderRadius:"12px",padding:"8px"}}>{visibleStudents.length?visibleStudents.map(student=><label key={student.id} style={{display:"flex",gap:"10px",alignItems:"center",padding:"9px"}}><input type="checkbox" checked={selectedStudentIds.includes(student.id)} onChange={event=>setSelectedStudentIds(event.target.checked?[...selectedStudentIds,student.id]:selectedStudentIds.filter(id=>id!==student.id))}/><span><b>{student.displayName}</b>{student.internalReference&&<small className="muted" style={{display:"block"}}>{student.internalReference}</small>}</span><span className="muted" style={{marginLeft:"auto"}}>{student.billingProfile?.payerName||"Billing not configured"}</span></label>):<div className="empty">No students match this filter.</div>}</div>
     </section>}
     <div className="toolbar">
-      <label>From<input autoComplete="off" className="field" type="date" value={from} onChange={event => setFrom(event.target.value)}/></label>
-      <label>To<input autoComplete="off" className="field" type="date" value={to} onChange={event => setTo(event.target.value)}/></label>
-      <button className="btn primary" disabled={working || !from || !to || (mode === "billing" && (!runLabel.trim() || !selectedStudentIds.length))} onClick={prepare}>{working ? "Preparing..." : `Prepare ${mode}`}</button>
+      <label>From<input autoComplete="off" className="field" type="date" readOnly={mode==="billing"} value={from} onChange={event => setFrom(event.target.value)}/></label>
+      <label>To<input autoComplete="off" className="field" type="date" readOnly={mode==="billing"} value={to} onChange={event => setTo(event.target.value)}/></label>
+      <button className="btn primary" disabled={working || !from || !to || (mode === "billing" && (!periodId || !runLabel.trim() || !selectedStudentIds.length))} onClick={prepare}>{working ? "Preparing..." : `Prepare ${mode}`}</button>
       {mode === "billing" && <a className="btn secondary" href="/dashboard/billing/profiles">Manage billing setup</a>}
     </div>
     {error && <div className="alert alert-error">{error}</div>}

@@ -1,5 +1,6 @@
 "use client";import{appConfirm,appReasonPrompt}from"@/lib/app-dialog";
 
+import {FundedDayEditor} from "./funded-day-editor";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Bus } from "lucide-react";
 import styles from "./finance-workflow.module.css";
@@ -13,13 +14,13 @@ type Entry = {
 };
 type Charge = {
   id: string; billingProfileId: string; studentId: string; studentName: string; payerName: string; description: string;
-  sourceDate: string;
+  sourceDate: string; chargeRuleId?:string; fundedDays?:string|number|null; removedDays?:string|number; bankHolidayDays?:number;
   quantity: string | number; unitRate: string | number; netAmount: string | number; vatRate: string | number;
   vatAmount: string | number; grossAmount: string | number; exceptionCode?: string; excluded: boolean;
   manuallyAdjusted?: boolean; adjustmentReason?: string;
 };
 type Run = {
-  id: string; label?: string; historicalMode?: boolean; selectedStudentIds?: string[]; status: string; version: number; periodStart: string; periodEnd: string; updatedAt: string;
+  id: string; billingPeriodId?:string; label?: string; historicalMode?: boolean; selectedStudentIds?: string[]; status: string; version: number; periodStart: string; periodEnd: string; updatedAt: string;
   entries?: Entry[]; charges?: Charge[];
   invoices?: Array<{ id: string; studentId?: string; invoiceNumber: string; documentId?: string; grossTotal: string | number; studentName?:string; payerName?:string; purchaseOrderNumber?:string; status:string; version:number }>;
 };
@@ -177,17 +178,6 @@ export function SimpleFinanceRunReview({ mode, id }: { mode: "payroll" | "billin
     finally { setWorking(false); }
   }
 
-function openBillingAdjustment(charge: Charge) {
-    setError("");
-    setBillingDescription(charge.exceptionCode === "HISTORICAL_ATTENDANCE_REQUIRED" ? "Historical attendance" : "Day trip");
-    setBillingQuantity(charge.exceptionCode === "HISTORICAL_ATTENDANCE_REQUIRED" ? "" : "1");
-    setBillingTotal(charge.exceptionCode === "HISTORICAL_ATTENDANCE_REQUIRED" ? Number(charge.unitRate).toFixed(2) : "");
-    setBillingDate(run?.periodStart.slice(0, 10) || "");
-    setBillingReason("");
-    setBillingOtherReason("");
-    setBillingAdjustment(charge);
-  }
-
   async function saveBillingAdjustment(event: React.FormEvent) {
     event.preventDefault();
     if (!billingAdjustment) return;
@@ -309,7 +299,7 @@ function openBillingAdjustment(charge: Charge) {
       <select className="field" value={filter} onChange={event => setFilter(event.target.value)}><option value="ALL">All records</option><option value="WARNINGS">Warnings only</option><option value="EXCLUDED">Excluded</option></select>
       {!complete && <button className="btn primary" disabled={working || exceptions.length > 0 || records.length === 0} onClick={approveAndCreate}>{working ? "Working..." : `Approve and create ${mode === "payroll" ? "payroll files" : "invoices"}`}</button>}
       {!complete && <button className="btn secondary" disabled={working} onClick={refreshCalculations}>Refresh calculations</button>}
-      {mode === "billing" && complete && <button className="btn secondary" disabled={working} onClick={async()=>{setWorking(true);try{const r=await fetch("/api/billing/runs",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({periodStart:run.periodStart.slice(0,10),periodEnd:run.periodEnd.slice(0,10),requestKey:crypto.randomUUID(),label:run.label||"Regenerated funded period",studentIds:run.selectedStudentIds,historicalMode:run.historicalMode})});const next=await r.json();if(!r.ok)throw new Error(next.error);location.href=`/dashboard/billing/runs/${next.id}`;}catch(e){setError(String(e));setWorking(false);}}}>Generate again — new revision</button>}
+      {mode === "billing" && complete && <button className="btn secondary" disabled={working} onClick={async()=>{setWorking(true);try{const r=await fetch("/api/billing/runs",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({periodStart:run.periodStart.slice(0,10),periodEnd:run.periodEnd.slice(0,10),requestKey:crypto.randomUUID(),billingPeriodId:run.billingPeriodId,label:run.label||"Regenerated funded period",studentIds:run.selectedStudentIds,historicalMode:run.historicalMode})});const next=await r.json();if(!r.ok)throw new Error(next.error);location.href=`/dashboard/billing/runs/${next.id}`;}catch(e){setError(String(e));setWorking(false);}}}>Generate again — new revision</button>}
       {mode === "billing" && complete && <button className="btn primary" disabled={working} onClick={async () => {
         setWorking(true); setError("");
         try {
@@ -342,7 +332,7 @@ function openBillingAdjustment(charge: Charge) {
       })() : (() => {
         const charge = record as Charge; const missing = !!charge.exceptionCode;
         const invoice = run.invoices?.find(item => item.studentId === charge.studentId);
-        return <tr key={charge.id}><td>{invoice ? <a href={`/dashboard/billing/invoices/${invoice.id}`} title={`View invoice ${invoice.invoiceNumber}`}>{charge.studentName}</a> : charge.studentName}</td><td>{formatBillingDate(charge.sourceDate)}</td><td>{missing ? "Billing details required" : <>{charge.description}{charge.manuallyAdjusted && <small className="muted" style={{display:"block"}}>Adjusted with reason recorded</small>}</>}</td><td>{money(charge.netAmount)}</td><td>{money(charge.vatAmount)}</td><td><b>{money(charge.grossAmount)}</b></td><td>{charge.excluded ? "EXCLUDED" : missing ? "SETUP REQUIRED" : charge.exceptionCode || (charge.manuallyAdjusted ? "ADJUSTED" : "CLEAR")}</td><td><div className="table-actions">{missing ? <a className="btn primary" href={`/dashboard/billing/profiles?studentId=${charge.studentId}&returnTo=${encodeURIComponent(`/dashboard/billing/runs/${id}`)}`}>Confirm funding setup</a> : <button className="btn primary" disabled={working || complete || charge.excluded} onClick={() => openBillingAdjustment(charge)}>{charge.exceptionCode === "HISTORICAL_ATTENDANCE_REQUIRED" ? "Enter attendance days" : "Add service"}</button>}<button className="btn secondary" disabled={working || complete} onClick={() => exclude(charge, charge.excluded)}>{charge.excluded ? "Restore" : "Exclude"}</button></div></td></tr>;
+        return <tr key={charge.id}><td>{invoice ? <a href={`/dashboard/billing/invoices/${invoice.id}`} title={`View invoice ${invoice.invoiceNumber}`}>{charge.studentName}</a> : charge.studentName}</td><td>{formatBillingDate(charge.sourceDate)}</td><td>{missing ? charge.description : <>{charge.description}<small style={{display:"block"}}>Days to invoice: {Number(charge.quantity)}</small>{charge.manuallyAdjusted && <small className="muted" style={{display:"block"}}>Adjusted with reason recorded</small>}</>}</td><td>{money(charge.netAmount)}</td><td>{money(charge.vatAmount)}</td><td><b>{money(charge.grossAmount)}</b></td><td>{charge.excluded ? "EXCLUDED" : missing ? "SETUP REQUIRED" : charge.exceptionCode || (charge.manuallyAdjusted ? "ADJUSTED" : "CLEAR")}</td><td><div className="table-actions">{charge.chargeRuleId&&!["LBE_PERIOD_REQUIRED","OVERLAPPING_FUNDING_PROFILES"].includes(charge.exceptionCode||"")?<FundedDayEditor runId={id} charge={charge} disabled={working||complete||charge.excluded} onSaved={()=>void load()}/>:<a className="btn primary" href={`/dashboard/billing/profiles?studentId=${charge.studentId}`}>Confirm funding setup</a>}<button className="btn secondary" disabled={working || complete} onClick={() => exclude(charge, charge.excluded)}>{charge.excluded ? "Restore" : "Exclude"}</button></div></td></tr>;
       })())}</tbody>
     </table>{!visible.length && <div className="empty">No records match this filter.</div>}</section>
     {(run.invoices || []).length > 0 && <section className="card table-wrap"><h2>Invoices for this period</h2><p><a href="/dashboard/billing">Search the complete invoice archive</a></p><table className="table"><thead><tr><th>Invoice / revision</th><th>Student</th><th>Payer</th><th>PO</th><th>Total</th><th>Status</th><th>Document</th></tr></thead><tbody>{run.invoices!.map(invoice=><tr key={invoice.id}><td>{invoice.invoiceNumber} · v{invoice.version}</td><td>{invoice.studentName||"Historic invoice"}</td><td>{invoice.payerName}</td><td>{invoice.purchaseOrderNumber||"—"}</td><td>{money(invoice.grossTotal)}</td><td>{invoice.status}</td><td>{invoice.documentId&&<a className="btn secondary" href={`/api/documents/${invoice.documentId}/download`}>Download</a>}</td></tr>)}</tbody></table></section>}

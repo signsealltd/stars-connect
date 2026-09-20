@@ -7,9 +7,15 @@ import {refreshSafeguarding} from "@/lib/safeguarding-service";
 import {audit} from "@/lib/audit";
 export async function GET(req:NextRequest){return withCapability(req,CAPABILITIES.SAFEGUARDING_MANAGE,async()=>{
  const policy=await refreshSafeguarding();const history=req.nextUrl.searchParams.get("history")==="true";
- const rows=await prisma.safeguardingEnquiry.findMany({where:history?{}:{status:"OPEN"},orderBy:{createdAt:"desc"},take:100});
+ const openCount=await prisma.safeguardingEnquiry.count({where:{status:"OPEN"}});
+ if(req.nextUrl.searchParams.get("summary")==="true")return NextResponse.json({policy,openCount},{headers:{"Cache-Control":"private, no-store"}});
+ const requestedPage=Number(req.nextUrl.searchParams.get("page")||1);
+ const page=Number.isSafeInteger(requestedPage)&&requestedPage>0?Math.min(requestedPage,100000):1;
+ const where=history?{}:{status:"OPEN"};
+ const total=history?await prisma.safeguardingEnquiry.count({where}):openCount;
+ const rows=await prisma.safeguardingEnquiry.findMany({where,orderBy:[{createdAt:"desc"},{id:"desc"}],take:25,skip:(page-1)*25});
  const students=await prisma.student.findMany({where:{id:{in:rows.map(r=>r.studentId)}},select:{id:true,displayName:true}});
- return NextResponse.json({policy,rows:rows.map(r=>({...r,studentName:students.find(s=>s.id===r.studentId)?.displayName||"Student"}))});
+ return NextResponse.json({policy,openCount,total,page,rows:rows.map(r=>({...r,studentName:students.find(s=>s.id===r.studentId)?.displayName||"Student"}))},{headers:{"Cache-Control":"private, no-store"}});
 });}
 const schema=z.discriminatedUnion("action",[z.object({action:z.literal("close"),id:z.string().uuid(),outcome:z.enum(["NO_CONCERNS","REFERRED"]),notes:z.string().trim().min(5).max(5000)}),z.object({action:z.literal("policy"),mode:z.enum(["ACCUMULATED","CONSECUTIVE"]),windowDays:z.number().int().min(0).max(365)})]);
 export async function POST(req:NextRequest){return withCapability(req,CAPABILITIES.SAFEGUARDING_MANAGE,async user=>{

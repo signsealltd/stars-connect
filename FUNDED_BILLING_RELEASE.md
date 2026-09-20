@@ -23,13 +23,13 @@ Existing accounts keep their stored roles and overrides. Managers receive funded
 1. Verify and retain a restorable database backup. The documented `scripts/deploy-vps.sh` workflow backs up, pulls main, installs dependencies, applies migrations, builds and restarts the application. Verify the actual VPS trigger configuration before pushing: no repository GitHub Actions deployment workflow was present in this checkout.
 2. Run the migration against a restored staging database first with `npx prisma migrate deploy`. Do not use `migrate reset` or `db push --accept-data-loss`.
 3. Verify existing student, staff, attendance and invoice counts and sample historical PDFs before and after migration.
-4. Have Kellie confirm each student's funded weekdays, rate, effective date and PO in Students or Billing setup. For several historical schedules, save each agreement with its actual effective date. The register's expected weekdays are separate.
-5. Prepare a historical period, review the dated allocations, remove only agreed dates with a reason, and inspect the total. An LBE invoice cannot be generated without a PO. Check a replacement revision and verify its predecessor remains downloadable.
+4. Have Kellie confirm each student's numeric funded day count per billing period (before bank-holiday deductions), rate, effective date and PO in Students or Billing setup. For several historical schedules, save each agreement with its actual effective date. The register's expected weekdays are separate.
+5. Prepare a historical period, review the funded count and automatic bank-holiday deductions, record any additional agreed removals with a reason, and inspect the total. An LBE invoice cannot be generated without a PO. Check a replacement revision and verify its predecessor remains downloadable.
 6. Configure Access Levels under Settings, then assign the level in each staff record. Existing accounts are linked by the staff email when no account link exists. New accounts require an initial password; distribute credentials securely. Test a representative Team Leader and Care Assistant account, including direct API access restrictions.
 7. Upload completed policies, SDS, RAMS and RIDDOR guidance in the Staff portal; review and publish them. Student RAMS generated from returned care information begin as drafts. Resolve missing information before publication. Viewing, confirming reading and agreeing are separate version-specific actions.
 8. Enter student care information and upload photographs. Review the generated Herbert Protocol against the supplied information and the linked Metropolitan Police source form. Unknown fields are explicitly marked NOT PROVIDED.
 9. Review safeguarding counting settings. Verify that an enquiry can be closed as No concerns found with notes, manager and timestamp, and that its episode does not immediately recur.
-10. Enable monthly preparation when ready. The existing authenticated daily-report job also invokes preparation and safeguarding checks. A standalone authenticated POST `/api/cron/funded-billing` is available using the existing `REPORT_JOB_SECRET`. Preparation creates the current full month once and never issues or emails invoices. It does not backfill missed months. Billing calendar tasks default to month-end; management adjusts payer deadlines and owners.
+10. Enable monthly preparation when ready. The existing authenticated daily-report job also invokes preparation and safeguarding checks. A standalone authenticated POST `/api/cron/funded-billing` is available using the existing `REPORT_JOB_SECRET`. Preparation uses saved LBE periods and complete monthly periods once and never issues or emails invoices. It does not backfill missed months. Saving a billing period creates an operational calendar task due on its final day, before an invoice run exists. Management can adjust task deadlines and owners.
 
 ## Verification performed locally
 
@@ -38,3 +38,13 @@ Existing accounts keep their stored roles and overrides. Managers receive funded
 - Rendered visual inspection of the invoice PDF and paginated care-profile PDF using synthetic information.
 
 Database-backed browser acceptance, migration execution against real MySQL and production deployment cannot be claimed from this local environment.
+
+## September follow-up (local changes)
+
+The additive migrations `20260920220000_private_sticky_notes` and `20260920221000_billing_period_day_counts` add private notes and configurable billing periods/counts. Existing weekday allocations are retained for history but are not converted into assumed numeric counts: enter and confirm each funded count before preparing invoices. Existing PDFs remain unchanged.
+
+In Billing, load the supplied LBE 2026 periods and add complete monthly periods for other students. LBE periods snapshot England bank holidays from GOV.UK and automatically subtract every holiday within the inclusive period, including substitute days. Additional management removals are separate. Invoice archives group by invoice month and begin collapsed.
+
+The dashboard replaces recent clock/student activity with account-private sticky notes. Safeguarding shows the exact open enquiry count; its review dialog supports investigation, closure with notes, and paginated closed history.
+
+Follow-up verification: 440 automated tests passed; synthetic browser review verified the dashboard layout, collapsed archive, and safeguarding investigation/closure. Real database migration and acceptance remain outstanding.

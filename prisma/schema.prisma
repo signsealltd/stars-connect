@@ -224,6 +224,7 @@ enum ComplianceActionStatus {
 }
 
 model User {
+  stickyNotes         StickyNote[]
   accessLevelId       String?           @db.Char(36)
   id                  String            @id @default(uuid()) @db.Char(36)
   username            String            @unique @db.VarChar(32)
@@ -997,6 +998,7 @@ model BillingProfile {
 }
 
 model ChargeRule {
+  fundedDayCount       Decimal? @db.Decimal(6, 2)
   id                   String         @id @default(uuid()) @db.Char(36)
   billingProfileId     String         @db.Char(36)
   billingProfile       BillingProfile @relation(fields: [billingProfileId], references: [id], onDelete: Cascade)
@@ -1020,6 +1022,8 @@ model ChargeRule {
 }
 
 model BillingRun {
+  billingPeriodId    String? @db.Char(36)
+  bankHolidayDates   Json?
   id                 String          @id @default(uuid()) @db.Char(36)
   periodStart        DateTime        @db.Date
   periodEnd          DateTime        @db.Date
@@ -1048,6 +1052,9 @@ model BillingRun {
 }
 
 model BillingCharge {
+  fundedDays         Decimal? @db.Decimal(6, 2)
+  removedDays        Decimal  @default(0) @db.Decimal(6, 2)
+  bankHolidayDays    Int      @default(0)
   id                 String     @id @default(uuid()) @db.Char(36)
   billingRunId       String     @db.Char(36)
   billingRun         BillingRun @relation(fields: [billingRunId], references: [id], onDelete: Cascade)
@@ -1870,6 +1877,18 @@ model OperationReadinessSnapshot {
   @@index([organisationId, level, calculatedAt])
 }
 
+model StickyNote {
+  id        String   @id @default(uuid()) @db.Char(36)
+  userId    String   @db.Char(36)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content   String   @db.Text
+  colour    String   @default("yellow") @db.VarChar(20)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt])
+}
+
 model SafeguardingEnquiry {
   id           String    @id @default(uuid()) @db.Char(36)
   studentId    String    @db.Char(36)
@@ -1945,4 +1964,19 @@ model AccessLevel {
   active      Boolean  @default(true)
   updatedById String   @db.Char(36)
   updatedAt   DateTime @updatedAt
+}
+model BillingPeriod {
+  id               String   @id @default(uuid()) @db.Char(36)
+  label            String   @db.VarChar(191)
+  cycle            String   @db.VarChar(20)
+  invoiceMonth     String   @db.VarChar(7)
+  periodStart      DateTime @db.Date
+  periodEnd        DateTime @db.Date
+  bankHolidayDates Json
+  updatedById      String   @db.Char(36)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([cycle, invoiceMonth])
+  @@index([periodStart, periodEnd])
 }

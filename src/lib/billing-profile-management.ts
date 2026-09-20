@@ -3,7 +3,7 @@ import { localDateAsDatabaseDate } from "./dates";
 import type { z } from "zod";
 import { inlineBillingSchema } from "./student-management";
 export type InlineBilling = z.infer<typeof inlineBillingSchema>;
-const ruleData = (b: InlineBilling) => ({chargeType:"FULL_DAY",description:"Agreed funded day",unitType:"DAY",rate:new Prisma.Decimal(b.rate),attendanceDependency:"FUNDED",applicableWeekdays:[...new Set(b.fundedDays)].sort(),activeFrom:localDateAsDatabaseDate(b.activeFrom),vatTreatment:b.vatTreatment,vatRate:new Prisma.Decimal(b.vatRate)});
+const ruleData = (b: InlineBilling) => ({chargeType:"FULL_DAY",description:"Agreed funded day",unitType:"DAY",rate:new Prisma.Decimal(b.rate),attendanceDependency:"FUNDED",applicableWeekdays:[],fundedDayCount:b.fundedDayCount,activeFrom:localDateAsDatabaseDate(b.activeFrom),vatTreatment:b.vatTreatment,vatRate:new Prisma.Decimal(b.vatRate)});
 export async function createInlineBillingProfile(tx:Prisma.TransactionClient,studentId:string,userId:string,b:InlineBilling,_registerDays:number[]) {
   void _registerDays;
   if(await tx.billingProfile.findFirst({where:{studentId,activeTo:null}})) throw new Error("ACTIVE_BILLING_PROFILE_EXISTS");

@@ -41,12 +41,13 @@ async function ensureSingleOrganisationAssignment<T extends { id: string; organi
   return { ...user, organisationId };
 }
 
-export async function createSession(userId: string) {
+export async function createSession(userId: string, scope: "FULL" | "VEHICLE" = "FULL") {
   const token = randomBytes(32).toString("base64url");
   await prisma.session.create({
     data: {
       tokenHash: sha256(token),
       userId,
+      scope,
       expiresAt: new Date(Date.now() + SESSION_ABSOLUTE_MS),
       lastSeenAt: new Date(),
     },
@@ -61,7 +62,7 @@ export async function createSession(userId: string) {
   return token;
 }
 
-export async function getSession() {
+export async function getSession(allowVehicle = false) {
   const jar = await cookies();
   const token = jar.get(SESSION_COOKIE)?.value ?? jar.get(LEGACY_SESSION_COOKIE)?.value;
   if (!token) return null;
@@ -72,6 +73,7 @@ export async function getSession() {
     include: { user: true },
   });
   if (!session) { await prisma.session.deleteMany({ where: { tokenHash } }); return null; }
+  if (!allowVehicle && session.scope === "VEHICLE") return null;
   if (session.lastSeenAt.getTime() < now.getTime() - SESSION_TOUCH_MS) {
     await prisma.session.updateMany({ where: { id: session.id, lastSeenAt: session.lastSeenAt }, data: { lastSeenAt: now } });
   }

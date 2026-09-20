@@ -1,0 +1,11 @@
+import "fake-indexeddb/auto";
+import {beforeEach,afterEach,it,expect,vi} from "vitest";
+import {newDraft,loadLocal,saveLocal,syncDraft,type Draft} from "./vehicle-local";
+import {db} from "./local-db";
+let draft:Draft;
+beforeEach(async()=>{await (await db()).clear("metadata");draft=newDraft({id:"staff-a",name:"Sample Staff"},{id:crypto.randomUUID(),name:"Sample Bus",registration:"TEST 1",fuelType:"DIESEL",config:{},status:"ACTIVE",mileage:100,checks:[]})});
+afterEach(()=>vi.unstubAllGlobals());
+it("preserves draft answers and photographs across database reopen",async()=>{draft.images=[{id:crypto.randomUUID(),blob:new Blob(["image-data"],{type:"image/jpeg"})}];draft.step=4;await saveLocal("draft:staff-a",draft);(await db()).close();const saved=await loadLocal<Draft>("draft:staff-a");expect(saved?.step).toBe(4);expect(await saved?.images[0].blob.text()).toBe("image-data");expect(await loadLocal("draft:staff-b")).toBeUndefined()});
+it("does not mark a failed upload as synced",async()=>{draft.state="PENDING";await saveLocal("draft:staff-a",draft);vi.stubGlobal("fetch",vi.fn().mockResolvedValueOnce(Response.json({user:{id:"staff-a"}})).mockResolvedValueOnce(Response.json({error:"Offline"},{status:503})));await expect(syncDraft(draft)).rejects.toThrow("Offline");expect((await loadLocal<Draft>("draft:staff-a"))?.state).toBe("PENDING")});
+it("does not sync a draft under a different account",async()=>{vi.stubGlobal("fetch",vi.fn().mockResolvedValue(Response.json({user:{id:"staff-b"}})));await expect(syncDraft(draft)).rejects.toThrow("account that started");expect(fetch).toHaveBeenCalledTimes(1)});
+it("uses the same check and image UUIDs on retries",async()=>{draft.state="PENDING";draft.images=[{id:crypto.randomUUID(),blob:new Blob(["image"])}];const calls:RequestInit[]=[];vi.stubGlobal("fetch",vi.fn(async(url:string,options?:RequestInit)=>{if(options?.method)calls.push(options);return Response.json(url.includes("vehicles")?{user:{id:"staff-a"}}:url.includes("evidence")?{id:draft.images[0].id}:{outcome:"PASSED"})}));await syncDraft(draft);await syncDraft(draft);expect((calls[0].body as FormData).get("id")).toBe((calls[2].body as FormData).get("id"));expect(JSON.parse(String(calls[1].body)).id).toBe(JSON.parse(String(calls[3].body)).id);expect((await loadLocal<Draft>("draft:staff-a"))?.state).toBe("SYNCED")});

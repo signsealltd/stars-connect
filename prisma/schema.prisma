@@ -246,6 +246,7 @@ model User {
 }
 
 model Session {
+  scope String @default("FULL") @db.VarChar(20)
   id         String   @id @default(uuid()) @db.Char(36)
   tokenHash  String   @unique @db.Char(64)
   userId     String   @db.Char(36)
@@ -1979,4 +1980,91 @@ model BillingPeriod {
 
   @@unique([cycle, invoiceMonth])
   @@index([periodStart, periodEnd])
+}
+
+model FleetVehicle {
+ id String @id @default(uuid()) @db.Char(36)
+ name String @db.VarChar(120)
+ registration String @db.VarChar(30)
+ registrationKey String @unique @db.VarChar(30)
+ make String @db.VarChar(80)
+ model String @db.VarChar(80)
+ vehicleType String @db.VarChar(80)
+ fuelType String @db.VarChar(30)
+ status String @default("ACTIVE") @db.VarChar(30)
+ mileage Int @default(0)
+ config Json
+ notes String? @db.Text
+ motExpiry DateTime? @db.Date
+ taxExpiry DateTime? @db.Date
+ insuranceExpiry DateTime? @db.Date
+ serviceDue DateTime? @db.Date
+ serviceMileage Int?
+ createdById String @db.Char(36)
+ updatedById String @db.Char(36)
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ checks VehicleCheck[]
+ defects VehicleDefect[]
+ maintenance VehicleMaintenance[]
+ @@index([status])
+}
+model VehicleCheck {
+ id String @id @db.Char(36)
+ vehicleId String @db.Char(36)
+ vehicle FleetVehicle @relation(fields:[vehicleId],references:[id],onDelete:Restrict)
+ userId String @db.Char(36)
+ staffName String @db.VarChar(191)
+ checkDate DateTime @db.Date
+ clientStartedAt DateTime
+ submittedAt DateTime @default(now())
+ mileage Int
+ outcome String @db.VarChar(30)
+ checklistVersion String @db.VarChar(30)
+ declarationVersion String @db.VarChar(30)
+ snapshot Json
+ payloadHash String @db.Char(64)
+ defects VehicleDefect[]
+ @@index([vehicleId,checkDate])
+ @@index([userId,submittedAt])
+}
+model VehicleDefect {
+ id String @id @default(uuid()) @db.Char(36)
+ vehicleId String @db.Char(36)
+ vehicle FleetVehicle @relation(fields:[vehicleId],references:[id],onDelete:Restrict)
+ checkId String @db.Char(36)
+ check VehicleCheck @relation(fields:[checkId],references:[id],onDelete:Restrict)
+ itemKey String @db.VarChar(80)
+ description String @db.Text
+ severity String @db.VarChar(20)
+ status String @default("REPORTED") @db.VarChar(30)
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ events VehicleDefectEvent[]
+ @@index([vehicleId,status])
+ @@index([severity,status,createdAt])
+}
+model VehicleDefectEvent {
+ id String @id @default(uuid()) @db.Char(36)
+ defectId String @db.Char(36)
+ defect VehicleDefect @relation(fields:[defectId],references:[id],onDelete:Restrict)
+ fromStatus String? @db.VarChar(30)
+ toStatus String @db.VarChar(30)
+ userId String @db.Char(36)
+ notes String @db.Text
+ details Json
+ createdAt DateTime @default(now())
+ @@index([defectId,createdAt])
+}
+model VehicleMaintenance {
+ id String @id @default(uuid()) @db.Char(36)
+ vehicleId String @db.Char(36)
+ vehicle FleetVehicle @relation(fields:[vehicleId],references:[id],onDelete:Restrict)
+ userId String @db.Char(36)
+ performedAt DateTime @db.Date
+ provider String @db.VarChar(191)
+ notes String @db.Text
+ cost Decimal? @db.Decimal(10,2)
+ createdAt DateTime @default(now())
+ @@index([vehicleId,performedAt])
 }

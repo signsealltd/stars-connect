@@ -1,0 +1,13 @@
+import {beforeEach,it,expect,vi} from "vitest";
+import {NextRequest} from "next/server";
+const state=vi.hoisted(()=>({user:{id:"owner",role:"CARE_ASSISTANT",permissionOverrides:{},active:true},manager:false,read:vi.fn(),mutation:vi.fn()}));
+vi.mock("./security",async original=>({...await original<object>(),getSession:async()=>({user:state.user,scope:"FULL"})}));
+vi.mock("./prisma",()=>({prisma:{documentRecord:{findFirst:async()=>({id:"image",createdById:"owner",sourceType:"VEHICLE_EVIDENCE",storagePath:"private"})},vehicleDefect:{findUniqueOrThrow:state.mutation},auditLog:{create:vi.fn()}}}));
+vi.mock("./compliance-files",()=>({readComplianceFile:state.read,writeComplianceFile:vi.fn(),removeComplianceFile:vi.fn(),contentMatchesMime:vi.fn()}));
+import {GET} from "@/app/api/fleet/evidence/route";
+import {POST} from "@/app/api/fleet/defects/route";
+beforeEach(()=>{state.user={id:"owner",role:"CARE_ASSISTANT",permissionOverrides:{},active:true};state.read.mockReset().mockResolvedValue(Buffer.from("image"));state.mutation.mockReset()});
+it("authorises the photographer to read private evidence",async()=>{expect((await GET(new NextRequest("http://localhost/api/fleet/evidence?id=image"))).status).toBe(200)});
+it("does not expose another staff member's image",async()=>{state.user.id="other";expect((await GET(new NextRequest("http://localhost/api/fleet/evidence?id=image"))).status).toBe(404);expect(state.read).not.toHaveBeenCalled()});
+it("allows an authorised manager to review evidence",async()=>{state.user.id="manager";state.user.role="MANAGER";expect((await GET(new NextRequest("http://localhost/api/fleet/evidence?id=image"))).status).toBe(200)});
+it("denies staff defect resolution before any mutation",async()=>{const req=new NextRequest("http://localhost/api/fleet/defects",{method:"POST",body:JSON.stringify({id:crypto.randomUUID(),status:"VERIFIED",notes:"done"})});expect((await POST(req)).status).toBe(403);expect(state.mutation).not.toHaveBeenCalled()});

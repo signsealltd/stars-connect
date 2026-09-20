@@ -46,7 +46,7 @@ export function staffDashboardMetrics(
 ) {
   const open = latestEvents.filter((event) => event.type === "CLOCK_IN");
   return {
-    staffIn: open.length,
+    staffIn: open.filter((event) => event.deviceTimestamp >= dayStart).length,
     missingClockOut: open.filter((event) => event.deviceTimestamp < dayStart).length,
   };
 }

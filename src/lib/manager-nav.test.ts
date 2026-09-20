@@ -6,7 +6,7 @@ import { activeManagerSection,managerNavForRole } from "./manager-nav";
 describe("manager navigation permissions",()=>{
   it("groups manager modules without exposing administrator settings",()=>{
     const groups=managerNavForRole("MANAGER");
-    expect(groups.map(group=>group.label)).toEqual(["People","Staff portal","Attendance","Finance","Reports","Settings"]);
+    expect(groups.map(group=>group.label)).toEqual(["People","Staff portal","Attendance","Safety & Compliance","Finance","Reports","Settings"]);
     const labels=groups.flatMap(group=>group.items.map(item=>item.label));
     expect(labels).toContain("Payroll");
     expect(labels).toContain("Billing");

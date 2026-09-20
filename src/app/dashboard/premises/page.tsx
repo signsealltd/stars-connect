@@ -1,5 +1,7 @@
-import {requirePageCapability,CAPABILITIES} from "@/lib/permissions";
+import {CAPABILITIES,hasCapability} from "@/lib/permissions";
 import { Header } from "@/components/header";
 import { PremisesManager } from "@/components/premises-manager";
+import {getSession} from "@/lib/security";
+import {redirect} from "next/navigation";
 export const dynamic="force-dynamic";
-export default async function PremisesPage(){await requirePageCapability(CAPABILITIES.PREMISES_VIEW);return <main className="shell"><Header manager/><div className="content"><div className="page-head"><div><h1 className="page-title">Premises & Compliance</h1><p className="muted">Manage property systems, statutory tests, corrective actions, insurance and renewal dates.</p></div></div><PremisesManager/></div></main>}
+export default async function PremisesPage(){const session=await getSession();if(!session)redirect("/login");const user=session.user,canPremises=hasCapability(user.role,CAPABILITIES.PREMISES_VIEW,user.permissionOverrides),canFleet=hasCapability(user.role,CAPABILITIES.FLEET_VIEW,user.permissionOverrides);if(!canPremises&&!canFleet)redirect("/access-denied");return <main className="shell"><Header manager/><div className="content"><div className="page-head"><div><h1 className="page-title">Safety & Compliance</h1><p className="muted">Manage property systems, statutory tests, corrective actions, insurance and renewal dates.</p></div></div>{canPremises?<PremisesManager canFleet={hasCapability(user.role,CAPABILITIES.FLEET_VIEW,user.permissionOverrides)} canRiddor={hasCapability(user.role,CAPABILITIES.STAFF_RIDDOR,user.permissionOverrides)}/>:<section className="card" style={{padding:24}}><h2>Overview</h2><p>Open the areas enabled for your account.</p><a className="btn primary" href="/dashboard/premises/fleet">Fleet</a></section>}</div></main>}

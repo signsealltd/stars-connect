@@ -52,6 +52,8 @@ describe("dashboard metrics", () => {
         ],
         start,
       ),
-    ).toEqual({ staffIn: 2, missingClockOut: 1 });
+    ).toEqual({ staffIn: 1, missingClockOut: 1 });
   });
 });
+
+describe("old clock-ins",()=>{it("keeps an old missing clock-out out of today's presence count",()=>{expect(staffDashboardMetrics([{type:"CLOCK_IN",deviceTimestamp:new Date("2026-09-18T09:00:00Z")}],new Date("2026-09-19T23:00:00Z"))).toEqual({staffIn:0,missingClockOut:1})})});

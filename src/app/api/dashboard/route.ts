@@ -24,9 +24,10 @@ export async function GET(req:NextRequest){
    prisma.billingRun.count({where:{status:{in:["REQUIRES_REVIEW","REVIEWED"]}}}),
    prisma.dailyAttendanceReport.findFirst({orderBy:[{reportDate:"desc"},{version:"desc"}],select:{id:true,status:true,reportDate:true,exceptionCount:true}}),
   ]);
+  const deviceConflicts=await prisma.syncConflict.groupBy({by:["deviceId"],where:{status:"OPEN"},_count:{_all:true}});
   const staffMetrics=staffDashboardMetrics(latestStaffEvents.flatMap(staff=>staff.clockEvents),start);
-  staffMetrics.staffIn=latestStaffEvents.filter(staff=>staffOccupancy(staff.clockEvents[0],staff.presenceEvents[0])==="ONSITE").length;
-  const staffOffsite=latestStaffEvents.filter(staff=>staffOccupancy(staff.clockEvents[0],staff.presenceEvents[0])==="OFFSITE").length;
+  staffMetrics.staffIn=latestStaffEvents.filter(staff=>staff.clockEvents[0]?.deviceTimestamp>=start&&staffOccupancy(staff.clockEvents[0],staff.presenceEvents[0])==="ONSITE").length;
+  const staffOffsite=latestStaffEvents.filter(staff=>staff.clockEvents[0]?.deviceTimestamp>=start&&staffOccupancy(staff.clockEvents[0],staff.presenceEvents[0])==="OFFSITE").length;
   const studentMetrics=studentDashboardMetrics(students,attendance,date);
   return NextResponse.json({
    role:user.role,date,...staffMetrics,staffOffsite,...studentMetrics,activeVisitors,
@@ -35,7 +36,7 @@ export async function GET(req:NextRequest){
    email:email?{status:email.status,sentAt:email.sentAt,failureReason:email.failureReason}:null,
    recentEvents:events.slice(0,8).map(e=>({id:e.id,name:e.staff.displayName,type:e.type,time:e.deviceTimestamp})),
    recentAttendance:attendance.slice(0,8).map(a=>({id:a.id,name:a.student.displayName,status:a.status,time:a.updatedAt})),
-   devices:devices.map(d=>({...d,currentCursor:String(d.currentCursor),operationalStatus:deviceOperationalStatus(d),syncPending:Boolean(d.syncRequestedAt&&(!d.lastSyncAt||d.syncRequestedAt>d.lastSyncAt))})),
+   devices:devices.map(d=>({...d,conflictCount:deviceConflicts.find(c=>c.deviceId===d.id)?._count._all||0,currentCursor:String(d.currentCursor),operationalStatus:deviceOperationalStatus(d),syncPending:Boolean(d.syncRequestedAt&&(!d.lastSyncAt||d.syncRequestedAt>d.lastSyncAt))})),
   },{headers:{"Cache-Control":"private, no-store, max-age=0"}});
  })
 }

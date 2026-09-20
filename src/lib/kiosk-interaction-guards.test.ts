@@ -48,7 +48,7 @@ describe("kiosk-only interaction guards", () => {
     expect(globals).toContain("animation-play-state:paused");
   });
   it("uses kiosk-safe weather requests and bounded transient retry", () => {
-    expect(appearance).toContain("shouldLoadManagerPreferences(pathname)");
+    expect(appearance).not.toContain('fetch("/api/preferences")');
     expect(weatherClient).toContain('fetch("/api/kiosk/weather"');
     expect(weatherClient).not.toContain('fetch("/api/preferences"');
     expect(weatherClient).toContain("const RETRY_DELAYS_MS = [30_000, 120_000, 300_000]");

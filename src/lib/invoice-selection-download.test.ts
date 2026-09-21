@@ -1,0 +1,20 @@
+import {beforeEach,describe,expect,it,vi} from "vitest";
+import {NextRequest} from "next/server";
+const state=vi.hoisted(()=>({allowed:true,invoices:vi.fn(),documents:vi.fn(),load:vi.fn(),audit:vi.fn()}));
+vi.mock("./api",()=>({withCapability:async(_req:unknown,_cap:unknown,fn:(user:unknown)=>unknown)=>fn({id:"manager",role:"MANAGER"}),jsonError:(error:string,status:number)=>Response.json({error},{status}),requestContext:()=>({})}));
+vi.mock("./permissions",()=>({CAPABILITIES:{BILLING_REVIEW:"billing.review",DOCUMENT_DOWNLOAD:"document.download"},hasCapability:()=>state.allowed}));
+vi.mock("./prisma",()=>({prisma:{invoice:{findMany:state.invoices,count:async()=>0},documentRecord:{findMany:state.documents},billingPeriod:{findMany:async()=>[]}}}));
+vi.mock("./documents",async original=>({...await original<typeof import("./documents")>(),loadDocument:state.load}));
+vi.mock("./audit",()=>({audit:state.audit}));
+import {POST} from "../app/api/billing/invoices/download/route";
+import {GET} from "../app/api/billing/invoices/route";
+const id="5e3a301f-5986-4e21-b643-f9b7b01b9b33";
+const request=(invoiceIds:string[])=>new NextRequest("http://localhost/api/billing/invoices/download",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({invoiceIds})});
+beforeEach(()=>{vi.clearAllMocks();state.allowed=true;state.invoices.mockResolvedValue([{id,invoiceNumber:"STARS/001",version:2,documentId:"document"}]);state.documents.mockResolvedValue([{id:"document",documentType:"INVOICE",mimeType:"application/pdf",storagePath:"test"}]);state.load.mockResolvedValue(Buffer.from("%PDF-test"))});
+describe("selected invoice downloads",()=>{
+ it("returns the original PDFs in a ZIP and audits a deduplicated selection",async()=>{const response=await POST(request([id,id]));expect(response.status).toBe(200);expect(response.headers.get("content-type")).toBe("application/zip");const zip=Buffer.from(await response.arrayBuffer());expect(zip.readUInt32LE(0)).toBe(0x04034b50);expect(zip.toString()).toContain("001-STARS_001-v2.pdf");expect(zip.toString()).toContain("%PDF-test");expect(state.invoices).toHaveBeenCalledWith(expect.objectContaining({where:{id:{in:[id]}}}));expect(state.audit).toHaveBeenCalledWith("INVOICE_SELECTION_DOWNLOADED",expect.objectContaining({afterValue:{invoiceIds:[id],count:1}}))});
+ it("enforces document download permission",async()=>{state.allowed=false;expect((await POST(request([id]))).status).toBe(403);expect(state.load).not.toHaveBeenCalled()});
+ it("rejects empty, malformed and oversized selections",async()=>{for(const ids of [[],["invalid"],Array(101).fill(id)])expect((await POST(request(ids))).status).toBe(422)});
+ it("does not return a partial ZIP when a selected invoice or PDF is missing",async()=>{state.invoices.mockResolvedValueOnce([]);expect((await POST(request([id]))).status).toBe(409);state.documents.mockResolvedValueOnce([]);expect((await POST(request([id]))).status).toBe(409);state.load.mockRejectedValueOnce(Error("missing"));expect((await POST(request([id]))).status).toBe(409);expect(state.audit).not.toHaveBeenCalled()});
+ it("orders archive pages by creation date with a stable tie breaker",async()=>{state.invoices.mockResolvedValue([]);await GET(new NextRequest("http://localhost/api/billing/invoices?page=2"));expect(state.invoices).toHaveBeenCalledWith(expect.objectContaining({orderBy:[{createdAt:"asc"},{id:"asc"}],skip:25,take:25}))});
+});

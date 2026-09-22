@@ -2101,10 +2101,11 @@ model VehicleMaintenance {
  @@index([vehicleId,performedAt])
 }
 
-// Staff Area records extend the existing employee identity; clocking credentials remain separate.
+// Staff Area records extend the existing employee identity; authentication verifies existing clocking credentials.
 model StaffPortalAccount {
   staffId             String               @id @db.Char(36)
   staff               StaffMember          @relation(fields: [staffId], references: [id], onDelete: Restrict)
+  loginLink           String?              @unique @db.Char(64)
   pinHash             String?
   enabled             Boolean              @default(true)
   failures            Int                  @default(0)

@@ -19,13 +19,14 @@ export async function staffSession(){
  await prisma.staffPortalSession.updateMany({where:{id:session.id,lastSeenAt:session.lastSeenAt},data:{lastSeenAt:now}});
  return {session,account:session.account,staff:session.account.staff,user};
 }
-export async function newStaffSession(staffId:string,proof:{pinHash?:string;passkeyId?:string}){
+export async function newStaffSession(staffId:string,proof:{credentialId?:string;credentialHash?:string;passkeyId?:string}){
  const token=randomBytes(32).toString("base64url");
  await prisma.$transaction(async tx=>{
-  const locked=await tx.staffPortalAccount.updateMany({where:{staffId,enabled:true,...(proof.pinHash?{pinHash:proof.pinHash}:{}),staff:{active:true,archivedAt:null}},data:{lastLoginAt:new Date(),failures:0,lockedUntil:null}});
+  const locked=await tx.staffPortalAccount.updateMany({where:{staffId,enabled:true,invitationHash:null,staff:{active:true,archivedAt:null}},data:{lastLoginAt:new Date(),failures:0,lockedUntil:null}});
   if(!locked.count)throw Error("Access changed; sign in again");
   if(proof.passkeyId&&!await tx.staffPasskey.findFirst({where:{id:proof.passkeyId,accountId:staffId}}))throw Error("Passkey revoked");
-  if(!proof.pinHash&&!proof.passkeyId)throw Error("Authentication proof required");
+  if(proof.credentialId&&!await tx.staffCredential.findFirst({where:{id:proof.credentialId,staffId,kind:"PIN",active:true,valueHash:proof.credentialHash}}))throw Error("PIN changed");
+  if(!proof.credentialId&&!proof.passkeyId)throw Error("Authentication proof required");
   await tx.staffPortalSession.create({data:{accountId:staffId,tokenHash:sha256(token),expiresAt:new Date(Date.now()+8*3600_000)}});
  },{isolationLevel:"Serializable"});
  await endSession();

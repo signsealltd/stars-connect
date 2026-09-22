@@ -1,0 +1,24 @@
+import {describe,it,expect} from "vitest";
+import {Prisma} from "@prisma/client";
+import {effectivePaymentState,paymentActionSchema,sum,filterPayments,type PaymentRow} from "./payments";
+import {CAPABILITIES,hasCapability,capabilityOptions} from "./permission-catalog";
+import {moduleCapability} from "./module-access";
+import {paymentHelpForQuestion} from "./payment-help";
+import {retrieveCliveKnowledge} from "./clive-knowledge";
+const settings={startDate:"2026-09-01",actorId:"a",actorName:"Manager",confirmedAt:"2026-09-22"};
+const invoice={status:"ISSUED",paymentState:"AUTO",issuedAt:new Date("2026-09-10"),createdAt:new Date("2026-09-10")};
+const id="81ba759e-d965-49a4-9b9c-1f37a4c9bc55";
+const pay={action:"PAY",items:[{id,revision:0}],receivedDate:"2026-01-01",amount:"100.00"};
+describe("payment rules",()=>{
+ it("waits for confirmed setup",()=>expect(effectivePaymentState(invoice,null,new Prisma.Decimal(100))).toBe("UNCONFIGURED"));
+ it("automatically tracks new issued invoices",()=>expect(effectivePaymentState(invoice,settings,new Prisma.Decimal(100))).toBe("OUTSTANDING"));
+ it("classifies historic invoices using issued date",()=>expect(effectivePaymentState({...invoice,issuedAt:new Date("2026-08-01")},settings,new Prisma.Decimal(100))).toBe("IGNORED"));
+ it("preserves manual restoration across cutoff changes",()=>expect(effectivePaymentState({...invoice,paymentState:"OUTSTANDING"},{...settings,startDate:"2026-09-22"},new Prisma.Decimal(100))).toBe("OUTSTANDING"));
+ it.each(["VOID","SUPERSEDED","DRAFT"])("excludes %s from outstanding",status=>expect(effectivePaymentState({...invoice,status},settings,new Prisma.Decimal(100))).toBe("IGNORED"));
+ it("excludes fully credited invoices but retains paid history",()=>{expect(effectivePaymentState(invoice,settings,new Prisma.Decimal(0))).toBe("IGNORED");expect(effectivePaymentState({...invoice,paymentState:"PAID"},settings,new Prisma.Decimal(0))).toBe("PAID")});
+ it("sums decimal money exactly",()=>expect(sum(["0.10","0.20","1234.56"])).toBe("1234.86"));
+ it("validates money, dates, duplicate selection and required reasons",()=>{expect(paymentActionSchema.safeParse(pay).success).toBe(true);for(const value of [{...pay,amount:"-1"},{...pay,amount:"1.001"},{...pay,receivedDate:"2099-01-01"},{...pay,receivedDate:"2026-02-30"},{...pay,items:[...pay.items,...pay.items]},{...pay,action:"IGNORE",reason:"Other",notes:""},{...pay,action:"REVERSE",reason:""}])expect(paymentActionSchema.safeParse(value).success).toBe(false)});
+ it("filters and sorts server rows without relying on current page totals",()=>{const base={state:"OUTSTANDING",client:"Alex",payer:"Enfield",invoiceNumber:"INV-1",invoiceDate:"2026-09-01",dueDate:"2026-10-01",id:"one",runId:"period",overdue:false} as PaymentRow;const overdue={...base,id:"two",dueDate:"2026-09-01",overdue:true};expect(filterPayments([base,overdue],new URLSearchParams("search=alex&payer=enfield&period=period"))).toEqual([overdue,base]);expect(filterPayments([base,overdue],new URLSearchParams("due=overdue"))).toEqual([overdue]);expect(filterPayments([base],new URLSearchParams("from=2026-09-02"))).toHaveLength(0)});
+ it("enforces separate capabilities and excludes kiosk staff defaults",()=>{for(const cap of [CAPABILITIES.PAYMENTS_VIEW,CAPABILITIES.PAYMENTS_RECORD,CAPABILITIES.PAYMENTS_REVERSE,CAPABILITIES.PAYMENTS_SETTINGS]){expect(hasCapability("MANAGER",cap)).toBe(true);expect(hasCapability("CARE_ASSISTANT",cap)).toBe(false);expect(hasCapability("RECEPTION",cap)).toBe(false);expect(capabilityOptions.some(c=>c.key===cap)).toBe(true);expect(hasCapability("MANAGER",cap,{[cap]:false})).toBe(false)}expect(moduleCapability("/dashboard/billing/payments")).toBe(CAPABILITIES.PAYMENTS_VIEW)});
+ it("provides accurate local Clive payment guidance",()=>{expect(paymentHelpForQuestion("reverse a payment").id).toBe("payments-reverse");expect(retrieveCliveKnowledge("How do I mark an invoice paid?","/dashboard/billing/payments","MANAGER")[0].id).toBe("payments-paid");expect(paymentHelpForQuestion("paid").content).toContain("does not connect to your bank")});
+});

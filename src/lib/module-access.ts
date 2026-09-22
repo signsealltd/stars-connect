@@ -1,5 +1,6 @@
 import {CAPABILITIES,type Capability} from "./permission-catalog";
 export function moduleCapability(path:string,write=false):Capability|undefined {
+ if(path.startsWith("/dashboard/billing/payments")||path.startsWith("/api/payments"))return write?CAPABILITIES.PAYMENTS_RECORD:CAPABILITIES.PAYMENTS_VIEW;
  if(path.startsWith("/VehicleCheck")||path.startsWith("/vehicle-check"))return CAPABILITIES.VEHICLE_CHECK;
  if(path.startsWith("/dashboard/premises/fleet"))return write?CAPABILITIES.FLEET_MANAGE:CAPABILITIES.FLEET_VIEW;
  const area=path.replace(/^\/api\//,"/").replace(/^\/dashboard\//,"/").split("/")[1];

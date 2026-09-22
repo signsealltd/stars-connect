@@ -1087,6 +1087,9 @@ model BillingCharge {
 }
 
 model Invoice {
+  paymentState     String @default("AUTO") @db.VarChar(20)
+  paymentRevision  Int @default(0)
+  paymentEvents    PaymentEvent[]
   id               String     @id @default(uuid()) @db.Char(36)
   billingRunId     String     @db.Char(36)
   billingRun       BillingRun @relation(fields: [billingRunId], references: [id])
@@ -1111,6 +1114,26 @@ model Invoice {
   studentName String? @db.VarChar(120)
 
   @@index([billingRunId, payerName])
+}
+
+model PaymentEvent {
+  id String @id @default(uuid()) @db.Char(36)
+  invoiceId String @db.Char(36)
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+  action String @db.VarChar(30)
+  previousState String @db.VarChar(20)
+  newState String @db.VarChar(20)
+  actorId String @db.Char(36)
+  actorName String @db.VarChar(191)
+  amount Decimal? @db.Decimal(10, 2)
+  receivedDate DateTime? @db.Date
+  reference String? @db.VarChar(191)
+  reason String? @db.VarChar(191)
+  notes String? @db.VarChar(1000)
+  revision Int
+  createdAt DateTime @default(now())
+  @@unique([invoiceId, revision])
+  @@index([invoiceId, createdAt])
 }
 
 model DailyAttendanceReport {

@@ -120,7 +120,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     for (const corrected of correctedDocuments) {
       await tx.documentRecord.update({ where: { id: corrected.oldDocumentId }, data: { status: "SUPERSEDED" } });
       await tx.documentRecord.update({ where: { id: corrected.newDocumentId }, data: { supersededDocumentId: corrected.oldDocumentId } });
-      await tx.invoice.update({ where: { id: corrected.invoiceId }, data: { documentId: corrected.newDocumentId, version: { increment: 1 } } });
+      await tx.invoice.update({ where: { id: corrected.invoiceId }, data: { documentId: corrected.newDocumentId, version: { increment: 1 }, paymentRevision: { increment: 1 } } });
     }
     if (matchingChargeIds.length) await tx.billingCharge.updateMany({ where: { id: { in: matchingChargeIds } }, data: { description: parsed.data.descriptionTo } });
     await tx.billingRun.update({ where: { id }, data: { periodStart, periodEnd, version: { increment: 1 }, revisionReason: parsed.data.reason } });

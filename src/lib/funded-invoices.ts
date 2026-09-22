@@ -36,6 +36,7 @@ export async function generateFundedInvoices(id:string,actorId:string,options?:{
       const student=await tx.student.findUniqueOrThrow({where:{id:group[0].studentId}});
       if(options&&!options.allowOverlapping){const overlap=await tx.invoice.findFirst({where:{studentId:student.id,status:"ISSUED",grossTotal:{gte:0},billingRun:{periodStart:{lte:run.periodEnd},periodEnd:{gte:run.periodStart}},NOT:{billingRun:{periodStart:run.periodStart,periodEnd:run.periodEnd}}}});if(overlap)throw Error(`${student.displayName}: these dates overlap another invoice. Refresh and review the dates.`);}
       const previous=await tx.invoice.findFirst({where:{studentId:student.id,billingProfileId:p.id,status:"ISSUED",grossTotal:{gte:0},billingRun:{periodStart:run.periodStart,periodEnd:run.periodEnd}},orderBy:{createdAt:"desc"}});
+      if(previous){await tx.$queryRaw`SELECT id FROM Invoice WHERE id=${previous.id} FOR UPDATE`;const current=await tx.invoice.findUnique({where:{id:previous.id}});if(current?.paymentState==="PAID")throw Error(`${student.displayName}: reverse the recorded payment before replacing this invoice.`);}
       if(options&&(previous?.id||null)!==options.expectedPrevious[student.id])throw Error(`${student.displayName}: another invoice was created for this period. Refresh and review before replacing it.`);
       const included=group.filter(c=>!c.excluded);
       const net=included.reduce((sum,c)=>sum+Number(c.netAmount),0),vat=included.reduce((sum,c)=>sum+Number(c.vatAmount),0);

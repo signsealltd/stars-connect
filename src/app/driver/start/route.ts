@@ -1,0 +1,3 @@
+import {NextRequest,NextResponse} from "next/server";
+import {DRIVER_COOKIE,driverFromToken} from "@/lib/vehicle-driver-access";
+export async function GET(req:NextRequest){const token=req.nextUrl.searchParams.get("token")||"";const user=await driverFromToken(token);const response=NextResponse.redirect(new URL("/driver/vehicle-check",req.url));response.headers.set("Cache-Control","private, no-store");response.headers.set("Referrer-Policy","no-referrer");response.cookies.set(DRIVER_COOKIE,user?token:"",{httpOnly:true,secure:process.env.NODE_ENV==="production",sameSite:"strict",path:"/",maxAge:user?30*86400:0});return response;}

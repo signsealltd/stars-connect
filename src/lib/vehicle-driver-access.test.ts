@@ -1,0 +1,11 @@
+import {beforeEach,it,expect,vi} from "vitest";
+const state=vi.hoisted(()=>({enabled:true,find:vi.fn(),user:vi.fn()}));
+vi.mock("next/headers",()=>({cookies:async()=>({get:()=>undefined})}));
+vi.mock("./prisma",()=>({prisma:{appSetting:{findUnique:state.find},user:{findFirst:state.user}}}));
+import {driverFromToken,driverKey} from "./vehicle-driver-access";
+import {CAPABILITIES,hasCapability} from "./permission-catalog";
+const token="ab".repeat(32);
+beforeEach(()=>{vi.clearAllMocks();state.enabled=true;state.find.mockImplementation(async()=>({value:{enabled:state.enabled,userId:"driver",organisationId:"org"}}));state.user.mockResolvedValue({id:"driver",role:"MANAGER",permissionOverrides:{"fleet.manage":true}})});
+it("rejects malformed links before querying storage",async()=>{expect(await driverFromToken("bad")).toBeNull();expect(state.find).not.toHaveBeenCalled()});
+it("checks revocation on every request",async()=>{state.enabled=false;expect(await driverFromToken(token)).toBeNull();expect(state.user).not.toHaveBeenCalled()});
+it("looks up a hashed link and grants only vehicle check capability",async()=>{const user=await driverFromToken(token);expect(state.find).toHaveBeenCalledWith({where:{key:driverKey(token)}});expect(driverKey(token)).not.toContain(token);expect(state.user).toHaveBeenCalledWith({where:{id:"driver",organisationId:"org",active:false,username:{startsWith:"driver."}}});for(const c of Object.values(CAPABILITIES))expect(hasCapability(user!.role,c,user!.permissionOverrides)).toBe(c===CAPABILITIES.VEHICLE_CHECK)});

@@ -1,0 +1,15 @@
+import {beforeEach,it,expect,vi} from "vitest";
+import {NextRequest} from "next/server";
+const state=vi.hoisted(()=>({manage:true,old:null as null|{key:string;value:{userId:string;organisationId:string;name:string;enabled:boolean}},user:vi.fn(),create:vi.fn(),update:vi.fn(),audit:vi.fn(),lookup:vi.fn()}));
+vi.mock("@/lib/api",()=>({withCapability:async(_r:unknown,_c:unknown,fn:(actor:{id:string;organisationId:string;role:string;permissionOverrides:object})=>Promise<Response>)=>fn({id:"actor",organisationId:"org",role:"MANAGER",permissionOverrides:{}}),jsonError:(error:string,status:number)=>Response.json({error},{status})}));
+vi.mock("@/lib/permissions",()=>({CAPABILITIES:{FLEET_MANAGE:"fleet.manage",USERS_MANAGE:"users.manage"},hasCapability:()=>state.manage}));
+vi.mock("@/lib/prisma",()=>{const tx={user:{create:state.user},appSetting:{findMany:async()=>state.old?[state.old]:[],create:state.create,update:state.update},auditLog:{create:state.audit}};return {prisma:{appSetting:{findUnique:state.lookup},$transaction:async(fn:(client:typeof tx)=>Promise<unknown>)=>fn(tx)}}});
+import {POST} from "@/app/api/fleet/drivers/route";
+const id="vehicleDriver:"+"a".repeat(64);
+const request=(body:unknown)=>new NextRequest("http://localhost/api/fleet/drivers",{method:"POST",body:JSON.stringify(body)});
+beforeEach(()=>{vi.clearAllMocks();state.manage=true;state.old=null;state.lookup.mockImplementation(async()=>state.old);state.user.mockResolvedValue({id:"new-driver"})});
+it("creates a direct link with a disabled login identity and no staff account",async()=>{const r=await POST(request({action:"create",name:"Driver"}));expect(r.status).toBe(200);expect(new URL((await r.json()).url).searchParams.get("token")).toMatch(/^[a-f0-9]{64}$/);expect(state.user.mock.calls[0][0].data).toMatchObject({active:false,name:"Driver",organisationId:"org"});expect(state.create.mock.calls[0][0].data.value.userId).toBe("new-driver")});
+it("requires management permission",async()=>{state.manage=false;expect((await POST(request({action:"create",name:"Driver"}))).status).toBe(403);expect(state.user).not.toHaveBeenCalled()});
+it("does not rotate another organisation's link",async()=>{state.old={key:id,value:{userId:"old-driver",organisationId:"other",name:"Driver",enabled:true}};expect((await POST(request({action:"replace",id}))).status).toBe(404);expect(state.update).not.toHaveBeenCalled()});
+it("revokes the previous link while preserving driver history when replacing",async()=>{state.old={key:id,value:{userId:"old-driver",organisationId:"org",name:"Driver",enabled:true}};expect((await POST(request({action:"replace",id}))).status).toBe(200);expect(state.update.mock.calls[0][0].data.value.enabled).toBe(false);expect(state.create.mock.calls[0][0].data.value.userId).toBe("old-driver");expect(state.user).not.toHaveBeenCalled()});
+it("ignores an injected existing link on creation",async()=>{expect((await POST(request({action:"create",id,name:"Driver"}))).status).toBe(200);expect(state.lookup).not.toHaveBeenCalled();expect(state.user).toHaveBeenCalledOnce()});

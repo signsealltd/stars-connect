@@ -98,6 +98,7 @@ export async function transitionOperation(user:User,occurrenceId:string,to:Opera
   assertOperationTransition(occurrence.status,to);
   if(["READY","ACTIVE"].includes(to)&&occurrence.readiness!=="READY")throw Object.assign(new Error("OPERATION_NOT_READY"),{status:409});
   const updated=await tx.operationOccurrence.update({where:{id:occurrenceId},data:{status:to,cancelledAt:to==="CANCELLED"?new Date():undefined,completedAt:to==="COMPLETED"?new Date():undefined}});
+  const recipients=await tx.operationStaffAssignment.findMany({where:{occurrenceId,status:"ASSIGNED"},select:{staffId:true}});for(const r of recipients)await tx.staffPortalNotification.create({data:{staffId:r.staffId,key:crypto.randomUUID(),message:"An assigned event has changed. Please review your schedule.",href:"/staff/schedule"}});
   await tx.auditLog.create({data:{action:"OPERATION_STATUS_CHANGED",actorType:"USER",actorId:user.id,entityType:"OperationOccurrence",entityId:occurrenceId,beforeValue:{status:occurrence.status},afterValue:{organisationId,status:to}}});
   return updated;
  },serial);
@@ -111,6 +112,7 @@ export async function assignOperationStaff(user:User,occurrenceId:string,input:{
   const conflict=await tx.operationStaffAssignment.findFirst({where:{organisationId,staffId:input.staffId,status:"ASSIGNED",occurrence:{id:{not:occurrenceId},status:{notIn:["COMPLETED","CANCELLED"]},startAt:{lt:occurrence.endAt},endAt:{gt:occurrence.startAt}}}});
   if(conflict)throw Object.assign(new Error("STAFF_ASSIGNMENT_CONFLICT"),{status:409});
   const assignment=await tx.operationStaffAssignment.upsert({where:{occurrenceId_staffId:{occurrenceId,staffId:input.staffId}},update:{status:"ASSIGNED",responsibility:input.responsibility,lead:input.lead??false},create:{organisationId,occurrenceId,staffId:input.staffId,responsibility:input.responsibility,lead:input.lead??false,createdById:user.id}});
+  await tx.staffPortalNotification.create({data:{staffId:input.staffId,key:crypto.randomUUID(),message:"A schedule assignment is available.",href:"/staff/schedule"}});
   await tx.auditLog.create({data:{action:"OPERATION_STAFF_ASSIGNED",actorType:"USER",actorId:user.id,entityType:"OperationStaffAssignment",entityId:assignment.id,afterValue:{organisationId,occurrenceId,staffId:input.staffId,lead:assignment.lead}}});
   return assignment;
  },serial);

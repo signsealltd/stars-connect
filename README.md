@@ -316,3 +316,7 @@ Every completed production revision must update the STARS Connect version using 
 Read `package.json` before changing the application. It is the authoritative version source; `src/lib/app-version.ts` derives the visible `Vx.y.z` label and diagnostic version from it. Keep the root version entries in `package-lock.json` in sync. Do not introduce environment overrides or separate hardcoded versions.
 
 Small fixes and minor UI adjustments increment the patch (V1.5.1 → V1.5.2). Meaningful new features or substantial improvements increment the minor release and reset patch (V1.5.x → V1.6.0). Major architectural or product releases increment the major release and reset minor/patch (V1.x.x → V2.0.0). Make only one release increment for the completed revision; never decrease versions or increment for incomplete, abandoned or investigative work. Report old and new versions. The dashboard and Client terminology release establishes V1.5.1 from the previous V1.0.0 package baseline, as explicitly requested.
+
+## Staff Area (V1.8.0)
+
+STARS Staff uses the shared application at /staff/ with a separate installable PWA. See [Staff Area release and deployment guidance](RELEASE-V1.8.0.md) for migrations, activation, permissions, private storage, retention and device acceptance checks.

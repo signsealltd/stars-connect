@@ -46,16 +46,17 @@ export async function GET(req: NextRequest) {
       prisma.billingRun.findMany({ where: { periodStart: { lte: endDate }, periodEnd: { gte: startDate } }, select: { id: true, label: true, periodStart: true, periodEnd: true, status: true, selectedStudentIds: true }, orderBy: { periodStart: "asc" }, take: 100 }),
       prisma.operationalTask.findMany({where:{sourceKey:{startsWith:"billing-period:"},dueDate:{gte:startDate,lte:endDate}},orderBy:{dueDate:"asc"}}),
       prisma.staffWorkingPattern.findMany({where:{organisationId,active:true,effectiveStart:{lte:endDate},OR:[{effectiveEnd:null},{effectiveEnd:{gte:startDate}}],staff:{active:true,archivedAt:null}},include:{intervals:true,staff:{select:{displayName:true,startDate:true,endDate:true}}}}),
-      prisma.staffScheduleException.findMany({where:{organisationId,approvalStatus:"APPROVED",type:{in:["ANNUAL_LEAVE","SICKNESS"]},startDate:{lte:endDate},endDate:{gte:startDate}},include:{staff:{select:{displayName:true}}}}),
+      prisma.staffScheduleException.findMany({where:{organisationId,approvalStatus:"APPROVED",type:{in:["ANNUAL_LEAVE","SICKNESS","UNPAID_LEAVE"]},startDate:{lte:endDate},endDate:{gte:startDate}},include:{staff:{select:{displayName:true}}}}),
       prisma.staffMember.findMany({where:{active:true,archivedAt:null},select:{id:true,displayName:true},orderBy:{displayName:"asc"}}),
     ]);
-    const shifts=plannedStaffShifts(patterns,storedShifts,absences,startDate,endDate);
+    const extra=operations.filter(o=>o.operation.type==="ADDITIONAL_SHIFT").flatMap(o=>o.assignments.map(a=>({staffId:a.staffId,date:localDateAsDatabaseDate(dateKey(o.startAt)),startAt:o.startAt,endAt:o.endAt,status:"SCHEDULED",generationKey:"operation:"+a.id,staff:{displayName:a.staff.displayName}})));
+    const shifts=plannedStaffShifts(patterns,[...storedShifts,...extra],absences,startDate,endDate);
     const days = keys.map(key => {
       const dayStart = localDateAsDatabaseDate(key);
       const activeStudents = students.filter(student => student.startDate <= dayStart && (!student.endDate || student.endDate >= dayStart) && expectedOnDate(student.expectedDays, key));
       return {
         date: key,
-        absences:absences.filter(item=>item.startDate<=dayStart&&item.endDate>=dayStart).map(item=>({id:item.id,staffId:item.staffId,name:item.staff.displayName,type:item.type,startDate:item.startDate,endDate:item.endDate})),
+        absences:absences.filter(item=>item.startDate<=dayStart&&item.endDate>=dayStart).map(item=>({id:item.id,staffId:item.staffId,name:item.staff.displayName,type:item.type,startDate:item.startDate,endDate:item.endDate,startTime:item.startTime,endTime:item.endTime})),
         expectedStudents: activeStudents.map(student => ({ id: student.id, name: student.displayName })),
         expectedStaff: shifts.filter(shift => dateKey(shift.startAt) === key).map(shift => ({ id: shift.staffId, name: shift.staff.displayName, start: shift.startAt, end: shift.endAt, status: shift.status, role: shift.role })),
         activities: operations.filter(item => dateKey(item.startAt) === key).map(item => ({ id: item.id, title: item.operation.title, type: item.operation.type, description: item.operation.description, start: item.startAt, end: item.endAt, location: item.location || item.premisesName, status: item.status, readiness: item.readiness, staff: item.assignments.map(row => row.staff.displayName), students: item.attendees.map(row => row.student.displayName) })),

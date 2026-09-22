@@ -1,5 +1,8 @@
 import {CAPABILITIES,type Capability} from "./permission-catalog";
 export function moduleCapability(path:string,write=false):Capability|undefined {
+ if(path.startsWith("/dashboard/staff/access")||path.startsWith("/api/staff-access"))return CAPABILITIES.STAFF_ACCESS_MANAGE;
+ if(path.startsWith("/dashboard/staff/tasks")||path.startsWith("/api/staff-tasks"))return CAPABILITIES.STAFF_TASKS;
+ if(path==="/staff/"||path.startsWith("/staff/"))return CAPABILITIES.STAFF_PORTAL;
  if(path.startsWith("/dashboard/billing/payments")||path.startsWith("/api/payments"))return write?CAPABILITIES.PAYMENTS_RECORD:CAPABILITIES.PAYMENTS_VIEW;
  if(path.startsWith("/VehicleCheck")||path.startsWith("/vehicle-check"))return CAPABILITIES.VEHICLE_CHECK;
  if(path.startsWith("/dashboard/premises/fleet"))return write?CAPABILITIES.FLEET_MANAGE:CAPABILITIES.FLEET_VIEW;

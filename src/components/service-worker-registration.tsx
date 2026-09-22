@@ -9,7 +9,7 @@ const SYNC_REQUEST_POLL_MS = 5_000;
 
 export function ServiceWorkerRegistration(){
  const pathname=usePathname();
- useEffect(()=>{if(!("serviceWorker" in navigator)||!shouldRegisterServiceWorker(pathname,localStorage))return;navigator.serviceWorker.register("/sw.js").catch(()=>undefined)},[pathname]);
+ useEffect(()=>{if(pathname==="/staff"||pathname.startsWith("/staff/"))return;if(!("serviceWorker" in navigator)||!shouldRegisterServiceWorker(pathname,localStorage))return;navigator.serviceWorker.register("/sw.js").catch(()=>undefined)},[pathname]);
  useEffect(()=>{
   if(!isKioskRoute(pathname)||!hasDeviceCredential(localStorage))return;
   const heartbeat=()=>{if(navigator.onLine&&document.visibilityState==="visible")void syncNow()};

@@ -259,6 +259,8 @@ model Session {
 }
 
 model StaffMember {
+  portalAccount         StaffPortalAccount?
+  portalRequests        StaffRequest[]
   id                    String                     @id @default(uuid()) @db.Char(36)
   firstName             String                     @db.VarChar(80)
   lastName              String                     @db.VarChar(80)
@@ -278,8 +280,8 @@ model StaffMember {
   startDate             DateTime                   @db.Date
   endDate               DateTime?                  @db.Date
   notes                 String?                    @db.Text
-  accessLevelId String? @db.Char(36)
-  userId String? @unique @db.Char(36)
+  accessLevelId         String?                    @db.Char(36)
+  userId                String?                    @unique @db.Char(36)
   credentials           StaffCredential[]
   clockEvents           ClockEvent[]
   presenceEvents        StaffPresenceEvent[]
@@ -1775,39 +1777,43 @@ model OperationSeries {
 }
 
 model OperationOccurrence {
-  id                 String                       @id @default(uuid()) @db.Char(36)
-  organisationId     String                       @db.Char(36)
-  organisation       Organisation                 @relation(fields: [organisationId], references: [id], onDelete: Cascade)
-  operationId        String                       @db.Char(36)
-  operation          Operation                    @relation(fields: [operationId], references: [id], onDelete: Cascade)
-  seriesId           String?                      @db.Char(36)
-  series             OperationSeries?             @relation(fields: [seriesId], references: [id], onDelete: SetNull)
-  startAt            DateTime
-  endAt              DateTime
-  allDay             Boolean                      @default(false)
-  timezone           String                       @default("Europe/London") @db.VarChar(80)
-  location           String?                      @db.VarChar(191)
-  premisesName       String?                      @db.VarChar(191)
-  roomName           String?                      @db.VarChar(120)
-  requiredStaffCount Int                          @default(0)
-  requiresCompliance Boolean                      @default(false)
-  status             OperationStatus              @default(DRAFT)
-  readiness          ReadinessLevel               @default(ACTION_REQUIRED)
-  leadManagerId      String?                      @db.Char(36)
-  leadStaffId        String?                      @db.Char(36)
-  cancelledAt        DateTime?
-  completedAt        DateTime?
-  assignments        OperationStaffAssignment[]
-  attendees          OperationAttendee[]
-  readinessSnapshots OperationReadinessSnapshot[]
-  createdAt          DateTime                     @default(now())
-  updatedAt          DateTime                     @updatedAt
+  staffVisibleNotes         String?                      @db.Text
+  staffConfirmationRequired Boolean                      @default(false)
+  id                        String                       @id @default(uuid()) @db.Char(36)
+  organisationId            String                       @db.Char(36)
+  organisation              Organisation                 @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  operationId               String                       @db.Char(36)
+  operation                 Operation                    @relation(fields: [operationId], references: [id], onDelete: Cascade)
+  seriesId                  String?                      @db.Char(36)
+  series                    OperationSeries?             @relation(fields: [seriesId], references: [id], onDelete: SetNull)
+  startAt                   DateTime
+  endAt                     DateTime
+  allDay                    Boolean                      @default(false)
+  timezone                  String                       @default("Europe/London") @db.VarChar(80)
+  location                  String?                      @db.VarChar(191)
+  premisesName              String?                      @db.VarChar(191)
+  roomName                  String?                      @db.VarChar(120)
+  requiredStaffCount        Int                          @default(0)
+  requiresCompliance        Boolean                      @default(false)
+  status                    OperationStatus              @default(DRAFT)
+  readiness                 ReadinessLevel               @default(ACTION_REQUIRED)
+  leadManagerId             String?                      @db.Char(36)
+  leadStaffId               String?                      @db.Char(36)
+  cancelledAt               DateTime?
+  completedAt               DateTime?
+  assignments               OperationStaffAssignment[]
+  attendees                 OperationAttendee[]
+  readinessSnapshots        OperationReadinessSnapshot[]
+  createdAt                 DateTime                     @default(now())
+  updatedAt                 DateTime                     @updatedAt
 
   @@index([organisationId, startAt, endAt, status])
   @@index([organisationId, readiness, startAt])
 }
 
 model OperationStaffAssignment {
+  confirmation   String                    @default("PENDING") @db.VarChar(30)
+  responseNote   String?                   @db.Text
   id             String                    @id @default(uuid()) @db.Char(36)
   organisationId String                    @db.Char(36)
   organisation   Organisation              @relation(fields: [organisationId], references: [id], onDelete: Cascade)
@@ -2093,4 +2099,126 @@ model VehicleMaintenance {
  cost Decimal? @db.Decimal(10,2)
  createdAt DateTime @default(now())
  @@index([vehicleId,performedAt])
+}
+
+// Staff Area records extend the existing employee identity; clocking credentials remain separate.
+model StaffPortalAccount {
+  staffId             String               @id @db.Char(36)
+  staff               StaffMember          @relation(fields: [staffId], references: [id], onDelete: Restrict)
+  pinHash             String?
+  enabled             Boolean              @default(true)
+  failures            Int                  @default(0)
+  lockedUntil         DateTime?
+  lastLoginAt         DateTime?
+  invitationHash      String?              @unique @db.Char(64)
+  invitationExpiresAt DateTime?
+  profile             Json?
+  preferences         Json?
+  sessions            StaffPortalSession[]
+  passkeys            StaffPasskey[]
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+}
+
+model StaffPortalSession {
+  id         String             @id @default(uuid()) @db.Char(36)
+  accountId  String             @db.Char(36)
+  account    StaffPortalAccount @relation(fields: [accountId], references: [staffId], onDelete: Cascade)
+  tokenHash  String             @unique @db.Char(64)
+  expiresAt  DateTime
+  lastSeenAt DateTime           @default(now())
+}
+
+model StaffPasskey {
+  id           String             @id @db.Char(64)
+  credentialId String             @db.Text
+  accountId    String             @db.Char(36)
+  account      StaffPortalAccount @relation(fields: [accountId], references: [staffId], onDelete: Cascade)
+  publicKey    Bytes              @db.Blob
+  counter      BigInt             @default(0)
+  transports   Json
+  name         String             @db.VarChar(100)
+  createdAt    DateTime           @default(now())
+}
+
+model StaffAuthChallenge {
+  id        String   @id @default(uuid()) @db.Char(36)
+  tokenHash String   @unique @db.Char(64)
+  accountId String   @db.Char(36)
+  challenge String   @db.VarChar(191)
+  purpose   String   @db.VarChar(20)
+  expiresAt DateTime
+}
+
+model StaffRequest {
+  id              String                 @id @default(uuid()) @db.Char(36)
+  organisationId  String                 @db.Char(36)
+  staffId         String                 @db.Char(36)
+  staff           StaffMember            @relation(fields: [staffId], references: [id], onDelete: Restrict)
+  idempotencyKey  String                 @unique @db.Char(36)
+  type            String                 @db.VarChar(20)
+  status          String                 @default("NEW") @db.VarChar(30)
+  details         Json
+  involvedUserIds Json
+  assignedUserId  String?                @db.Char(36)
+  dueDate         DateTime?
+  absenceId       String?                @unique @db.Char(36)
+  events          StaffRequestEvent[]
+  documents       StaffPrivateDocument[]
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+
+  @@index([organisationId, type, status])
+  @@index([staffId, createdAt])
+}
+
+model StaffRequestEvent {
+  id           String       @id @default(uuid()) @db.Char(36)
+  requestId    String       @db.Char(36)
+  request      StaffRequest @relation(fields: [requestId], references: [id], onDelete: Restrict)
+  actorId      String       @db.Char(36)
+  action       String       @db.VarChar(50)
+  message      String       @db.Text
+  staffVisible Boolean      @default(false)
+  createdAt    DateTime     @default(now())
+
+  @@index([requestId, createdAt])
+}
+
+model StaffPrivateDocument {
+  trainingRecordId String?       @db.Char(36)
+  id               String        @id @default(uuid()) @db.Char(36)
+  staffId          String        @db.Char(36)
+  requestId        String?       @db.Char(36)
+  request          StaffRequest? @relation(fields: [requestId], references: [id], onDelete: Restrict)
+  storagePath      String        @db.VarChar(500)
+  filename         String        @db.VarChar(191)
+  mimeType         String        @db.VarChar(100)
+  expiresAt        DateTime
+  createdAt        DateTime      @default(now())
+
+  @@index([staffId, expiresAt])
+}
+
+model StaffPortalNotification {
+  id        String    @id @default(uuid()) @db.Char(36)
+  staffId   String    @db.Char(36)
+  key       String    @unique @db.VarChar(191)
+  message   String    @db.VarChar(191)
+  href      String    @db.VarChar(191)
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([staffId, readAt])
+}
+
+model StaffAccessEvent {
+  id        String   @id @default(uuid()) @db.Char(36)
+  staffId   String   @db.Char(36)
+  actorId   String?  @db.Char(36)
+  action    String   @db.VarChar(60)
+  reason    String   @db.VarChar(1000)
+  createdAt DateTime @default(now())
+
+  @@index([staffId, createdAt])
 }

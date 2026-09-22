@@ -15,7 +15,7 @@ export function ApplicationVersion() {
       .catch(() => {});
     return () => controller.abort();
   }, [pathname]);
-  const visible = authenticated && pathname !== "/login" && pathname !== "/setup" && !pathname.startsWith("/information-review/");
+  const visible = !pathname.startsWith("/staff/") && pathname!=="/staff" && authenticated && pathname !== "/login" && pathname !== "/setup" && !pathname.startsWith("/information-review/");
   useEffect(() => {
     document.body.classList.toggle("has-app-version", visible);
     return () => document.body.classList.remove("has-app-version");

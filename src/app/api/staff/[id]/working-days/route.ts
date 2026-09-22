@@ -23,6 +23,7 @@ export async function PUT(req:NextRequest,{params}:Params){return withCapability
   await tx.staffWorkingPattern.updateMany({where:{organisationId,staffId:id,active:true,effectiveStart:{gte:start}},data:{active:false}});
   await tx.staffScheduleOccurrence.updateMany({where:{organisationId,staffId:id,patternId:{not:null},date:{gte:start},status:"SCHEDULED",manuallyModified:false},data:{status:"CANCELLED"}});
   const created=await tx.staffWorkingPattern.create({data:{organisationId,staffId:id,name:"Profile working days",effectiveStart:start,timezone:"Europe/London",cycleWeeks:1,version:(latest?.version||0)+1,createdById:user.id,intervals:{create:input.days.map(day=>({...day,weekIndex:1,breakMinutes:0}))}},include:{intervals:true}});
+  await tx.staffPortalNotification.create({data:{staffId:id,key:crypto.randomUUID(),message:"Your working days have changed. Please review your schedule.",href:"/staff/schedule"}});
   await tx.auditLog.create({data:{action:"STAFF_WORKING_DAYS_UPDATED",actorType:"USER",actorId:user.id,entityType:"StaffWorkingPattern",entityId:created.id,afterValue:{staffId:id,...input}}});return created;
  },{isolationLevel:"Serializable"});return NextResponse.json({pattern});
 });}

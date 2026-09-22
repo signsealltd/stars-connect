@@ -1,3 +1,4 @@
+import {RequestError,staffConflictMessage} from "./request-error";
 import {moduleCapability} from "./module-access";
 import { NextRequest, NextResponse } from "next/server";
 import type { Role, User } from "@prisma/client";
@@ -42,6 +43,8 @@ export async function withRole(
       ...requestContext(req),
       afterValue: { requiredRole: role, path: req.nextUrl.pathname },
     });
+    if(error instanceof RequestError)return NextResponse.json({error:error.message},{status:error.status});
+    if(req.nextUrl.pathname.startsWith("/api/staff")){const conflict=staffConflictMessage(error);if(conflict)return NextResponse.json({error:conflict},{status:409});}
     if (error instanceof AccessError) {
       return NextResponse.json({ error: error.status === 401 ? "Please sign in." : "You do not have permission to do that." }, { status: error.status });
     }
@@ -65,6 +68,8 @@ export async function withCapability(
       ...requestContext(req),
       afterValue: { requiredCapability: capability, path: req.nextUrl.pathname },
     });
+    if(error instanceof RequestError)return NextResponse.json({error:error.message},{status:error.status});
+    if(req.nextUrl.pathname.startsWith("/api/staff")){const conflict=staffConflictMessage(error);if(conflict)return NextResponse.json({error:conflict},{status:409});}
     if (error instanceof AccessError) {
       return NextResponse.json({ error: error.status === 401 ? "Please sign in." : "You do not have permission to do that." }, { status: error.status });
     }

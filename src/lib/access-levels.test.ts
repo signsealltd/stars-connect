@@ -9,3 +9,5 @@ describe("staff access levels",()=>{
  it("maps read and mutation endpoints to distinct permissions",()=>{expect(moduleCapability("/api/staff/123")).toBe(CAPABILITIES.STAFF_VIEW);expect(moduleCapability("/api/staff/123",true)).toBe(CAPABILITIES.STAFF_MANAGE);expect(moduleCapability("/api/attendance-photos/123")).toBe(CAPABILITIES.PHOTO_VIEW)});
  it("shows modules granted through a custom level and hides denied ones",()=>{const labels=managerNavForRole("TEAM_LEADER",["staff-portal.view","students.view"]).flatMap(g=>g.items.map(i=>i.label));expect(labels).toContain("Clients");expect(labels).not.toContain("Billing");expect(labels).not.toContain("Users & Permissions")});
 });
+
+it("always grants administrators every capability despite restrictive overrides",()=>{for(const capability of Object.values(CAPABILITIES))expect(hasCapability("ADMINISTRATOR",capability,{[capability]:false})).toBe(true)});

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import {randomBytes} from "crypto";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
@@ -54,12 +55,14 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) return jsonError("Please check the staff details.", 422);
     if(!canAssignStaffGrade(user))return jsonError("User-management permission is required to assign staff grades and access.",403);
     const { pin, ...data } = parsed.data;
+    if(await prisma.staffMember.findUnique({where:{email:data.email.toLowerCase()}}))return jsonError("That email address already belongs to a staff record. Check existing and archived staff.",409);
     if (pin) {
       const duplicate = await prisma.staffCredential.findFirst({
         where: { kind: "PIN", lookupHash: sha256(pin), active: true },
       });
       if (duplicate) return jsonError("That PIN cannot be used. Choose another.", 409);
     }
+    const [pinHash,accountPasswordHash]=await Promise.all([pin?bcrypt.hash(pin,12):Promise.resolve(null),bcrypt.hash(randomBytes(32).toString('base64url'),12)]);
     const staff = await prisma.$transaction(async (tx) => {
       const created = await tx.staffMember.create({
         data: {
@@ -72,16 +75,17 @@ export async function POST(req: NextRequest) {
           endDate: data.endDate ? new Date(data.endDate) : null,
         },
       });
+      if(pin)await tx.staffCredential.updateMany({where:{kind:"PIN",lookupHash:sha256(pin),active:false},data:{lookupHash:null}});
       if (pin) await tx.staffCredential.create({
         data: {
           staffId: created.id,
           kind: "PIN",
           lookupHash: sha256(pin),
-          valueHash: await bcrypt.hash(pin, 12),
+          valueHash: pinHash!,
         },
       });
-      return applyStaffGrade(tx,created,user);
-    });
+      return applyStaffGrade(tx,created,user,accountPasswordHash);
+    },{maxWait:10000,timeout:20000});
     await audit("STAFF_CREATED", {
       actorType: "USER", actorId: user.id, entityType: "StaffMember", entityId: staff.id,
       afterValue: { ...staff, pinConfigured: Boolean(pin) }, ...requestContext(req),

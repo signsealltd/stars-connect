@@ -77,7 +77,7 @@ export async function getSession(allowVehicle = false) {
   if (session.lastSeenAt.getTime() < now.getTime() - SESSION_TOUCH_MS) {
     await prisma.session.updateMany({ where: { id: session.id, lastSeenAt: session.lastSeenAt }, data: { lastSeenAt: now } });
   }
-  if (session.user.accessLevelId) {
+  if (session.user.accessLevelId && session.user.role !== "ADMINISTRATOR") {
     const level=await prisma.accessLevel.findUnique({where:{id:session.user.accessLevelId}});
     if(!level?.active)return null;
     session.user.role=level.baseRole;

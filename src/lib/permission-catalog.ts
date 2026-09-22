@@ -79,14 +79,15 @@ export const capabilityOptions=[
   {key:CAPABILITIES.COMPLIANCE_ACKNOWLEDGE,label:"Acknowledge documents",description:"Acknowledge assigned published compliance documents."},] as const;
 function overrides(value:unknown):Partial<Record<Capability,boolean>>{if(!value||typeof value!=="object"||Array.isArray(value))return{};return value as Partial<Record<Capability,boolean>>}
 export const hasCapability=(role:Role,capability:Capability,permissionOverrides?:unknown)=>{
+ if(role==="ADMINISTRATOR")return true;
  if(capability===CAPABILITIES.STAFF_CONCERNS_REVIEW)return overrides(permissionOverrides)[capability]===true;
  const custom=overrides(permissionOverrides)[capability]; if(custom!==undefined)return custom;
- if([CAPABILITIES.SYSTEM_VIEW,CAPABILITIES.SYSTEM_MANAGE].includes(capability as typeof CAPABILITIES.SYSTEM_VIEW))return role==="ADMINISTRATOR";
+ if([CAPABILITIES.SYSTEM_VIEW,CAPABILITIES.SYSTEM_MANAGE].includes(capability as typeof CAPABILITIES.SYSTEM_VIEW))return false;
  if(capability===CAPABILITIES.PHOTO_VIEW)return ["DIRECTOR","ADMINISTRATOR"].includes(role);
- if(capability===CAPABILITIES.VISITOR_SETTINGS)return role==="ADMINISTRATOR";
+ if(capability===CAPABILITIES.VISITOR_SETTINGS)return false;
  const [module]=capability.split(".");
  if(["dashboard","staff","students","register","live","timesheets","reports","emergency","visitors","training","premises","devices","users","settings","audit","synchronisation","conflicts"].includes(module)) {
-  if(role==="ADMINISTRATOR")return true;
+
   if(["TEAM_LEADER","CARE_ASSISTANT"].includes(role))return false;
   if(["users","settings","audit","devices","synchronisation","conflicts"].includes(module))return false;
   if(role==="DIRECTOR")return true;

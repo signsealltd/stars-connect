@@ -51,11 +51,12 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     const after = await prisma.$transaction(async (tx) => {
       const updated = await tx.staffMember.update({ where: { id }, data });
       if (pin) {
-        await tx.staffCredential.updateMany({ where: { staffId: id, kind: "PIN", active: true }, data: { active: false, revokedAt: new Date() } });
+        await tx.staffCredential.updateMany({ where: { staffId: id, kind: "PIN", active: true }, data: { active: false, revokedAt: new Date(), lookupHash:null } });
+        await tx.staffCredential.updateMany({where:{kind:"PIN",lookupHash:sha256(pin),active:false},data:{lookupHash:null}});
         await tx.staffCredential.create({ data: { staffId: id, kind: "PIN", lookupHash: sha256(pin), valueHash: await bcrypt.hash(pin, 12) } });
       }
       return assignGrade?applyStaffGrade(tx,updated,user):updated;
-    });
+    },{maxWait:10000,timeout:20000});
     const action = pin ? "STAFF_PIN_RESET" : before.active !== after.active ? (after.active ? "STAFF_RESTORED" : "STAFF_ARCHIVED") : "STAFF_UPDATED";
     await audit(action, {
       actorType: "USER", actorId: user.id, entityType: "StaffMember", entityId: id,

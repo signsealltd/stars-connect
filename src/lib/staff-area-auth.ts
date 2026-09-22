@@ -14,7 +14,7 @@ export async function staffSession(){
  if(!session||session.expiresAt<=now||session.lastSeenAt.getTime()<Date.now()-15*60_000||!session.account.enabled||!session.account.staff.active||session.account.staff.archivedAt)return null;
  const userId=session.account.staff.userId;if(!userId)return null;
  const user=await prisma.user.findUnique({where:{id:userId}});if(!user?.active||!user.organisationId)return null;
- if(user.accessLevelId){const level=await prisma.accessLevel.findUnique({where:{id:user.accessLevelId}});if(!level?.active)return null;user.role=level.baseRole;user.permissionOverrides={...Object.fromEntries(Object.values(CAPABILITIES).map(c=>[c,false])),...(level.permissions as Record<string,boolean>)};}
+ if(user.accessLevelId&&user.role!=="ADMINISTRATOR"){const level=await prisma.accessLevel.findUnique({where:{id:user.accessLevelId}});if(!level?.active)return null;user.role=level.baseRole;user.permissionOverrides={...Object.fromEntries(Object.values(CAPABILITIES).map(c=>[c,false])),...(level.permissions as Record<string,boolean>)};}
  if(!hasCapability(user.role,CAPABILITIES.STAFF_PORTAL,user.permissionOverrides))return null;
  await prisma.staffPortalSession.updateMany({where:{id:session.id,lastSeenAt:session.lastSeenAt},data:{lastSeenAt:now}});
  return {session,account:session.account,staff:session.account.staff,user};

@@ -1,3 +1,4 @@
+import {applyStaffGrade,canAssignStaffGrade} from "@/lib/staff-grade-access";
 import {profileChangeInput} from "@/lib/staff-area-input";
 import {NextRequest} from "next/server";
 import {z} from "zod";
@@ -29,7 +30,7 @@ export async function POST(req:NextRequest){return withCapability(req,CAPABILITI
 
   if(v.action==="approve"){
    if(!["LEAVE","PROFILE"].includes(r.type)||!["NEW","IN_REVIEW","WAITING"].includes(r.status))return staffJson({error:"This request cannot be approved."},409);
-   if(r.type==="PROFILE"){const proposed=profileChangeInput.safeParse(d.proposed);if(!proposed.success||!Object.keys(proposed.data).length)return staffJson({error:"Use the staff profile to apply this requested change, then record the outcome here."},422);await tx.staffMember.update({where:{id:r.staffId},data:proposed.data});status="APPROVED";}else{const a=await tx.staffScheduleException.create({data:{staffId:r.staffId,organisationId:r.organisationId,startDate:new Date(String(d.startDate)),endDate:new Date(String(d.endDate)),startTime:d.startTime?String(d.startTime):null,endTime:d.endTime?String(d.endTime):null,type:d.category==="UNPAID_LEAVE"?"UNPAID_LEAVE":"ANNUAL_LEAVE",approvalStatus:"APPROVED",notes:"Approved leave",createdById:user.id,approvedById:user.id}});await tx.staffRequest.update({where:{id:r.id},data:{absenceId:a.id}});status="APPROVED";}
+   if(r.type==="PROFILE"){const proposed=profileChangeInput.safeParse(d.proposed);if(!proposed.success||!Object.keys(proposed.data).length)return staffJson({error:"Use the staff profile to apply this requested change, then record the outcome here."},422);if(proposed.data.jobRole&&!canAssignStaffGrade(user))return staffJson({error:"User-management permission is required to approve a staff grade change."},403);const updated=await tx.staffMember.update({where:{id:r.staffId},data:proposed.data});if(proposed.data.jobRole)await applyStaffGrade(tx,updated,user);status="APPROVED";}else{const a=await tx.staffScheduleException.create({data:{staffId:r.staffId,organisationId:r.organisationId,startDate:new Date(String(d.startDate)),endDate:new Date(String(d.endDate)),startTime:d.startTime?String(d.startTime):null,endTime:d.endTime?String(d.endTime):null,type:d.category==="UNPAID_LEAVE"?"UNPAID_LEAVE":"ANNUAL_LEAVE",approvalStatus:"APPROVED",notes:"Approved leave",createdById:user.id,approvedById:user.id}});await tx.staffRequest.update({where:{id:r.id},data:{absenceId:a.id}});status="APPROVED";}
   }else if(v.action==="cancel"){
    if(r.type!=="LEAVE"||!["APPROVED","CANCELLATION_REQUESTED"].includes(r.status))return staffJson({error:"This leave cannot be cancelled."},409);
    if(r.absenceId)await tx.staffScheduleException.update({where:{id:r.absenceId},data:{approvalStatus:"REJECTED"}});status="CANCELLED";

@@ -4,7 +4,7 @@ import{appConfirm}from"@/lib/app-dialog";
 
 import {StaffAbsences} from "./staff-absences";
 import {StaffWorkingDays} from "./staff-working-days";
-import {StaffAccess} from "./staff-access";
+import {STAFF_GRADES,staffGrade} from "@/lib/staff-grades";
 import { useCallback, useEffect, useState } from "react";
 import { Archive, KeyRound, Pencil, Plus, RotateCcw, Search } from "lucide-react";
 
@@ -47,7 +47,7 @@ export function StaffManager() {
     setEditing(row || "new");
     setForm(row ? {
       firstName: row.firstName, lastName: row.lastName, displayName: row.displayName,
-      email: row.email, phone: row.phone || "", jobRole: row.jobRole,
+      email: row.email, phone: row.phone || "", jobRole: staffGrade(row.jobRole)||row.jobRole,
       startDate: row.startDate.slice(0, 10), endDate: row.endDate?.slice(0, 10) || "",
       notes: row.notes || "", clockingEnabled: row.clockingEnabled, cameraRequired: row.cameraRequired, pin: "",
       payrollNumber: row.payrollNumber || "", contractedWeeklyHours: row.contractedWeeklyHours?.toString() || "", hourlyRate: row.hourlyRate?.toString() || "", overtimeHourlyRate: row.overtimeHourlyRate?.toString() || "", profilePhotoUrl: row.profilePhotoUrl || "",
@@ -104,12 +104,12 @@ export function StaffManager() {
       <form autoComplete="off" className="modal" onSubmit={save}>
         <h2 style={{ marginTop: 0 }}>{editing === "new" ? "Add staff member" : `Edit ${(editing as Staff).displayName}`}</h2>
         {error && <div className="alert alert-error">{error}</div>}
-        {editing !== "new" && <StaffAccess id={(editing as Staff).id} levelId={(editing as Staff).accessLevelId} hasAccount={!!(editing as Staff).userId}/>}
+
         <div className="form-grid" style={{ marginTop: 16 }}>
           <label className="form-label">First name<input autoComplete="off" className="field" value={form.firstName} onChange={(e) => setForm({ ...form, firstName: e.target.value })} required /></label>
           <label className="form-label">Surname<input autoComplete="off" className="field" value={form.lastName} onChange={(e) => setForm({ ...form, lastName: e.target.value })} required /></label>
           <label className="form-label">Display name<input autoComplete="off" className="field" value={form.displayName} onChange={(e) => setForm({ ...form, displayName: e.target.value })} required /></label>
-          <label className="form-label">Job title<input autoComplete="off" className="field" value={form.jobRole} onChange={(e) => setForm({ ...form, jobRole: e.target.value })} required /></label>
+          <label className="form-label">Job title<select className="field" value={form.jobRole} onChange={(e) => setForm({ ...form, jobRole: e.target.value })} required><option value="">Choose staff grade</option>{form.jobRole&&!staffGrade(form.jobRole)&&<option value={form.jobRole} disabled>{form.jobRole} — select a current grade</option>}{STAFF_GRADES.map(grade=><option key={grade} value={grade}>{grade}</option>)}</select><small>Sets the matching access level automatically. Invite links and QR codes are managed in Staff Portal → Access.</small></label>
           <label className="form-label">Email<input autoComplete="off" className="field" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required /></label>
           <label className="form-label">Phone<input autoComplete="off" className="field" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></label><label className="form-label full">Staff photograph<input autoComplete="off" className="field" type="file" accept="image/jpeg,image/png,image/webp" onChange={async(e)=>{const file=e.target.files?.[0];if(!file)return;try{setForm({...form,profilePhotoUrl:await compressStaffPhoto(file)})}catch(error){setError(error instanceof Error?error.message:"Unable to process photograph.")}}}/><small className="muted">Automatically cropped and compressed to a 320 × 320 JPEG for proportionate storage.</small>{form.profilePhotoUrl&&<div style={{display:"flex",alignItems:"center",gap:12,marginTop:8}}><img src={form.profilePhotoUrl} alt="Staff preview" style={{width:80,height:80,borderRadius:"50%",objectFit:"cover"}}/><button type="button" className="btn secondary" onClick={()=>setForm({...form,profilePhotoUrl:""})}>Remove photograph</button></div>}</label>
           <label className="form-label">Start date<input autoComplete="off" className="field" type="date" value={form.startDate} onChange={(e) => setForm({ ...form, startDate: e.target.value })} required /></label>

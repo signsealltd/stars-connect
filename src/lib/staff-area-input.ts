@@ -1,6 +1,7 @@
+import {STAFF_GRADES} from "./staff-grades";
 import {z} from "zod";
 export const portalPin=z.string().regex(/^\d{4,8}$/, "Enter your existing clocking PIN.");
-export const profileChangeInput=z.object({firstName:z.string().trim().min(1).max(80).optional(),lastName:z.string().trim().min(1).max(80).optional(),email:z.string().email().max(191).optional(),jobRole:z.string().trim().min(1).max(100).optional(),contractedWeeklyHours:z.number().min(0).max(168).optional()});
+export const profileChangeInput=z.object({firstName:z.string().trim().min(1).max(80).optional(),lastName:z.string().trim().min(1).max(80).optional(),email:z.string().email().max(191).optional(),jobRole:z.enum(STAFF_GRADES).optional(),contractedWeeklyHours:z.number().min(0).max(168).optional()});
 export const requestInput=z.object({
   key:z.string().uuid(),type:z.enum(["LEAVE","SICKNESS","CONCERN","PROFILE"]),
   startDate:z.string().date().optional(),endDate:z.string().date().optional(),

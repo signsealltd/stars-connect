@@ -1,17 +1,22 @@
 import {NextRequest,NextResponse} from "next/server";
 import {z} from "zod";
 import {prisma} from "@/lib/prisma";
-import {CAPABILITIES,hasCapability} from "@/lib/permissions";
+import {CAPABILITIES} from "@/lib/permissions";
 import {withCapability,jsonError} from "@/lib/api";
 import {audit} from "@/lib/audit";
-const schema=z.object({id:z.string().uuid().optional(),name:z.string().trim().min(2).max(100),baseRole:z.enum(["TEAM_LEADER","CARE_ASSISTANT","RECEPTION","MANAGER","DIRECTOR"]),permissions:z.record(z.enum(Object.values(CAPABILITIES) as [string,...string[]]),z.boolean()),active:z.boolean().default(true)});
+import {STAFF_GRADES,STAFF_GRADE_ROLES} from "@/lib/staff-grades";
+import {ensureStaffGrades} from "@/lib/staff-grade-access";
+const schema=z.object({id:z.string().uuid().optional(),name:z.enum(STAFF_GRADES),baseRole:z.enum(["ADMINISTRATOR","TEAM_LEADER","CARE_ASSISTANT","MANAGER"]),permissions:z.record(z.enum(Object.values(CAPABILITIES) as [string,...string[]]),z.boolean()),active:z.boolean().default(true)});
 export async function GET(req:NextRequest){return withCapability(req,CAPABILITIES.USERS_MANAGE,async user=>{
-  for(const [name,baseRole] of [["Team Leader","TEAM_LEADER"],["Care Assistant","CARE_ASSISTANT"]] as const)await prisma.accessLevel.upsert({where:{name},update:{},create:{name,baseRole,permissions:Object.fromEntries(Object.values(CAPABILITIES).map(c=>[c,hasCapability(baseRole,c)])),updatedById:user.id}});
-  return NextResponse.json(await prisma.accessLevel.findMany({orderBy:{name:"asc"}}));
+  await prisma.$transaction(tx=>ensureStaffGrades(tx,user.id));
+  const rows=await prisma.accessLevel.findMany({where:{name:{in:[...STAFF_GRADES]}}});return NextResponse.json(STAFF_GRADES.flatMap(name=>rows.filter(row=>row.name===name)));
 });}
 export async function POST(req:NextRequest){return withCapability(req,CAPABILITIES.USERS_MANAGE,async user=>{
   const p=schema.safeParse(await req.json().catch(()=>null));if(!p.success)return jsonError("Check the level name and permissions.",422);
   const {id,...input}=p.data;
+  input.baseRole=STAFF_GRADE_ROLES[input.name];
+  if(id){const existing=await prisma.accessLevel.findUnique({where:{id}});if(existing?.name!==input.name)return jsonError("Staff grade names are fixed.",422);}
+  if(input.name==="Administrator"&&user.role!=="ADMINISTRATOR")return jsonError("Only an administrator can edit administrator access.",403);
   const permissions=Object.fromEntries(Object.values(CAPABILITIES).map(c=>[c,input.permissions[c]??false]));
   const row=await prisma.$transaction(async tx=>{
     const level=id?await tx.accessLevel.update({where:{id},data:{...input,permissions,updatedById:user.id}}):await tx.accessLevel.create({data:{...input,permissions,updatedById:user.id}});
@@ -19,6 +24,7 @@ export async function POST(req:NextRequest){return withCapability(req,CAPABILITI
     if(users.some(u=>u.id===user.id))throw new Error("Use another administrator to change your own assigned level.");
     await tx.user.updateMany({where:{accessLevelId:level.id},data:{role:level.baseRole,permissionOverrides:permissions}});
     await tx.session.deleteMany({where:{userId:{in:users.map(u=>u.id)}}});
+    const staff=await tx.staffMember.findMany({where:{userId:{in:users.map(u=>u.id)}},select:{id:true}});await tx.staffPortalSession.deleteMany({where:{accountId:{in:staff.map(s=>s.id)}}});
     return level;
   });
   await audit("ACCESS_LEVEL_SAVED",{actorType:"USER",actorId:user.id,entityType:"AccessLevel",entityId:row.id,afterValue:{name:row.name,permissions}});

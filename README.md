@@ -322,3 +322,5 @@ Small fixes and minor UI adjustments increment the patch (V1.5.1 → V1.5.2). Me
 STARS Staff uses the shared application at /staff/ with a separate installable PWA. See [Staff Area release and deployment guidance](RELEASE-V1.8.0.md) for migrations, activation, permissions, private storage, retention and device acceptance checks.
 
 Staff invitation setup was simplified in V1.8.1: see [personal links, QR codes and existing PIN access](RELEASE-V1.8.1.md).
+
+V1.8.2 uses five fixed staff grades and automatically assigns access from the job title. See [staff grade migration and access guidance](RELEASE-V1.8.2.md).

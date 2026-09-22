@@ -1,3 +1,4 @@
+import {STAFF_GRADES} from "./staff-grades";
 import { z } from "zod";
 
 export const staffUpdateSchema = z.object({
@@ -6,7 +7,7 @@ export const staffUpdateSchema = z.object({
   displayName: z.string().trim().min(1).max(120).optional(),
   email: z.email().max(191).optional(),
   phone: z.string().trim().max(40).nullable().optional(),
-  jobRole: z.string().trim().min(1).max(100).optional(),
+  jobRole: z.enum(STAFF_GRADES).optional(),
   profilePhotoUrl: z.string().max(250000).nullable().optional(),
   startDate: z.string().date().optional(),
   endDate: z.string().date().or(z.literal("")).nullable().optional(),

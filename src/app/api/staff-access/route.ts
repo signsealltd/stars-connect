@@ -5,17 +5,20 @@ import {prisma} from "@/lib/prisma";
 import {withCapability} from "@/lib/api";
 import {CAPABILITIES} from "@/lib/permissions";
 import {sha256} from "@/lib/security";
+import {applyStaffGrade,canAssignStaffGrade} from "@/lib/staff-grade-access";
+import {staffGrade} from "@/lib/staff-grades";
 import {staffJson} from "@/lib/staff-area-auth";
 export async function GET(req:NextRequest){return withCapability(req,CAPABILITIES.STAFF_ACCESS_MANAGE,async user=>{
- const staff=await prisma.staffMember.findMany({where:{archivedAt:null},select:{id:true,displayName:true,email:true,userId:true,portalAccount:{select:{loginLink:true,enabled:true,failures:true,lockedUntil:true,lastLoginAt:true,invitationExpiresAt:true,invitationHash:true,passkeys:{select:{id:true,name:true}}}}},orderBy:{displayName:"asc"}});
+ const staff=await prisma.staffMember.findMany({where:{archivedAt:null},select:{id:true,displayName:true,email:true,jobRole:true,userId:true,portalAccount:{select:{loginLink:true,enabled:true,failures:true,lockedUntil:true,lastLoginAt:true,invitationExpiresAt:true,invitationHash:true,passkeys:{select:{id:true,name:true}}}}},orderBy:{displayName:"asc"}});
  const linked=await prisma.user.findMany({where:{organisationId:user.organisationId!},select:{id:true}});const ids=new Set(linked.map(u=>u.id));
  const history=await prisma.staffAccessEvent.findMany({where:{staffId:{in:staff.filter(s=>s.userId&&ids.has(s.userId)).map(s=>s.id)}},orderBy:{createdAt:"desc"},take:100});
  return staffJson({staff:staff.filter(s=>!s.userId||ids.has(s.userId)).map(s=>({...s,portalAccount:s.portalAccount?{...s.portalAccount,invitationHash:undefined,status:!s.portalAccount.enabled?"Disabled":s.portalAccount.lockedUntil&&s.portalAccount.lockedUntil>new Date()?"Locked":s.portalAccount.invitationHash?"Invited":"Active"}:null})),history,entryUrl:new URL("/staff/",process.env.APP_URL||req.nextUrl.origin).href});
 })}
 export async function POST(req:NextRequest){return withCapability(req,CAPABILITIES.STAFF_ACCESS_MANAGE,async user=>{
  const p=z.object({staffId:z.string().uuid(),action:z.enum(["enable","invite","reset","disable","unlock","signout","remove-passkeys"]),reason:z.string().trim().min(5).max(1000),revokePasskeys:z.boolean().default(true)}).safeParse(await req.json());if(!p.success)return staffJson({error:"Choose an action and enter a reason."},422);const v=p.data;
- const staff=await prisma.staffMember.findUnique({where:{id:v.staffId}});if(!staff?.active||!staff.userId)return staffJson({error:"Link this employee to an existing user account in their staff profile first."},422);
- const linked=await prisma.user.findFirst({where:{id:staff.userId,organisationId:user.organisationId!,active:true}});if(!linked)return staffJson({error:"Staff account unavailable."},404);
+ let staff=await prisma.staffMember.findUnique({where:{id:v.staffId}});if(!staff?.active)return staffJson({error:"Staff member unavailable."},404);
+ if(!staff.userId){if(!["enable","invite"].includes(v.action)||!staffGrade(staff.jobRole))return staffJson({error:"Choose one of the five job titles in their staff profile first."},422);if(!canAssignStaffGrade(user))return staffJson({error:"User-management permission is required to create the linked account."},403);staff=await prisma.$transaction(tx=>applyStaffGrade(tx,staff!,user));}
+ const linked=await prisma.user.findFirst({where:{id:staff.userId!,organisationId:user.organisationId!,active:true}});if(!linked)return staffJson({error:"Staff account unavailable."},404);
  if(v.action==="enable"&&!await prisma.staffCredential.findFirst({where:{staffId:staff.id,kind:"PIN",active:true}}))return staffJson({error:"Set a clocking PIN in the staff profile first."},422);
  const existingPortal=await prisma.staffPortalAccount.findUnique({where:{staffId:staff.id}});
  const personalLink=existingPortal?.loginLink||randomBytes(32).toString("hex");

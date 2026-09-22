@@ -6,6 +6,7 @@ import { audit } from "@/lib/audit";
 import { sha256 } from "@/lib/security";
 import { staffUpdateSchema } from "@/lib/staff-input";
 
+import {applyStaffGrade,canAssignStaffGrade} from "@/lib/staff-grade-access";
 type Params = { params: Promise<{ id: string }> };
 
 export async function GET(req: NextRequest, { params }: Params) {
@@ -31,6 +32,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     const parsed = staffUpdateSchema.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return jsonError("Please check the staff details.", 422);
     const { pin, ...incoming } = parsed.data;
+    const assignGrade=!!incoming.jobRole&&(incoming.jobRole!==before.jobRole||!before.accessLevelId);
+    if(assignGrade&&!canAssignStaffGrade(user))return jsonError("User-management permission is required to change staff grades and access.",403);
     if (pin) {
       const duplicate = await prisma.staffCredential.findFirst({
         where: { kind: "PIN", lookupHash: sha256(pin), active: true, staffId: { not: id } },
@@ -51,7 +54,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
         await tx.staffCredential.updateMany({ where: { staffId: id, kind: "PIN", active: true }, data: { active: false, revokedAt: new Date() } });
         await tx.staffCredential.create({ data: { staffId: id, kind: "PIN", lookupHash: sha256(pin), valueHash: await bcrypt.hash(pin, 12) } });
       }
-      return updated;
+      return assignGrade?applyStaffGrade(tx,updated,user):updated;
     });
     const action = pin ? "STAFF_PIN_RESET" : before.active !== after.active ? (after.active ? "STAFF_RESTORED" : "STAFF_ARCHIVED") : "STAFF_UPDATED";
     await audit(action, {

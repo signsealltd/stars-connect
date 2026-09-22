@@ -6,13 +6,15 @@ import { withRole, jsonError, requestContext } from "@/lib/api";
 import { audit } from "@/lib/audit";
 import { sha256 } from "@/lib/security";
 
+import {STAFF_GRADES} from "@/lib/staff-grades";
+import {applyStaffGrade,canAssignStaffGrade} from "@/lib/staff-grade-access";
 const staffSchema = z.object({
   firstName: z.string().trim().min(1).max(80),
   lastName: z.string().trim().min(1).max(80),
   displayName: z.string().trim().min(1).max(120),
   email: z.email().max(191),
   phone: z.string().trim().max(40).optional().or(z.literal("")),
-  jobRole: z.string().trim().min(1).max(100),
+  jobRole: z.enum(STAFF_GRADES),
   profilePhotoUrl: z.string().max(250000).nullable().optional(),
   startDate: z.string().date(),
   endDate: z.string().date().optional().or(z.literal("")),
@@ -50,6 +52,7 @@ export async function POST(req: NextRequest) {
   return withRole(req, "MANAGER", async (user) => {
     const parsed = staffSchema.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return jsonError("Please check the staff details.", 422);
+    if(!canAssignStaffGrade(user))return jsonError("User-management permission is required to assign staff grades and access.",403);
     const { pin, ...data } = parsed.data;
     if (pin) {
       const duplicate = await prisma.staffCredential.findFirst({
@@ -77,7 +80,7 @@ export async function POST(req: NextRequest) {
           valueHash: await bcrypt.hash(pin, 12),
         },
       });
-      return created;
+      return applyStaffGrade(tx,created,user);
     });
     await audit("STAFF_CREATED", {
       actorType: "USER", actorId: user.id, entityType: "StaffMember", entityId: staff.id,

@@ -9,6 +9,6 @@ export async function POST(req:NextRequest){return withVehicle(req,async user=>{
 export async function GET(req:NextRequest){return withVehicle(req,async user=>{
  const manager=await canReviewFleet(req),q=req.nextUrl.searchParams,id=q.get("id"),vehicleId=q.get("vehicle"),outcome=q.get("outcome"),staff=q.get("staff"),from=q.get("from"),to=q.get("to");
  if((from&&!/^\d{4}-\d{2}-\d{2}$/.test(from))||(to&&!/^\d{4}-\d{2}-\d{2}$/.test(to)))return jsonError("Choose valid dates.",422);
- const rows=await prisma.vehicleCheck.findMany({where:{...(!manager?{userId:user.id}:staff?{userId:staff}:{}),...(id?{id}:{}),...(vehicleId?{vehicleId}:{}),...(outcome?{outcome}:{}),...(q.get("defects")==="yes"?{defects:{some:{}}}:{}),...((from||to)?{checkDate:{...(from?{gte:new Date(from)}:{}),...(to?{lte:new Date(to)}:{})}}:{})},include:{defects:true},orderBy:{submittedAt:"desc"},take:500});
+ const rows=await prisma.vehicleCheck.findMany({where:{...(!id?{supersededBy:{is:null}}:{}),...(!manager||q.get("own")==="1"?{userId:user.id}:staff?{userId:staff}:{}),...(id?{id}:{}),...(vehicleId?{vehicleId}:{}),...(outcome?{outcome}:{}),...(q.get("defects")==="yes"?{defects:{some:{}}}:{}),...((from||to)?{checkDate:{...(from?{gte:new Date(from)}:{}),...(to?{lte:new Date(to)}:{})}}:{})},include:{defects:true,supersededBy:{select:{id:true}},supersedes:{select:{id:true,revision:true}}},orderBy:{submittedAt:"desc"},take:500});
  return NextResponse.json(rows,{headers:{"cache-control":"private, no-store"}});
 });}

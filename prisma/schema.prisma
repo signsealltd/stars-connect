@@ -2043,6 +2043,12 @@ model FleetVehicle {
 }
 model VehicleCheck {
  id String @id @db.Char(36)
+ supersedesId String? @unique @db.Char(36)
+ supersedes VehicleCheck? @relation("VehicleCheckVersions",fields:[supersedesId],references:[id],onDelete:Restrict,onUpdate:Restrict)
+ supersededBy VehicleCheck? @relation("VehicleCheckVersions")
+ rootCheckId String? @db.Char(36)
+ revision Int @default(1)
+ @@index([rootCheckId])
  vehicleId String @db.Char(36)
  vehicle FleetVehicle @relation(fields:[vehicleId],references:[id],onDelete:Restrict)
  userId String @db.Char(36)

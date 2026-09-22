@@ -18,7 +18,7 @@ export function checklist(fuelType:string,raw:unknown){
  ];
 }
 export const answerSchema=z.object({key:z.string().max(80),response:z.enum(["PASS","DEFECT","NA"]),severity:z.enum(["MINOR","CRITICAL"]).optional(),notes:z.string().trim().max(2000).default(""),imageIds:z.array(z.string().uuid()).max(4).default([]),secured:z.boolean().default(false)});
-export const submissionSchema=z.object({id:z.string().uuid(),vehicleId:z.string().uuid(),clientStartedAt:z.string().datetime(),mileage:z.number().int().min(0).max(9999999),version:z.literal(CHECKLIST_VERSION),initialImageId:z.string().uuid(),answers:z.array(answerSchema).max(90),declaration:z.literal(true)});
+export const submissionSchema=z.object({amendmentOf:z.string().uuid().optional(),id:z.string().uuid(),vehicleId:z.string().uuid(),clientStartedAt:z.string().datetime(),mileage:z.number().int().min(0).max(9999999),version:z.literal(CHECKLIST_VERSION),initialImageId:z.string().uuid(),answers:z.array(answerSchema).max(90),declaration:z.literal(true)});
 export type Submission=z.infer<typeof submissionSchema>;
 export function validateCheck(input:Submission,vehicle:{fuelType:string;config:unknown;mileage:number;status:string}){
  if(vehicle.status==="ARCHIVED")throw Error("This vehicle is archived. Ask management to review your saved check.");

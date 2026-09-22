@@ -8,7 +8,7 @@ import {writeComplianceFile,readComplianceFile,removeComplianceFile,contentMatch
 import {audit} from "@/lib/audit";
 export async function GET(req:NextRequest){return withVehicle(req,async user=>{
  const id=req.nextUrl.searchParams.get("id")||"";const row=await prisma.documentRecord.findFirst({where:{id,sourceType:"VEHICLE_EVIDENCE"}});
- if(!row||(row.createdById!==user.id&&!await canReviewFleet()))return jsonError("Photograph not found.",404);
+ if(!row||(row.createdById!==user.id&&!await canReviewFleet(req)))return jsonError("Photograph not found.",404);
  await audit("VEHICLE_EVIDENCE_VIEWED",{actorType:"USER",actorId:user.id,entityType:"DocumentRecord",entityId:id});
  return new NextResponse(await readComplianceFile(row.storagePath),{headers:{"content-type":"image/jpeg","cache-control":"private, no-store","x-content-type-options":"nosniff"}});
 });}

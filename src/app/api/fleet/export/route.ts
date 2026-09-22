@@ -7,7 +7,7 @@ import {audit} from "@/lib/audit";
 import type {CheckRecord} from "@/components/vehicle-check-record";
 const csv=(v:unknown)=>`"${String(v??"").replace(/^[=+@-]/,"'$&").replaceAll('"','""')}"`;
 export async function GET(req:NextRequest){return withVehicle(req,async user=>{
- const q=req.nextUrl.searchParams,id=q.get("id"),manager=await canReviewFleet();
+ const q=req.nextUrl.searchParams,id=q.get("id"),manager=await canReviewFleet(req);
  if(id){const row=await prisma.vehicleCheck.findUnique({where:{id}});if(!row||(!manager&&row.userId!==user.id))return jsonError("Check not found.",404);const s=row.snapshot as unknown as CheckRecord["snapshot"];
  const lines=[`${s.vehicle.name} - ${s.vehicle.registration}`,`Staff: ${row.staffName}`,`Mileage: ${row.mileage} | Outcome: ${row.outcome}`,`Device start: ${row.clientStartedAt.toISOString()}`,`Server submission: ${row.submittedAt.toISOString()}`,`Record: ${row.id}`,`Checklist: ${row.checklistVersion} | Declaration: ${row.declarationVersion}`,"",...s.answers.flatMap(a=>[`${a.label}: ${a.response}${a.severity?` (${a.severity})`:""}`,...(a.notes?[a.notes]:[]),...(a.response==="DEFECT"?a.imageIds.map(i=>`Private evidence reference: ${i}`):[])]),"",s.declaration,"Evidence photographs are available in the authenticated check detail view."];
  const wrapped=lines.flatMap(l=>l.match(/.{1,92}(?:\s|$)|.{1,92}/g)||[""]);await audit("VEHICLE_CHECK_EXPORTED",{actorType:"USER",actorId:user.id,entityType:"VehicleCheck",entityId:id});return new NextResponse(simplePdf("Daily vehicle check",wrapped),{headers:{"content-type":"application/pdf","content-disposition":`attachment; filename="vehicle-check-${id}.pdf"`,"cache-control":"private, no-store"}});}

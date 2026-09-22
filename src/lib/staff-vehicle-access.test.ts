@@ -1,0 +1,15 @@
+import {beforeEach,it,expect,vi} from "vitest";
+import {NextRequest,NextResponse} from "next/server";
+const state=vi.hoisted(()=>({enabled:true,signedIn:true,staff:vi.fn(),management:vi.fn()}));
+vi.mock("./staff-area-auth",()=>({staffSession:state.staff}));
+vi.mock("./security",()=>({getSession:state.management}));
+vi.mock("./api",()=>({mutationOriginAllowed:()=>true,jsonError:(error:string,status:number)=>NextResponse.json({error},{status})}));
+vi.mock("./rate-limit",()=>({rateLimit:()=>({allowed:true})}));
+import {withVehicle,canReviewFleet} from "./fleet-auth";
+const req=()=>new NextRequest("http://localhost/api/staff-area/vehicle/checks",{method:"POST"});
+beforeEach(()=>{vi.clearAllMocks();state.enabled=true;state.signedIn=true;state.staff.mockImplementation(async()=>state.signedIn?{user:{id:"staff-account",role:"TEAM_LEADER",permissionOverrides:{"vehicle.check":state.enabled}}}:null);state.management.mockResolvedValue({user:{id:"admin",role:"ADMINISTRATOR"},scope:"FULL"})});
+it("uses the existing staff session even if another management account is signed in",async()=>{const r=await withVehicle(req(),async user=>NextResponse.json({id:user.id}));expect(await r.json()).toEqual({id:"staff-account"});expect(state.management).not.toHaveBeenCalled()});
+it("requires Fleet user access for staff checks",async()=>{state.enabled=false;const handler=vi.fn();expect((await withVehicle(req(),handler)).status).toBe(403);expect(handler).not.toHaveBeenCalled()});
+it("does not fall back to a management cookie when the staff session expires",async()=>{state.signedIn=false;expect((await withVehicle(req(),vi.fn())).status).toBe(401);expect(state.management).not.toHaveBeenCalled()});
+it("never grants fleet-wide record access through the Staff app",async()=>{expect(await canReviewFleet(req())).toBe(false);expect(state.management).not.toHaveBeenCalled()});
+it("preserves management authentication on existing fleet endpoints",async()=>{const r=await withVehicle(new NextRequest("http://localhost/api/fleet/checks"),async user=>NextResponse.json({id:user.id}));expect(await r.json()).toEqual({id:"admin"});expect(state.staff).not.toHaveBeenCalled()});

@@ -5,11 +5,11 @@ export type Draft={id:string;userId:string;staffName:string;vehicle:Vehicle;clie
 export async function saveLocal(key:string,value:unknown){const database=await db();await database.put("metadata",{key:`vehicle:${key}`,value});}
 export async function loadLocal<T>(key:string){return (await (await db()).get("metadata",`vehicle:${key}`))?.value as T|undefined;}
 export function newDraft(user:{id:string;name:string},vehicle:Vehicle):Draft{return {id:crypto.randomUUID(),userId:user.id,staffName:user.name,vehicle,clientStartedAt:new Date().toISOString(),mileage:vehicle.mileage,answers:checklist(vehicle.fuelType,vehicle.config).flatMap(s=>s.items).filter(i=>!i.applicable).map(i=>({key:i.key,response:"NA",notes:"",imageIds:[],secured:false})),images:[],initialImageId:"",step:0,declaration:false,state:"DRAFT"};}
-export async function syncDraft(draft:Draft){
- const identity=await fetch("/api/fleet/vehicles",{cache:"no-store"});if(!identity.ok||(await identity.json()).user?.id!==draft.userId)throw Error("Sign in as the account that started this check before syncing.");
- for(const image of draft.images){const form=new FormData();form.set("id",image.id);form.set("checkId",draft.id);form.set("file",image.blob,"vehicle.jpg");const r=await fetch("/api/fleet/evidence",{method:"POST",body:form});if(!r.ok)throw Error((await r.json()).error||"Photograph upload failed.");}
+export async function syncDraft(draft:Draft,apiBase="/api/fleet"){
+ const identity=await fetch(`${apiBase}/vehicles`,{cache:"no-store"});if(!identity.ok||(await identity.json()).user?.id!==draft.userId)throw Error("Sign in as the account that started this check before syncing.");
+ for(const image of draft.images){const form=new FormData();form.set("id",image.id);form.set("checkId",draft.id);form.set("file",image.blob,"vehicle.jpg");const r=await fetch(`${apiBase}/evidence`,{method:"POST",body:form});if(!r.ok)throw Error((await r.json()).error||"Photograph upload failed.");}
  const payload:Submission={id:draft.id,vehicleId:draft.vehicle.id,clientStartedAt:draft.clientStartedAt,mileage:draft.mileage,version:CHECKLIST_VERSION,initialImageId:draft.initialImageId,answers:draft.answers,declaration:true};
- const response=await fetch("/api/fleet/checks",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(payload)});const result=await response.json();if(!response.ok)throw Error(result.error||"Sync failed. Your saved check is safe.");
+ const response=await fetch(`${apiBase}/checks`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(payload)});const result=await response.json();if(!response.ok)throw Error(result.error||"Sync failed. Your saved check is safe.");
  const synced:Draft={...draft,state:"SYNCED",result:result.outcome,images:[]};await saveLocal(`draft:${draft.userId}`,synced);return synced;
 }
 export async function preparePhoto(file:File):Promise<Blob>{

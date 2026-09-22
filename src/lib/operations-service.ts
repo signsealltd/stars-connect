@@ -1,3 +1,4 @@
+import {formatInTimeZone} from "date-fns-tz";
 import { Prisma, type OperationStatus, type User } from "@prisma/client";
 import { addDays } from "date-fns";
 import { prisma } from "./prisma";
@@ -57,10 +58,16 @@ export async function confirmStaffEndDate(user:User,staffId:string,endDate:strin
  },serial);
 }
 
-export async function createOperation(user:User,input:{title:string;type:string;description?:string;internalNotes?:string;startAt:string;endAt:string;timezone?:string;location?:string;premisesName?:string;roomName?:string;requiredStaffCount?:number;requiresCompliance?:boolean;recurrenceRule?:Prisma.InputJsonValue;attendeeStudentIds?:string[]}){
+export async function createOperation(user:User,input:{title:string;type:string;description?:string;internalNotes?:string;startAt:string;endAt:string;timezone?:string;location?:string;premisesName?:string;roomName?:string;requiredStaffCount?:number;requiresCompliance?:boolean;recurrenceRule?:Prisma.InputJsonValue;attendeeStudentIds?:string[];assignedStaffIds?:string[];initialStatus?:"PLANNING"}){
  const organisationId=requireOrganisation(user);
  return prisma.$transaction(async tx=>{
   const attendeeStudentIds=[...new Set(input.attendeeStudentIds??[])];
+  const assignedStaffIds=[...new Set(input.assignedStaffIds??[])];
+  if(assignedStaffIds.length){
+   const staffDate=dbDate(formatInTimeZone(new Date(input.startAt),input.timezone??"Europe/London","yyyy-MM-dd"));
+   const available=await tx.staffMember.count({where:{id:{in:assignedStaffIds},active:true,archivedAt:null,startDate:{lte:staffDate},OR:[{endDate:null},{endDate:{gte:staffDate}}]}});
+   if(available!==assignedStaffIds.length)throw Object.assign(new Error("One or more selected staff are unavailable on this date."),{status:422});
+  }
   if(attendeeStudentIds.length){
    const available=await tx.student.count({where:{id:{in:attendeeStudentIds},active:true,archivedAt:null}});
    if(available!==attendeeStudentIds.length)throw Object.assign(new Error("One or more selected clients are no longer available."),{status:422});
@@ -69,11 +76,13 @@ export async function createOperation(user:User,input:{title:string;type:string;
   const series=input.recurrenceRule?await tx.operationSeries.create({data:{organisationId,operationId:operation.id,recurrenceRule:input.recurrenceRule,timezone:input.timezone??"Europe/London"}}):null;
   const dates=input.recurrenceRule?expandRecurrence(new Date(input.startAt),new Date(input.endAt),input.recurrenceRule as never,input.timezone??"Europe/London"):[{startAt:new Date(input.startAt),endAt:new Date(input.endAt)}];
   const occurrences=[];for(const dateslot of dates){
-   const occurrence=await tx.operationOccurrence.create({data:{organisationId,operationId:operation.id,seriesId:series?.id,startAt:dateslot.startAt,endAt:dateslot.endAt,timezone:input.timezone??"Europe/London",location:input.location,premisesName:input.premisesName,roomName:input.roomName,requiredStaffCount:input.requiredStaffCount??0,requiresCompliance:input.requiresCompliance??false}});
+   if(assignedStaffIds.length&&await tx.operationStaffAssignment.findFirst({where:{organisationId,staffId:{in:assignedStaffIds},status:"ASSIGNED",occurrence:{status:{notIn:["COMPLETED","CANCELLED"]},startAt:{lt:dateslot.endAt},endAt:{gt:dateslot.startAt}}}}))throw Object.assign(new Error("A selected staff member already has an activity at this time. Choose another time or staff member."),{status:409});
+   const occurrence=await tx.operationOccurrence.create({data:{organisationId,operationId:operation.id,seriesId:series?.id,status:input.initialStatus??"DRAFT",staffVisibleNotes:input.initialStatus==="PLANNING"?input.description:undefined,startAt:dateslot.startAt,endAt:dateslot.endAt,timezone:input.timezone??"Europe/London",location:input.location,premisesName:input.premisesName,roomName:input.roomName,requiredStaffCount:input.requiredStaffCount??0,requiresCompliance:input.requiresCompliance??false}});
    occurrences.push(occurrence);
+   if(assignedStaffIds.length)await tx.operationStaffAssignment.createMany({data:assignedStaffIds.map(staffId=>({organisationId,occurrenceId:occurrence.id,staffId,status:"ASSIGNED" as const,createdById:user.id}))});
    if(attendeeStudentIds.length)await tx.operationAttendee.createMany({data:attendeeStudentIds.map(studentId=>({organisationId,occurrenceId:occurrence.id,studentId,status:"PLANNED" as const,createdById:user.id}))});
   }const occurrence=occurrences[0];
-  await tx.auditLog.create({data:{action:"OPERATION_CREATED",actorType:"USER",actorId:user.id,entityType:"Operation",entityId:operation.id,afterValue:{organisationId,occurrenceId:occurrence.id,type:input.type,status:"DRAFT",attendeeCount:attendeeStudentIds.length}}});
+  await tx.auditLog.create({data:{action:"OPERATION_CREATED",actorType:"USER",actorId:user.id,entityType:"Operation",entityId:operation.id,afterValue:{organisationId,occurrenceId:occurrence.id,type:input.type,status:input.initialStatus??"DRAFT",staffCount:assignedStaffIds.length,attendeeCount:attendeeStudentIds.length}}});
   return{operation,series,occurrence,occurrencesCreated:occurrences.length};
  },serial);
 }

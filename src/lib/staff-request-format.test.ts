@@ -1,0 +1,4 @@
+import {it,expect} from "vitest";
+import {requestDetailRows} from "./staff-request-format";
+it("normalises nested historic and current contact fields to matching labels",()=>{const before=requestDetailRows({profile:{address:"First line\nPostcode",emergencyContact:"Name\nPhone"}});const after=requestDetailRows({address:"New address",emergencyContact:"New contact"});expect(before.map(r=>r.key)).toEqual(after.map(r=>r.key));expect(before[0]).toEqual({key:"address",label:"Address",value:"First line\nPostcode"});expect(before[1].label).toBe("Emergency contact")});
+it("shows explicit no, empty values and readable field names",()=>{expect(requestDetailRows({notifications:false,phone:"",jobRole:"Manager",draft:true})).toEqual([{key:"notifications",label:"Notifications",value:"No"},{key:"phone",label:"Phone number",value:"Not provided"},{key:"jobRole",label:"Job title",value:"Manager"}])});

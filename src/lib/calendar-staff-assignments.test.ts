@@ -1,0 +1,13 @@
+import {beforeEach,it,expect,vi} from "vitest";
+import type {User} from "@prisma/client";
+const state=vi.hoisted(()=>({available:2,conflict:false,occurrence:vi.fn(),assign:vi.fn(),attend:vi.fn()}));
+vi.mock("./compliance-service",()=>({requireOrganisation:()=>"org"}));
+vi.mock("./prisma",()=>({prisma:{$transaction:async(fn:(tx:unknown)=>Promise<unknown>)=>fn({staffMember:{count:async()=>state.available},student:{count:async()=>1},operation:{create:async()=>({id:"op"})},operationOccurrence:{create:state.occurrence},operationStaffAssignment:{findFirst:async()=>state.conflict?{id:"busy"}:null,createMany:state.assign},operationAttendee:{createMany:state.attend},auditLog:{create:async()=>({})}})}}));
+import {createOperation} from "./operations-service";
+const actor={id:"manager"} as User;
+const input={title:"Art activity",type:"ACTIVITY",startAt:"2026-10-01T08:00:00Z",endAt:"2026-10-01T09:00:00Z",assignedStaffIds:["one","two","one"],attendeeStudentIds:["client"],initialStatus:"PLANNING" as const};
+beforeEach(()=>{vi.clearAllMocks();state.available=2;state.conflict=false;state.occurrence.mockImplementation(async({data})=>({id:"occ",...data}))});
+it("creates a visible planned activity with unique staff and client assignments",async()=>{const result=await createOperation(actor,input);expect(result.occurrence.status).toBe("PLANNING");expect(state.assign.mock.calls[0][0].data.map((a:{staffId:string})=>a.staffId)).toEqual(["one","two"]);expect(state.attend.mock.calls[0][0].data[0]).toMatchObject({studentId:"client",status:"PLANNED"})});
+it("rejects unavailable staff before creating the activity",async()=>{state.available=1;await expect(createOperation(actor,input)).rejects.toMatchObject({status:422});expect(state.occurrence).not.toHaveBeenCalled()});
+it("rejects overlapping staff assignments before saving the occurrence",async()=>{state.conflict=true;await expect(createOperation(actor,input)).rejects.toMatchObject({status:409});expect(state.assign).not.toHaveBeenCalled()});
+it("keeps non-calendar operation creation in draft",async()=>{const result=await createOperation(actor,{...input,initialStatus:undefined,assignedStaffIds:[]});expect(result.occurrence.status).toBe("DRAFT");expect(state.assign).not.toHaveBeenCalled()});

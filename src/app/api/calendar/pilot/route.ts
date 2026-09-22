@@ -19,6 +19,7 @@ const createSchema = z.object({
   endTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
   location: z.string().trim().max(191).optional(),
   description: z.string().trim().max(2000).optional(),
+  staffIds: z.array(z.string().uuid()).max(250).default([]).transform(ids => [...new Set(ids)]),
   studentIds: z.array(z.string().uuid()).max(250).default([]).transform(ids => [...new Set(ids)]),
 });
 
@@ -78,10 +79,11 @@ export async function POST(req: NextRequest) {
     if (!parsed.success || parsed.data.endTime <= parsed.data.startTime) return jsonError("Check the activity title, date and times.", 422);
     const input = parsed.data;
     if (input.studentIds.length && !hasCapability(user.role, CAPABILITIES.OPERATIONS_ASSIGN_ATTENDEES, user.permissionOverrides)) return jsonError("You do not have permission to assign clients to activities.", 403);
+    if (input.staffIds.length && !hasCapability(user.role, CAPABILITIES.OPERATIONS_ASSIGN_STAFF, user.permissionOverrides)) return jsonError("You do not have permission to assign staff to activities.", 403);
     const startAt = fromZonedTime(`${input.date}T${input.startTime}:00`, APP_TIME_ZONE).toISOString();
     const endAt = fromZonedTime(`${input.date}T${input.endTime}:00`, APP_TIME_ZONE).toISOString();
     try {
-      const created = await createOperation(user, { title: input.title, type: input.type, description: input.description, startAt, endAt, timezone: APP_TIME_ZONE, location: input.location, attendeeStudentIds: input.studentIds });
+      const created = await createOperation(user, { title: input.title, type: input.type, description: input.description, startAt, endAt, timezone: APP_TIME_ZONE, location: input.location, attendeeStudentIds: input.studentIds, assignedStaffIds: input.staffIds, initialStatus: "PLANNING" });
       return NextResponse.json(created, { status: 201 });
     } catch (error) {
       return jsonError(error instanceof Error ? error.message : "Unable to create the activity.", Number((error as { status?: number }).status ?? 500));

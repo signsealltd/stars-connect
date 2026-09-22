@@ -1,0 +1,8 @@
+"use client";
+import {useEffect,useState} from "react";
+type Row={id:string;name:string;role:string;enabled:boolean};
+export function FleetUserAccess(){const [rows,setRows]=useState<Row[]>([]),[search,setSearch]=useState(""),[message,setMessage]=useState("Loading users…"),[busy,setBusy]=useState<string>();
+ useEffect(()=>{fetch("/api/fleet/access").then(async r=>{const d=await r.json();if(!r.ok)throw Error(d.error);setRows(d);setMessage("")}).catch(e=>setMessage(e.message))},[]);
+ async function save(row:Row,enabled:boolean){setBusy(row.id);setMessage("");try{const r=await fetch("/api/fleet/access",{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify({userId:row.id,enabled})});const d=await r.json();if(!r.ok)throw Error(d.error);setRows(old=>old.map(u=>u.id===row.id?{...u,enabled}:u));setMessage("Access updated for "+row.name+".")}catch(e){setMessage(e instanceof Error?e.message:"Unable to save access.")}finally{setBusy(undefined)}}
+ return <section className="card" style={{padding:22,marginTop:20}}><h2>Vehicle check access</h2><p>Choose who can complete vehicle checks. Enabled users get the dashboard quick action. Administrators always have access.</p><label>Search users<input className="field" type="search" value={search} onChange={e=>setSearch(e.target.value)}/></label><p role="status">{message}</p>{rows.filter(u=>u.name.toLowerCase().includes(search.toLowerCase())).map(u=><label key={u.id} className="check-row" style={{display:"flex",gap:12,padding:12}}><input type="checkbox" checked={u.enabled} disabled={!!busy||u.role==="ADMINISTRATOR"} onChange={e=>void save(u,e.target.checked)}/><span>{u.name}{u.role==="ADMINISTRATOR"&&<small> · Administrator — always enabled</small>}</span></label>)}</section>
+}

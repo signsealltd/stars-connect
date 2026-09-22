@@ -1,3 +1,4 @@
+import {applyVehicleUserAccess} from "@/lib/vehicle-user-access";
 import {NextRequest,NextResponse} from "next/server";
 import bcrypt from "bcryptjs";
 import {prisma} from "@/lib/prisma";
@@ -16,8 +17,9 @@ export async function POST(req:NextRequest){
  if(!credential||!credential.staff.active||!credential.staff.userId||!await bcrypt.compare(body.pin,credential.valueHash))return jsonError("PIN not recognised or staff access has not been set up.",401);
  const user=await prisma.user.findUnique({where:{id:credential.staff.userId}});if(!user?.active)return jsonError("Staff account unavailable.",403);
  const level=user.accessLevelId?await prisma.accessLevel.findUnique({where:{id:user.accessLevelId}}):null;
- const allowed=user.accessLevelId?level?.active&&(level.permissions as Record<string,boolean>)[CAPABILITIES.VEHICLE_CHECK]:hasCapability(user.role,CAPABILITIES.VEHICLE_CHECK,user.permissionOverrides);
- if(!allowed)return jsonError("Ask management to enable vehicle checks for your access level.",403);
+ await applyVehicleUserAccess(user);
+ const allowed=(user.role==="ADMINISTRATOR"||!user.accessLevelId||level?.active)&&hasCapability(user.role,CAPABILITIES.VEHICLE_CHECK,user.permissionOverrides);
+ if(!allowed)return jsonError("Ask management to enable Vehicle check for you under Fleet → User access.",403);
  await createSession(user.id,"VEHICLE");await audit("VEHICLE_PIN_SIGN_IN",{actorType:"USER",actorId:user.id,deviceId:device.id});
  return NextResponse.json({id:user.id,name:user.name});
 }

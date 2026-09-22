@@ -16,7 +16,7 @@ export const quickActionOptions = [
   { id: "calendar", label: "Operational calendar", href: "/dashboard/calendar" },
   { id: "staffCalendar", label: "Staff calendar", href: "/staff-portal/calendar" },
   { id: "staffPortal", label: "Policies & staff resources", href: "/staff-portal" },
-  { id: "vehicleCheck", label: "Complete Vehicle Check", href: "/VehicleCheck" },
+  { id: "vehicleCheck", label: "Vehicle check", href: "/VehicleCheck" },
   { id: "fleet", label: "Fleet & vehicle defects", href: "/dashboard/premises/fleet" },
   { id: "timesheets", label: "Timesheets", href: "/timesheets" },
   { id: "informationReviews", label: "Client information reviews", href: "/dashboard/information-reviews" },
@@ -30,7 +30,7 @@ export const quickActionOptions = [
 
 export const preferenceDefaults = {
   colourMode: "light" as "light" | "dark" | "system",
-  quickActions: ["emergency", "staff", "students", "billing", "calendar", "fleet"] as string[],
+  quickActions: ["emergency", "staff", "students", "billing", "calendar", "vehicleCheck", "fleet"] as string[],
 };
 
 export async function getUserPreferences(userId: string) {

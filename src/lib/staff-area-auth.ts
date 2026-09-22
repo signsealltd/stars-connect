@@ -1,3 +1,4 @@
+import {applyVehicleUserAccess} from "./vehicle-user-access";
 import {cookies} from "next/headers";
 import {randomBytes} from "crypto";
 import {NextRequest,NextResponse} from "next/server";
@@ -15,6 +16,7 @@ export async function staffSession(){
  const userId=session.account.staff.userId;if(!userId)return null;
  const user=await prisma.user.findUnique({where:{id:userId}});if(!user?.active||!user.organisationId)return null;
  if(user.accessLevelId&&user.role!=="ADMINISTRATOR"){const level=await prisma.accessLevel.findUnique({where:{id:user.accessLevelId}});if(!level?.active)return null;user.role=level.baseRole;user.permissionOverrides={...Object.fromEntries(Object.values(CAPABILITIES).map(c=>[c,false])),...(level.permissions as Record<string,boolean>)};}
+ await applyVehicleUserAccess(user);
  if(!hasCapability(user.role,CAPABILITIES.STAFF_PORTAL,user.permissionOverrides))return null;
  await prisma.staffPortalSession.updateMany({where:{id:session.id,lastSeenAt:session.lastSeenAt},data:{lastSeenAt:now}});
  return {session,account:session.account,staff:session.account.staff,user};

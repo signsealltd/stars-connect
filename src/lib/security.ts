@@ -1,3 +1,4 @@
+import {applyVehicleUserAccess} from "./vehicle-user-access";
 import {CAPABILITIES} from "./permission-catalog";
 import { createHash, randomBytes, timingSafeEqual } from "crypto";
 import { cookies } from "next/headers";
@@ -85,7 +86,7 @@ export async function getSession(allowVehicle = false) {
   }
   const linkedStaff=await prisma.staffMember.findUnique({where:{userId:session.user.id},select:{active:true}});
   if(linkedStaff&&!linkedStaff.active)return null;
-  const user = await ensureSingleOrganisationAssignment(session.user);
+  const user = await applyVehicleUserAccess(await ensureSingleOrganisationAssignment(session.user));
   return { ...session, user };
 }
 

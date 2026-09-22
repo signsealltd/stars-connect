@@ -1,0 +1,14 @@
+import {beforeEach,it,expect,vi} from "vitest";
+import {NextRequest} from "next/server";
+const state=vi.hoisted(()=>({manage:true,targetRole:"TEAM_LEADER",target:true,find:vi.fn(),upsert:vi.fn(),audit:vi.fn()}));
+vi.mock("@/lib/api",()=>({withCapability:async(_r:unknown,_c:unknown,fn:(actor:{id:string;organisationId:string;role:string;permissionOverrides:object})=>Promise<Response>)=>fn({id:"actor",organisationId:"org",role:"MANAGER",permissionOverrides:{}}),jsonError:(error:string,status:number)=>Response.json({error},{status})}));
+vi.mock("@/lib/permissions",()=>({CAPABILITIES:{FLEET_MANAGE:"fleet.manage",USERS_MANAGE:"users.manage"},hasCapability:()=>state.manage}));
+vi.mock("@/lib/prisma",()=>{const tx={appSetting:{upsert:state.upsert},auditLog:{create:state.audit}};return {prisma:{user:{findFirst:state.find},$transaction:async(fn:(client:typeof tx)=>Promise<unknown>)=>fn(tx)}}});
+import {PUT} from "@/app/api/fleet/access/route";
+const userId="11111111-1111-4111-8111-111111111111";
+const request=()=>new NextRequest("http://localhost/api/fleet/access",{method:"PUT",body:JSON.stringify({userId,enabled:true})});
+beforeEach(()=>{state.manage=true;state.target=true;state.targetRole="TEAM_LEADER";vi.clearAllMocks();state.find.mockImplementation(async()=>state.target?{id:userId,role:state.targetRole}:null)});
+it("requires user-management permission in addition to the fleet gate",async()=>{state.manage=false;expect((await PUT(request())).status).toBe(403);expect(state.upsert).not.toHaveBeenCalled()});
+it("limits changes to an active user in the current organisation",async()=>{state.target=false;expect((await PUT(request())).status).toBe(404);expect(state.find).toHaveBeenCalledWith({where:{id:userId,organisationId:"org",active:true}});expect(state.upsert).not.toHaveBeenCalled()});
+it("does not allow administrators to be restricted",async()=>{state.targetRole="ADMINISTRATOR";expect((await PUT(request())).status).toBe(422);expect(state.upsert).not.toHaveBeenCalled()});
+it("saves access and audit history together",async()=>{expect((await PUT(request())).status).toBe(200);expect(state.upsert).toHaveBeenCalledOnce();expect(state.audit).toHaveBeenCalledOnce()});

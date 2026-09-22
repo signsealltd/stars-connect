@@ -1,8 +1,10 @@
+import {clientIsOnSite} from "./client-presence";
 import { isExpectedDay } from "./dates";
 
 type Student = { id: string; expectedDays: unknown };
 type Attendance = {
   studentId: string;
+  departureTime?: Date|string|null;
   status: "NOT_MARKED" | "PRESENT" | "ABSENT" | "OFFSITE" | "LATE" | "CANCELLED";
 };
 type LatestClockEvent = {
@@ -31,11 +33,11 @@ export function studentDashboardMetrics(
 
   return {
     present: activeAttendance.filter(
-      (row) => row.status === "PRESENT" || row.status === "LATE",
+      clientIsOnSite,
     ).length,
     absent: activeAttendance.filter((row) => row.status === "ABSENT").length,
     offsite: activeAttendance.filter((row) => row.status === "OFFSITE").length,
-    late: activeAttendance.filter((row) => row.status === "LATE").length,
+    late: activeAttendance.filter((row) => row.status === "LATE" && clientIsOnSite(row)).length,
     expected: expectedIds.size,
     notMarked: [...expectedIds].filter((id) => !markedExpectedIds.has(id)).length,
   };

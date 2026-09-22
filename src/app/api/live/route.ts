@@ -1,3 +1,4 @@
+import {clientOnSiteWhere} from "@/lib/client-presence";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { withRole } from "@/lib/api";
@@ -39,7 +40,7 @@ export async function GET(req: NextRequest) {
       prisma.studentAttendance.findMany({
         where: {
           date,
-          status: { in: ["PRESENT", "LATE"] },
+          ...clientOnSiteWhere,
           student: { active: true },
           device: { isSeedData: false, lastSyncAt: { not: null } },
         },

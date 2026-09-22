@@ -1,0 +1,10 @@
+import {describe,it,expect} from "vitest";
+import {clientIsOnSite,clientOnSiteWhere} from "./client-presence";
+import {studentDashboardMetrics} from "./dashboard-metrics";
+import {readFileSync} from "node:fs";
+describe("client current presence",()=>{
+ it.each(["PRESENT","LATE"])("excludes departed %s clients without losing their attendance mark",status=>{const rows=[{studentId:"client",status:status as "PRESENT"|"LATE",departureTime:new Date("2026-09-22T15:00:00Z")}];expect(clientIsOnSite(rows[0])).toBe(false);expect(studentDashboardMetrics([{id:"client",expectedDays:[2]}],rows,"2026-09-22")).toMatchObject({present:0,late:0,expected:1,notMarked:0,absent:0,offsite:0})});
+ it("moves offsite clients out of present and into offsite, and restores them on return",()=>{const students=[{id:"client",expectedDays:[2]}];expect(studentDashboardMetrics(students,[{studentId:"client",status:"OFFSITE",departureTime:"2026-09-22T12:00:00Z"}],"2026-09-22")).toMatchObject({present:0,offsite:1,notMarked:0});expect(studentDashboardMetrics(students,[{studentId:"client",status:"PRESENT",departureTime:null}],"2026-09-22")).toMatchObject({present:1,offsite:0,notMarked:0})});
+ it("includes current late arrivals but never absent, unmarked or cancelled clients",()=>{expect(clientIsOnSite({status:"LATE",departureTime:null})).toBe(true);for(const status of ["ABSENT","NOT_MARKED","CANCELLED","OFFSITE"])expect(clientIsOnSite({status})).toBe(false)});
+ it("uses the same occupancy rule for new offline roll calls and the live query",()=>{const rows=[{status:"PRESENT"},{status:"PRESENT",departureTime:"2026-09-22T15:00:00Z"},{status:"OFFSITE"},{status:"LATE"}];expect(rows.filter(clientIsOnSite)).toHaveLength(2);expect(clientOnSiteWhere).toEqual({status:{in:["PRESENT","LATE"]},departureTime:null});const emergency=readFileSync("src/app/emergency/page.tsx","utf8");expect(emergency).toContain("attendance.filter(clientIsOnSite)");expect(emergency).toContain("startedAt:existing?.startedAt");expect(readFileSync("src/app/api/live/route.ts","utf8")).toContain("...clientOnSiteWhere")});
+});

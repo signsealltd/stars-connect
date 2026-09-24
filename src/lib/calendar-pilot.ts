@@ -1,14 +1,7 @@
-import type { Role } from "@prisma/client";
-
 export const CALENDAR_PILOT_MAX_DAYS = 31;
-export const CALENDAR_PILOT_ROLES: Role[] = ["MANAGER", "DIRECTOR", "ADMINISTRATOR"];
 
 export function calendarPilotEnabled(value = process.env.CALENDAR_PILOT_ENABLED) {
   return value !== "false";
-}
-
-export function canUseCalendarPilot(role: Role) {
-  return CALENDAR_PILOT_ROLES.includes(role);
 }
 
 export function expectedOnDate(expectedDays: unknown, dateKey: string) {

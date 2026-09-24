@@ -1,13 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { calendarDateKeys, calendarPilotEnabled, canUseCalendarPilot, expectedOnDate } from "./calendar-pilot";
+import { calendarDateKeys, calendarPilotEnabled, expectedOnDate } from "./calendar-pilot";
 
 describe("restricted calendar pilot", () => {
-  it("is available to managers, directors and administrators", () => {
-    expect(canUseCalendarPilot("ADMINISTRATOR")).toBe(true);
-    expect(canUseCalendarPilot("DIRECTOR")).toBe(true);
-    expect(canUseCalendarPilot("MANAGER")).toBe(true);
-    expect(canUseCalendarPilot("RECEPTION")).toBe(false);
-  });
   it("supports an emergency environment kill switch", () => {
     expect(calendarPilotEnabled(undefined)).toBe(true);
     expect(calendarPilotEnabled("true")).toBe(true);

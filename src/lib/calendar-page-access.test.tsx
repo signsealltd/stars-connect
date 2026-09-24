@@ -1,0 +1,14 @@
+import React from "react";
+import {afterEach,beforeEach,expect,it,vi} from "vitest";
+const state=vi.hoisted(()=>({user:{active:true,role:"TEAM_LEADER",permissionOverrides:{"calendar.view":true,"calendar.manage":false}}}));
+vi.mock("./security",()=>({getSession:async()=>({user:state.user})}));
+vi.mock("next/navigation",()=>({redirect:(url:string)=>{throw new Error(url)}}));
+vi.mock("@/components/header",()=>({Header:()=>null}));
+vi.mock("@/components/calendar-pilot",()=>({CalendarPilot:()=>null}));
+import CalendarPage from "@/app/dashboard/calendar/page";
+beforeEach(()=>{vi.stubGlobal("React",React);vi.stubEnv("CALENDAR_PILOT_ENABLED","true");state.user={active:true,role:"TEAM_LEADER",permissionOverrides:{"calendar.view":true,"calendar.manage":false}}});
+afterEach(()=>{vi.unstubAllGlobals();vi.unstubAllEnvs()});
+it("opens the actual calendar page for a Team Leader with view permission only",async()=>{expect(await CalendarPage()).toBeTruthy()});
+it("rejects a Team Leader without calendar view permission",async()=>{state.user.permissionOverrides["calendar.view"]=false;await expect(CalendarPage()).rejects.toThrow("/access-denied?from=calendar.view")});
+it("respects an explicit calendar denial for a manager",async()=>{state.user.role="MANAGER";state.user.permissionOverrides["calendar.view"]=false;await expect(CalendarPage()).rejects.toThrow("/access-denied?from=calendar.view")});
+it("retains the calendar feature switch",async()=>{vi.stubEnv("CALENDAR_PILOT_ENABLED","false");await expect(CalendarPage()).rejects.toThrow("/access-denied?from=calendar-pilot")});

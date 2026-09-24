@@ -64,7 +64,7 @@ export async function DELETE(req:NextRequest,{params}:Params){return withCapabil
  try{await prisma.$transaction(async tx=>{
   const claim=await tx.billingRun.updateMany({where:{id,status:{in:["DRAFT","REQUIRES_REVIEW","REVIEWED"]}},data:{updatedAt:new Date()}});if(!claim.count)throw new Error("Only unissued draft runs can be deleted.");
   if(await tx.invoice.count({where:{billingRunId:id}}))throw new Error("Invoice history must be retained.");
-  await tx.operationalTask.updateMany({where:{billingRunId:id},data:{billingRunId:null,status:"OPEN",notes:"Draft run removed. Prepare a replacement billing run."}});
+  await tx.operationalTask.updateMany({where:{billingRunId:id,status:{not:"ARCHIVED"}},data:{billingRunId:null,status:"OPEN",notes:"Draft run removed. Prepare a replacement billing run."}});
   await tx.billingRun.delete({where:{id}});
  });await audit("BILLING_RUN_DELETED",{actorType:"USER",actorId:user.id,entityType:"BillingRun",entityId:id});return NextResponse.json({ok:true});}catch(error){return jsonError(error instanceof Error?error.message:"Unable to delete run",409)}
 });}

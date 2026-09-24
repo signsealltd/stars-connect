@@ -1,4 +1,5 @@
 "use client";
+import {useTaskRefresh} from "./use-task-refresh";
 
 import Link from "next/link";
 import {StaffAbsences} from "./staff-absences";
@@ -37,8 +38,9 @@ export function CalendarPilot() {
     const query = studentSearch.trim().toLowerCase();
     return (data?.students || []).filter(student => !query || student.name.toLowerCase().includes(query) || (student.reference || "").toLowerCase().includes(query));
   }, [data?.students, studentSearch]);
-  const load = useCallback(async () => { setLoading(true); setError(""); const response = await fetch(`/api/calendar/pilot?start=${start}&end=${end}`, { cache: "no-store" }); const result = await response.json().catch(() => ({})); if (!response.ok) setError(result.error || "Unable to load the calendar."); else setData(result); setLoading(false); }, [start, end]);
-  useEffect(() => { load(); }, [load]);
+  const load = useCallback(async () => { setLoading(true); setError(""); const response = await fetch(`/api/calendar/pilot?start=${start}&end=${end}`, { cache: "no-store" }); const result = await response.json().catch(() => ({})); if (!response.ok) setError(result.error || "Unable to load the calendar."); else {setData(result);setSelectedDay(previous=>previous?result.days.find((d:Day)=>d.date===previous.date):undefined)} setLoading(false); }, [start, end]);
+  useTaskRefresh(load);
+ useEffect(() => { load(); }, [load]);
   function openAdd(date = selectedDay?.date || today()) { setSelectedDay(undefined); setForm(newActivity(date)); setStudentSearch(""); setStaffSearch(""); setEditing(true); }
   function toggleStudent(studentId: string) { setForm(current => ({ ...current, studentIds: current.studentIds.includes(studentId) ? current.studentIds.filter(id => id !== studentId) : [...current.studentIds, studentId] })); }
   async function save(event: React.FormEvent) { event.preventDefault(); setSaving(true); setError(""); const response = await fetch("/api/calendar/pilot", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(form) }); const result = await response.json().catch(() => ({})); if (!response.ok) setError(result.error || "Unable to save the activity."); else { setEditing(false); setForm(newActivity()); await load(); } setSaving(false); }

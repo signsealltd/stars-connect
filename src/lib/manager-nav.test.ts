@@ -4,10 +4,10 @@ import { describe,expect,it } from "vitest";
 import { activeManagerSection,managerNavForRole } from "./manager-nav";
 
 describe("manager navigation permissions",()=>{
- it("keeps portal access and requests out of People",()=>{const groups=managerNavForRole("ADMINISTRATOR");expect(groups.find(g=>g.label==="Staff portal")?.items.map(i=>i.label)).toEqual(["Access","Tasks"]);expect(groups.find(g=>g.label==="People")?.items.some(i=>i.href==="/dashboard/staff/tasks"||i.href==="/dashboard/staff/access")).toBe(false)});
+ it("keeps portal access and requests out of People",()=>{const groups=managerNavForRole("ADMINISTRATOR");expect(groups.some(g=>g.label==="Staff portal")).toBe(false);expect(groups.find(g=>g.label==="Settings")?.items.some(i=>i.label==="Portal access")).toBe(true);expect(groups.flatMap(g=>g.items).some(i=>i.label==="Tasks")).toBe(false);expect(groups.find(g=>g.label==="People")?.items.some(i=>i.href==="/dashboard/staff/tasks"||i.href==="/dashboard/staff/access")).toBe(false)});
   it("groups manager modules without exposing administrator settings",()=>{
     const groups=managerNavForRole("MANAGER");
-    expect(groups.map(group=>group.label)).toEqual(["Calendar","People","Staff portal","Attendance","Safety & Compliance","Finance","Reports","Settings"]);
+    expect(groups.map(group=>group.label)).toEqual(["Calendar","People","Attendance","Safety & Compliance","Finance","Reports","Settings"]);
     const labels=groups.flatMap(group=>group.items.map(item=>item.label));
     expect(labels).toContain("Payroll");
     expect(labels).toContain("Billing");
@@ -30,7 +30,7 @@ describe("manager navigation permissions",()=>{
 
 describe("route-aware active sections",()=>{
   it.each([
-    ["/dashboard/staff/abc","People"],["/dashboard/staff/access","Staff portal"],["/dashboard/staff/tasks","Staff portal"],
+    ["/dashboard/staff/abc","People"],["/dashboard/staff/access","Settings"],["/dashboard/staff/tasks","Dashboard"],
     ["/timesheets","Attendance"],
     ["/emergency","Attendance"],
     ["/dashboard/payroll/runs/abc","Finance"],

@@ -6,7 +6,7 @@ import { createUserSchema } from "@/lib/user-input";
 import { audit } from "@/lib/audit";
 
 const publicUser = {
-  id: true, name: true, username:true, email: true, role: true, active: true, permissionOverrides:true, createdAt: true,
+  id: true, accessLevelId:true, name: true, username:true, email: true, role: true, active: true, permissionOverrides:true, createdAt: true,
 } as const;
 
 export async function GET(req: NextRequest) {

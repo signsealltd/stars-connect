@@ -1,3 +1,5 @@
+import {approveHr} from "@/lib/staff-hr-service";
+import {auditAction,jsonValue} from "@/lib/action-notifications";
 import {applyStaffGrade,canAssignStaffGrade} from "@/lib/staff-grade-access";
 import {profileChangeInput} from "@/lib/staff-area-input";
 import {NextRequest} from "next/server";
@@ -10,6 +12,7 @@ import {canReviewStaffRequest} from "@/lib/staff-task-access";
 export async function GET(req:NextRequest){return withCapability(req,CAPABILITIES.STAFF_TASKS,async user=>{
  const rows=await prisma.staffRequest.findMany({where:{organisationId:user.organisationId!,status:{not:"DRAFT"}},include:{staff:{select:{displayName:true}},events:{orderBy:{createdAt:"asc"}},documents:{where:{expiresAt:{gt:new Date()}},select:{id:true,filename:true}}},orderBy:{createdAt:"desc"},take:500});
  const allowed=rows.filter(r=>canReviewStaffRequest(user,r));
+ for(const r of allowed.filter(r=>r.type==="PROFILE"&&(r.details as Record<string,unknown>)?.hr))await prisma.auditLog.create({data:{action:"STAFF_HR_REQUEST_READ",actorType:"USER",actorId:user.id,entityType:"StaffRequest",entityId:r.id}});
  const reviewers=await prisma.user.findMany({where:{organisationId:user.organisationId!,active:true},select:{id:true,name:true,role:true,permissionOverrides:true,accessLevelId:true}});
  const levels=await prisma.accessLevel.findMany({where:{active:true}});
  const effectiveReviewers=reviewers.map(r=>{const l=levels.find(l=>l.id===r.accessLevelId);return l?{...r,role:l.baseRole,permissionOverrides:{...Object.fromEntries(Object.values(CAPABILITIES).map(c=>[c,false])),...(l.permissions as Record<string,boolean>)}}:r});
@@ -30,7 +33,7 @@ export async function POST(req:NextRequest){return withCapability(req,CAPABILITI
 
   if(v.action==="approve"){
    if(!["LEAVE","PROFILE"].includes(r.type)||!["NEW","IN_REVIEW","WAITING"].includes(r.status))return staffJson({error:"This request cannot be approved."},409);
-   if(r.type==="PROFILE"){const proposed=profileChangeInput.safeParse(d.proposed);if(!proposed.success||!Object.keys(proposed.data).length)return staffJson({error:"Use the staff profile to apply this requested change, then record the outcome here."},422);if(proposed.data.jobRole&&!canAssignStaffGrade(user))return staffJson({error:"User-management permission is required to approve a staff grade change."},403);const updated=await tx.staffMember.update({where:{id:r.staffId},data:proposed.data});if(proposed.data.jobRole)await applyStaffGrade(tx,updated,user);status="APPROVED";}else{const a=await tx.staffScheduleException.create({data:{staffId:r.staffId,organisationId:r.organisationId,startDate:new Date(String(d.startDate)),endDate:new Date(String(d.endDate)),startTime:d.startTime?String(d.startTime):null,endTime:d.endTime?String(d.endTime):null,type:d.category==="UNPAID_LEAVE"?"UNPAID_LEAVE":"ANNUAL_LEAVE",approvalStatus:"APPROVED",notes:"Approved leave",createdById:user.id,approvedById:user.id}});await tx.staffRequest.update({where:{id:r.id},data:{absenceId:a.id}});status="APPROVED";}
+   if(r.type==="PROFILE"&&d.hr){const result=await approveHr(tx,r,user,v.message);await tx.staffRequest.update({where:{id:r.id},data:{details:jsonValue({...d,reviewedBy:user.id,reviewedAt:new Date().toISOString(),auditId:result.auditId})}});status="APPROVED";}else if(r.type==="PROFILE"){const proposed=profileChangeInput.safeParse(d.proposed);if(!proposed.success||!Object.keys(proposed.data).length)return staffJson({error:"Use the staff profile to apply this requested change, then record the outcome here."},422);if(proposed.data.jobRole&&!canAssignStaffGrade(user))return staffJson({error:"User-management permission is required to approve a staff grade change."},403);const updated=await tx.staffMember.update({where:{id:r.staffId},data:proposed.data});if(proposed.data.jobRole)await applyStaffGrade(tx,updated,user);status="APPROVED";}else{const a=await tx.staffScheduleException.create({data:{staffId:r.staffId,organisationId:r.organisationId,startDate:new Date(String(d.startDate)),endDate:new Date(String(d.endDate)),startTime:d.startTime?String(d.startTime):null,endTime:d.endTime?String(d.endTime):null,type:d.category==="UNPAID_LEAVE"?"UNPAID_LEAVE":"ANNUAL_LEAVE",approvalStatus:"APPROVED",notes:"Approved leave",createdById:user.id,approvedById:user.id}});await tx.staffRequest.update({where:{id:r.id},data:{absenceId:a.id}});status="APPROVED";}
   }else if(v.action==="cancel"){
    if(r.type!=="LEAVE"||!["APPROVED","CANCELLATION_REQUESTED"].includes(r.status))return staffJson({error:"This leave cannot be cancelled."},409);
    if(r.absenceId)await tx.staffScheduleException.update({where:{id:r.absenceId},data:{approvalStatus:"REJECTED"}});status="CANCELLED";
@@ -40,9 +43,11 @@ export async function POST(req:NextRequest){return withCapability(req,CAPABILITI
    if(["APPROVED","CANCELLATION_REQUESTED"].includes(status))return staffJson({error:"Use the controlled cancellation action for approved leave."},409);
    status=({review:"IN_REVIEW",decline:"DECLINED","more-info":"WAITING",complete:"COMPLETED",reopen:"NEW"} as Record<string,string>)[v.action]||status;
   }
+  if(r.type==="PROFILE"&&d.hr&&v.action==="complete")return staffJson({error:"Approve or decline the proposed profile changes."},409);
+  if(r.type==="PROFILE"&&d.hr&&v.action==="decline"){if(!["NEW","IN_REVIEW","WAITING"].includes(r.status))return staffJson({error:"This request is already closed."},409);const event=await auditAction(tx,user.id,"STAFF_HR_CHANGE_REJECTED","StaffRequest",r.id,{status:r.status},{status});await tx.staffRequest.update({where:{id:r.id},data:{details:jsonValue({...d,reviewedBy:user.id,reviewedAt:new Date().toISOString(),rejectionReason:v.message,auditId:event.id})}})}
   await tx.staffRequest.update({where:{id:r.id},data:{status,...(v.assignedUserId?{assignedUserId:v.assignedUserId}:{}),...(v.dueDate?{dueDate:new Date(v.dueDate)}:{})}});
   await tx.staffRequestEvent.create({data:{requestId:r.id,actorId:user.id,action:v.action,message:v.message||status,staffVisible:v.staffVisible}});
-  await tx.staffPortalNotification.create({data:{staffId:r.staffId,key:crypto.randomUUID(),message:"There is an update to your request.",href:"/staff/requests"}});
+  await tx.staffPortalNotification.create({data:{staffId:r.staffId,key:crypto.randomUUID(),message:r.type==="PROFILE"&&status==="APPROVED"?"Your profile changes were approved.":r.type==="PROFILE"&&status==="DECLINED"?"Your profile changes were rejected. Open the request to read the reason.":"There is an update to your request.",href:"/staff/requests"}});
   return staffJson({ok:true});
  },{isolationLevel:"Serializable"});
 })}

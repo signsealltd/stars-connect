@@ -1,6 +1,6 @@
 import {requestDetailRows} from "@/lib/staff-request-format";
 export function StaffRequestDetails({details}:{details:Record<string,unknown>}){
- const {before,after,...other}=details,previous=requestDetailRows(before),next=requestDetailRows(after);
+ const {before,after:storedAfter,proposed,...other}=details,after=storedAfter||proposed,previous=requestDetailRows(before),next=requestDetailRows(after);
  const fields=[...new Set([...previous.map(r=>r.key),...next.map(r=>r.key)])];
  return <><dl>{requestDetailRows(other).map(row=><div key={row.key} style={{marginBottom:12}}><dt><strong>{row.label}</strong></dt><dd style={{whiteSpace:"pre-wrap",overflowWrap:"anywhere",marginLeft:0}}>{row.value}</dd></div>)}</dl>{fields.length>0&&<section aria-label="Profile changes"><div style={{display:"grid",gap:12}}>{fields.map(key=>{const old=previous.find(r=>r.key===key),current=next.find(r=>r.key===key);return <section key={key} style={{borderBottom:"1px solid var(--border, #e5dced)",paddingBottom:12}}><h3>{current?.label||old?.label}</h3><div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:16}}><div><strong>Before</strong><p style={{whiteSpace:"pre-wrap",overflowWrap:"anywhere"}}>{old?.value||"Not provided"}</p></div><div><strong>After</strong><p style={{whiteSpace:"pre-wrap",overflowWrap:"anywhere"}}>{current?.value||"Not provided"}</p></div></div></section>})}</div></section>}</>;
 }

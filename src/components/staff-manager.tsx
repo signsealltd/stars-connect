@@ -1,7 +1,10 @@
-/* eslint-disable @next/next/no-img-element */
 "use client";
+import {StaffDialog} from "./staff-dialog";
+/* eslint-disable @next/next/no-img-element */
+
 import{appConfirm}from"@/lib/app-dialog";
 
+import {StaffHrEditor} from "./staff-hr-editor";
 import {StaffAbsences} from "./staff-absences";
 import {StaffWorkingDays} from "./staff-working-days";
 import {STAFF_GRADES,staffGrade} from "@/lib/staff-grades";
@@ -23,7 +26,8 @@ const blank = {
 
 async function compressStaffPhoto(file:File){if(file.size>12*1024*1024)throw new Error("Choose an image smaller than 12 MB.");const bitmap=await createImageBitmap(file),size=320,canvas=document.createElement("canvas");canvas.width=size;canvas.height=size;const context=canvas.getContext("2d")!;const scale=Math.max(size/bitmap.width,size/bitmap.height),width=bitmap.width*scale,height=bitmap.height*scale;context.drawImage(bitmap,(size-width)/2,(size-height)/2,width,height);bitmap.close();const value=canvas.toDataURL("image/jpeg",0.72);if(value.length>250000)throw new Error("The compressed photograph is still too large. Choose a simpler image.");return value}
 
-export function StaffManager() {
+export function StaffManager({canHr=false}:{canHr?:boolean}) {
+  const [hrStaff,setHrStaff]=useState<string>();
   const [rows, setRows] = useState<Staff[]>([]);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("active");
@@ -95,11 +99,12 @@ export function StaffManager() {
           <td><span className={`badge ${row.clockingEnabled && row.pinEnabled ? "badge-success" : "badge-warning"}`}>{row.clockingEnabled ? (row.pinEnabled ? "PIN enabled" : "PIN needed") : "Disabled"}</span></td>
           <td><span className={`badge ${row.active ? "badge-success" : "badge-neutral"}`}>{row.active ? "Active" : "Archived"}</span></td>
           <td><div style={{ display: "flex", gap: 7 }}>
-            <button className="btn ghost" onClick={() => open(row)} aria-label={`Edit ${row.displayName}`}><Pencil size={17} /></button>
+            {canHr&&<button className="btn secondary" onClick={()=>setHrStaff(row.id)}>HR details</button>}<button className="btn ghost" onClick={() => open(row)} aria-label={`Edit ${row.displayName}`}><Pencil size={17} /></button>
             <button className={`btn ${row.active ? "danger" : "secondary"}`} onClick={() => setActive(row, !row.active)}>{row.active ? <Archive size={17} /> : <RotateCcw size={17} />}</button>
           </div></td>
         </tr>)}</tbody></table> : <div className="empty"><b>No staff found</b><p>Change the search or status filter, or add a staff member.</p></div>}
     </section>
+    {hrStaff&&<StaffDialog management label="Staff HR profile" onClose={()=>setHrStaff(undefined)}><button className="btn secondary" onClick={()=>setHrStaff(undefined)}>Close</button><StaffHrEditor staffId={hrStaff}/></StaffDialog>}
     {editing && <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={editing === "new" ? "Add staff" : "Edit staff"}>
       <form autoComplete="off" className="modal" onSubmit={save}>
         <h2 style={{ marginTop: 0 }}>{editing === "new" ? "Add staff member" : `Edit ${(editing as Staff).displayName}`}</h2>

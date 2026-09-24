@@ -1,0 +1,13 @@
+import {beforeEach,it,expect,vi} from "vitest";
+import {NextRequest} from "next/server";
+const s=vi.hoisted(()=>({find:vi.fn(),update:vi.fn(),revoke:vi.fn(),hash:vi.fn(),audit:vi.fn()}));
+vi.mock("@/lib/api",()=>({withRole:async(_r:unknown,_role:unknown,fn:(u:{id:string})=>Promise<Response>)=>fn({id:"admin"}),jsonError:(error:string,status:number)=>Response.json({error},{status}),requestContext:()=>({})}));
+vi.mock("@/lib/audit",()=>({audit:s.audit}));vi.mock("bcryptjs",()=>({default:{hash:s.hash}}));
+vi.mock("@/lib/prisma",()=>{const tx={user:{update:s.update},session:{deleteMany:s.revoke}};return {prisma:{user:{findUnique:s.find},$transaction:async(fn:(t:typeof tx)=>Promise<unknown>)=>fn(tx)}}});
+import {PATCH} from "@/app/api/users/[id]/route";
+const target={id:"target",name:"Synthetic User",username:"synthetic",email:null,role:"MANAGER",active:true,accessLevelId:"level"};
+beforeEach(()=>{vi.clearAllMocks();s.find.mockResolvedValue(target);s.update.mockResolvedValue(target);s.hash.mockResolvedValue("test-hash")});
+const patch=(body:unknown)=>PATCH(new NextRequest("http://localhost/api/users/target",{method:"PATCH",body:JSON.stringify(body)}),{params:Promise.resolve({id:"target"})});
+it("resets a linked account password without changing its staff grade",async()=>{expect((await patch({password:"SyntheticPass123"})).status).toBe(200);expect(s.update.mock.calls[0][0].data).toEqual({passwordHash:"test-hash"});expect(s.revoke).toHaveBeenCalledWith({where:{userId:"target"}});expect(JSON.stringify(s.audit.mock.calls)).not.toContain("SyntheticPass123")});
+it("still rejects independent changes to a linked access level",async()=>{expect((await patch({password:"SyntheticPass123",role:"ADMINISTRATOR"})).status).toBe(409);expect(s.update).not.toHaveBeenCalled()});
+it("returns password requirements before attempting an update",async()=>{const r=await patch({password:"short"});expect(r.status).toBe(422);expect((await r.json()).error).toContain("12");expect(s.update).not.toHaveBeenCalled()});

@@ -1,3 +1,4 @@
+import {CAPABILITIES,hasCapability} from "@/lib/permission-catalog";
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
@@ -32,6 +33,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     const parsed = staffUpdateSchema.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return jsonError("Please check the staff details.", 422);
     const { pin, ...incoming } = parsed.data;
+    if(["jobRole","startDate","endDate","contractedWeeklyHours","hourlyRate","overtimeHourlyRate","payrollNumber"].some(k=>k in incoming&&(()=>{const a=incoming[k as keyof typeof incoming],b=before[k as keyof typeof before];if(["startDate","endDate"].includes(k))return String(a||"")!==(b instanceof Date?b.toISOString().slice(0,10):String(b||""));if(["contractedWeeklyHours","hourlyRate","overtimeHourlyRate"].includes(k))return (a==null?null:Number(a))!==(b==null?null:Number(b));return String(a||"")!==String(b||"")})())&&!hasCapability(user.role,CAPABILITIES.STAFF_EMPLOYMENT_EDIT,user.permissionOverrides))return jsonError("Employment editing permission is required.",403);
     const assignGrade=!!incoming.jobRole&&(incoming.jobRole!==before.jobRole||!before.accessLevelId);
     if(assignGrade&&!canAssignStaffGrade(user))return jsonError("User-management permission is required to change staff grades and access.",403);
     if (pin) {

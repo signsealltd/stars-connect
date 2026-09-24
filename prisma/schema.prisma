@@ -259,6 +259,7 @@ model Session {
 }
 
 model StaffMember {
+  hrRecord StaffHrRecord?
   portalAccount         StaffPortalAccount?
   portalRequests        StaffRequest[]
   id                    String                     @id @default(uuid()) @db.Char(36)
@@ -400,6 +401,7 @@ model StaffCredential {
 }
 
 model Student {
+  medications ClientMedication[]
   id                               String                     @id @default(uuid()) @db.Char(36)
   firstName                        String                     @db.VarChar(80)
   lastName                         String                     @db.VarChar(80)
@@ -1939,6 +1941,10 @@ model SafeguardingEnquiry {
 }
 
 model OperationalTask {
+  events OperationalTaskEvent[]
+  details Json?
+  priority String @default("NORMAL") @db.VarChar(20)
+  assignedStaffId String? @db.Char(36)
   id           String   @id @default(uuid()) @db.Char(36)
   sourceKey    String?  @unique @db.VarChar(191)
   title        String   @db.VarChar(191)
@@ -2228,4 +2234,86 @@ model StaffAccessEvent {
   createdAt DateTime @default(now())
 
   @@index([staffId, createdAt])
+}
+
+model ClientMedication {
+ stockAt DateTime?
+  id                 String                 @id @default(uuid()) @db.Char(36)
+  studentId          String                 @db.Char(36)
+  student            Student                @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  sourceKey          String?                @unique @db.VarChar(191)
+  name               String                 @db.VarChar(191)
+  strength           String?                @db.VarChar(100)
+  form               String?                @db.VarChar(60)
+  unit               String                 @default("units") @db.VarChar(40)
+  quantity           Decimal?               @db.Decimal(14, 4)
+  confirmedAt        DateTime?
+  dose               Decimal?               @db.Decimal(14, 4)
+  administrations    Decimal?               @db.Decimal(8, 4)
+  weekdayUsage       Json?
+  prn                Boolean                @default(false)
+  manualDailyUsage   Decimal?               @db.Decimal(14, 4)
+  reminderDays       Int                    @default(14)
+  confirmationDays   Int                    @default(30)
+  status             String                 @default("ACTIVE") @db.VarChar(20)
+  responsibleStaffId String?                @db.Char(36)
+  notes              String?                @db.Text
+  prescription       Json?
+  cycle              Int                    @default(0)
+  activeTaskId       String?                @unique @db.Char(36)
+  version            Int                    @default(0)
+  events             MedicationStockEvent[]
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+
+  @@index([studentId, status])
+}
+
+model MedicationStockEvent {
+  id               String           @id @default(uuid()) @db.Char(36)
+  medicationId     String           @db.Char(36)
+  medication       ClientMedication @relation(fields: [medicationId], references: [id], onDelete: Restrict)
+  requestKey       String           @unique @db.Char(36)
+  action           String           @db.VarChar(40)
+  previousQuantity Decimal?         @db.Decimal(14, 4)
+  newQuantity      Decimal?         @db.Decimal(14, 4)
+  changeAmount     Decimal?         @db.Decimal(14, 4)
+  reason           String           @db.Text
+  actorId          String           @db.Char(36)
+  details          Json
+  createdAt        DateTime         @default(now())
+
+  @@index([medicationId, createdAt])
+}
+
+model OperationalTaskEvent {
+  id        String          @id @default(uuid()) @db.Char(36)
+  taskId    String          @db.Char(36)
+  task      OperationalTask @relation(fields: [taskId], references: [id], onDelete: Restrict)
+  actorId   String          @db.Char(36)
+  action    String          @db.VarChar(40)
+  details   Json
+  createdAt DateTime        @default(now())
+
+  @@index([taskId, createdAt])
+}
+
+model StaffHrRecord {
+  staffId    String      @id @db.Char(36)
+  staff      StaffMember @relation(fields: [staffId], references: [id], onDelete: Restrict)
+  personal   Json
+  employment Json
+  medical    Json
+  version    Int         @default(0)
+  updatedAt  DateTime    @updatedAt
+}
+model StaffHrEvent {
+ id String @id @default(uuid()) @db.Char(36)
+ staffId String @db.Char(36)
+ actorId String @db.Char(36)
+ reason String @db.Text
+ beforeValue Json
+ afterValue Json
+ createdAt DateTime @default(now())
+ @@index([staffId,createdAt])
 }

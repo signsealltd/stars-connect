@@ -4,7 +4,7 @@ import { describe,expect,it } from "vitest";
 import { activeManagerSection,managerNavForRole } from "./manager-nav";
 
 describe("manager navigation permissions",()=>{
- it("keeps portal access and requests out of People",()=>{const groups=managerNavForRole("ADMINISTRATOR");expect(groups.find(g=>g.label==="Staff portal")?.items.map(i=>i.label)).toEqual(["Access","Requests"]);expect(groups.find(g=>g.label==="People")?.items.some(i=>i.href==="/dashboard/staff/tasks"||i.href==="/dashboard/staff/access")).toBe(false)});
+ it("keeps portal access and requests out of People",()=>{const groups=managerNavForRole("ADMINISTRATOR");expect(groups.find(g=>g.label==="Staff portal")?.items.map(i=>i.label)).toEqual(["Access","Tasks"]);expect(groups.find(g=>g.label==="People")?.items.some(i=>i.href==="/dashboard/staff/tasks"||i.href==="/dashboard/staff/access")).toBe(false)});
   it("groups manager modules without exposing administrator settings",()=>{
     const groups=managerNavForRole("MANAGER");
     expect(groups.map(group=>group.label)).toEqual(["Calendar","People","Staff portal","Attendance","Safety & Compliance","Finance","Reports","Settings"]);

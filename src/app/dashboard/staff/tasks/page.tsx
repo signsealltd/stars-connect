@@ -1,5 +1,5 @@
-import {SystemTasks} from "@/components/system-tasks";
+import "@/app/tasks.css";
 import {StaffAreaManager} from "@/components/staff-area-manager";
 import {Header} from "@/components/header";
 import {requirePageCapability,CAPABILITIES} from "@/lib/permissions";
-export default async function Page(){await requirePageCapability(CAPABILITIES.STAFF_TASKS);return <main className="shell"><Header manager/><div className="content"><SystemTasks/><StaffAreaManager mode="tasks"/></div></main>}
+export default async function Page(){await requirePageCapability(CAPABILITIES.STAFF_TASKS);return <main className="shell"><Header manager/><div className="content"><StaffAreaManager mode="tasks"/></div></main>}

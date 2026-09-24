@@ -10,7 +10,7 @@ import {prisma} from "@/lib/prisma";
 import {staffJson} from "@/lib/staff-area-auth";
 import {canReviewStaffRequest} from "@/lib/staff-task-access";
 export async function GET(req:NextRequest){return withCapability(req,CAPABILITIES.STAFF_TASKS,async user=>{
- const rows=await prisma.staffRequest.findMany({where:{organisationId:user.organisationId!,status:{not:"DRAFT"}},include:{staff:{select:{displayName:true}},events:{orderBy:{createdAt:"asc"}},documents:{where:{expiresAt:{gt:new Date()}},select:{id:true,filename:true}}},orderBy:{createdAt:"desc"},take:500});
+ const rows=await prisma.staffRequest.findMany({where:{organisationId:user.organisationId!,status:{not:"DRAFT"}},include:{staff:{select:{displayName:true}},events:{orderBy:{createdAt:"asc"}},documents:{where:{expiresAt:{gt:new Date()}},select:{id:true,filename:true}}},orderBy:[{createdAt:"desc"},{id:"asc"}]});
  const allowed=rows.filter(r=>canReviewStaffRequest(user,r));
  for(const r of allowed.filter(r=>r.type==="PROFILE"&&(r.details as Record<string,unknown>)?.hr))await prisma.auditLog.create({data:{action:"STAFF_HR_REQUEST_READ",actorType:"USER",actorId:user.id,entityType:"StaffRequest",entityId:r.id}});
  const reviewers=await prisma.user.findMany({where:{organisationId:user.organisationId!,active:true},select:{id:true,name:true,role:true,permissionOverrides:true,accessLevelId:true}});
@@ -20,7 +20,7 @@ export async function GET(req:NextRequest){return withCapability(req,CAPABILITIE
  const canSchedule=hasCapability(user.role,CAPABILITIES.STAFF_SCHEDULE_VIEW,user.permissionOverrides),canManageSchedule=hasCapability(user.role,CAPABILITIES.STAFF_SCHEDULE_MANAGE,user.permissionOverrides);
  const responses=canSchedule?await prisma.operationStaffAssignment.findMany({where:{organisationId:user.organisationId!,status:"ASSIGNED",occurrence:{staffConfirmationRequired:true,status:{notIn:["CANCELLED","COMPLETED"]}}},select:{id:true,confirmation:true,responseNote:true,staff:{select:{displayName:true}},occurrence:{select:{startAt:true,operation:{select:{title:true}}}}}}):[];
  if(req.nextUrl.searchParams.get("summary")==="1")return staffJson({count:allowed.filter(r=>["NEW","IN_REVIEW","WAITING","CANCELLATION_REQUESTED"].includes(r.status)).length+responses.filter(r=>!["CONFIRMED","REVIEWED"].includes(r.confirmation)).length});
- return staffJson({rows:allowed,staff,responses,canSchedule,canManageSchedule,reviewers:effectiveReviewers.filter(r=>hasCapability(r.role,CAPABILITIES.STAFF_TASKS,r.permissionOverrides)).map(r=>({id:r.id,name:r.name}))});
+ return staffJson({userId:user.id,rows:allowed,staff,responses,canSchedule,canManageSchedule,reviewers:effectiveReviewers.filter(r=>hasCapability(r.role,CAPABILITIES.STAFF_TASKS,r.permissionOverrides)).map(r=>({id:r.id,name:r.name}))});
 })}
 export async function POST(req:NextRequest){return withCapability(req,CAPABILITIES.STAFF_TASKS,async user=>{
  const p=z.object({id:z.string().uuid(),action:z.enum(["review","approve","decline","more-info","complete","reopen","cancel","note","assign","acknowledge-response"]),message:z.string().trim().max(6000).default(""),staffVisible:z.boolean().default(true),assignedUserId:z.string().uuid().optional(),dueDate:z.string().date().optional()}).safeParse(await req.json());if(!p.success)return staffJson({error:"Invalid review."},422);const v=p.data;

@@ -78,11 +78,20 @@ export async function getSession(allowVehicle = false) {
   if (session.lastSeenAt.getTime() < now.getTime() - SESSION_TOUCH_MS) {
     await prisma.session.updateMany({ where: { id: session.id, lastSeenAt: session.lastSeenAt }, data: { lastSeenAt: now } });
   }
-  if (session.user.accessLevelId && session.user.role !== "ADMINISTRATOR") {
-    const level=await prisma.accessLevel.findUnique({where:{id:session.user.accessLevelId}});
-    if(!level?.active)return null;
-    session.user.role=level.baseRole;
-    session.user.permissionOverrides={...Object.fromEntries(Object.values(CAPABILITIES).map(c=>[c,false])),...(level.permissions as Record<string,boolean>)};
+  if (session.user.role !== "ADMINISTRATOR") {
+    // Settings-created legacy accounts may have a grade role but no level link.
+    // Only these two roles map unambiguously to a grade (MANAGER does not).
+    const inheritedGrade = session.user.role === "TEAM_LEADER" ? "Team Leader"
+      : session.user.role === "CARE_ASSISTANT" ? "Support Worker" : null;
+    const level = session.user.accessLevelId
+      ? await prisma.accessLevel.findUnique({where:{id:session.user.accessLevelId}})
+      : inheritedGrade ? await prisma.accessLevel.findUnique({where:{name:inheritedGrade}}) : null;
+    if ((session.user.accessLevelId && !level) || (level && !level.active)) return null;
+    if (level) {
+      // Never upgrade an unlinked account's role through name-based inheritance.
+      if (session.user.accessLevelId) session.user.role=level.baseRole;
+      session.user.permissionOverrides={...Object.fromEntries(Object.values(CAPABILITIES).map(c=>[c,false])),...(level.permissions as Record<string,boolean>)};
+    }
   }
   const linkedStaff=await prisma.staffMember.findUnique({where:{userId:session.user.id},select:{active:true}});
   if(linkedStaff&&!linkedStaff.active)return null;

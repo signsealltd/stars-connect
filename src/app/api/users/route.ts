@@ -29,11 +29,14 @@ export async function POST(req: NextRequest) {
       return jsonError("An account already uses that email address.", 409);
     }
     const { password, permissionOverrides, ...data } = parsed.data;
+    const gradeName = data.role === "TEAM_LEADER" ? "Team Leader" : data.role === "CARE_ASSISTANT" ? "Support Worker" : null;
+    const grade = gradeName ? await prisma.accessLevel.findUnique({where:{name:gradeName}}) : null;
     const user = await prisma.user.create({
       data: {
         ...data,
         organisationId: actor.organisationId,
-        permissionOverrides:permissionOverrides||{},
+        accessLevelId: grade?.id,
+        permissionOverrides:grade?.permissions ?? permissionOverrides ?? {},
         passwordHash: await bcrypt.hash(password, 12),
       },
       select: publicUser,

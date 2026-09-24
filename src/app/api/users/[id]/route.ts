@@ -31,9 +31,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if(before.accessLevelId&&(parsed.data.role||parsed.data.permissionOverrides))return jsonError("This account uses a staff access level. Change the level in the staff record or edit Access Levels.",409);
     const { password, permissionOverrides, ...data } = parsed.data;
     const user = await prisma.$transaction(async (tx) => {
+      const gradeName = data.role === "TEAM_LEADER" ? "Team Leader" : data.role === "CARE_ASSISTANT" ? "Support Worker" : null;
+      const grade = gradeName ? await tx.accessLevel.findUnique({where:{name:gradeName}}) : null;
       const updated = await tx.user.update({
         where: { id },
-        data: { ...data, ...(permissionOverrides?{permissionOverrides}:{}), ...(password ? { passwordHash: await bcrypt.hash(password, 12) } : {}) },
+        data: { ...data, ...(permissionOverrides?{permissionOverrides}:{}), ...(grade ? {accessLevelId:grade.id,permissionOverrides:grade.permissions!} : {}), ...(password ? { passwordHash: await bcrypt.hash(password, 12) } : {}) },
         select: { id: true, name: true, username:true, email: true, role: true, active: true, permissionOverrides:true, createdAt: true },
       });
       if (password || data.active === false || data.role || data.username || data.email !== undefined || permissionOverrides) await tx.session.deleteMany({ where: { userId: id } });

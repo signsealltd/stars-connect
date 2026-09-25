@@ -9,7 +9,7 @@ type Props = {
   title: string;
   activityDescription: string;
   location: string;
-  onAccept: (suggestion: RamsSuggestion) => void;
+  onAccept: (suggestion: RamsSuggestion, acceptanceId?:string) => void;
 };
 
 export function RamsCliveSuggestion({ kind, title, activityDescription, location, onAccept }: Props) {
@@ -52,7 +52,7 @@ export function RamsCliveSuggestion({ kind, title, activityDescription, location
             <strong>{index + 1}. {step.stage}</strong><p>{step.method}</p>{step.safetyChecks && <p><b>Checks:</b> {step.safetyChecks}</p>}{step.stopWorkConditions && <p><b>Stop if:</b> {step.stopWorkConditions}</p>}
           </article>)}</>}
         </div>
-        <footer><button type="button" className="btn secondary" onClick={() => setSuggestion(null)}>Close without using</button><button type="button" className="btn primary" onClick={() => { onAccept(suggestion); setSuggestion(null); }}><Check />Accept and add to draft</button></footer>
+        <footer><button type="button" className="btn secondary" onClick={() => setSuggestion(null)}>Close without using</button><button type="button" className="btn primary" onClick={async () => { const r=await fetch("/api/clive/accept-suggestion",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({kind,title,content:JSON.stringify(suggestion)})});const j=await r.json();if(!r.ok){setError(j.error);return}onAccept(suggestion,j.id);setSuggestion(null); }}><Check />Accept and add to draft</button></footer>
         <p className="rams-note">Draft suggestions must be checked for relevance, suitable controls and accurate risk scores by a competent person before review or approval.</p>
       </div>
     </div>}

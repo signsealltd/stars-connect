@@ -70,4 +70,4 @@ describe("shell structure and interaction hooks",()=>{
   });
 });
 
-it("places the calendar directly in navigation and RAMS under safety",()=>{const groups=managerNavForRole("ADMINISTRATOR");expect(groups.some(g=>g.label==="Development")).toBe(false);expect(groups.find(g=>g.label==="Calendar")?.href).toBe("/dashboard/calendar");expect(groups.find(g=>g.label==="Safety & Compliance")?.items.some(i=>i.href==="/dashboard/health-safety")).toBe(true);expect(activeManagerSection("/dashboard/calendar")).toBe("Calendar")});
+it("places the calendar directly in navigation and RAMS under safety",()=>{const groups=managerNavForRole("ADMINISTRATOR");expect(groups.some(g=>g.label==="Development")).toBe(false);expect(groups.find(g=>g.label==="Calendar")?.href).toBe("/dashboard/calendar");expect(groups.find(g=>g.label==="Safety & Compliance")?.items.some(i=>i.href==="/dashboard/premises")).toBe(true);expect(activeManagerSection("/dashboard/calendar")).toBe("Calendar")});

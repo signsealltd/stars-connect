@@ -6,6 +6,10 @@ export function moduleCapability(path:string,write=false):Capability|undefined {
  if(path.startsWith("/dashboard/billing/payments")||path.startsWith("/api/payments"))return write?CAPABILITIES.PAYMENTS_RECORD:CAPABILITIES.PAYMENTS_VIEW;
  if(path.startsWith("/VehicleCheck")||path.startsWith("/vehicle-check"))return CAPABILITIES.VEHICLE_CHECK;
  if(path.startsWith("/dashboard/premises/fleet"))return write?CAPABILITIES.FLEET_MANAGE:CAPABILITIES.FLEET_VIEW;
+ if(path.startsWith("/dashboard/premises/reports"))return CAPABILITIES.COMPLIANCE_REPORTS_VIEW;
+ if(path.startsWith("/dashboard/premises/rams"))return write?CAPABILITIES.RAMS_EDIT:CAPABILITIES.RAMS_VIEW;
+ if(path.startsWith("/dashboard/premises/policies"))return write?CAPABILITIES.POLICY_MANAGE:CAPABILITIES.POLICY_VIEW;
+ if(path.startsWith("/dashboard/premises/coshh"))return write?CAPABILITIES.COSHH_MANAGE:CAPABILITIES.COSHH_VIEW;
  const area=path.replace(/^\/api\//,"/").replace(/^\/dashboard\//,"/").split("/")[1];
  if(area==="medications")return CAPABILITIES.MEDICATION_VIEW;
  if(area==="staff-hr")return CAPABILITIES.STAFF_HR_VIEW;

@@ -10,14 +10,14 @@ import {
 } from "@/lib/compliance-service";
 import { CAPABILITIES, type Capability } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
-import { isRamsPilotRole } from "@/lib/rams-access";
+
 
 const actions: Record<string, { capability: Capability; to?: ComplianceWorkflowStatus }> = {
   submit: { capability: CAPABILITIES.RAMS_EDIT, to: "UNDER_REVIEW" },
-  review: { capability: CAPABILITIES.RAMS_APPROVE, to: "AWAITING_APPROVAL" },
+  review: { capability: CAPABILITIES.RAMS_REVIEW, to: "AWAITING_APPROVAL" },
   approve: { capability: CAPABILITIES.RAMS_APPROVE, to: "APPROVED" },
-  reject: { capability: CAPABILITIES.RAMS_APPROVE, to: "DRAFT" },
-  publish: { capability: CAPABILITIES.RAMS_APPROVE, to: "PUBLISHED" },
+  reject: { capability: CAPABILITIES.RAMS_APPROVE, to: "CHANGES_REQUESTED" },
+  publish: { capability: CAPABILITIES.RAMS_PUBLISH, to: "PUBLISHED" },
   revision: { capability: CAPABILITIES.RAMS_EDIT },
   acknowledge: { capability: CAPABILITIES.COMPLIANCE_ACKNOWLEDGE },
 };
@@ -31,7 +31,7 @@ export async function POST(
   if (!config) return NextResponse.json({ error: "Unsupported action." }, { status: 404 });
 
   return withCapability(req, config.capability, async (user) => {
-    if (!isRamsPilotRole(user.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
     try {
       if (action === "revision") return NextResponse.json(await createRamsRevision(user, id), { status: 201 });
       if (action === "acknowledge") {
@@ -71,6 +71,7 @@ export async function POST(
         }
       }
 
+      const assignedVersion=await prisma.complianceRecordVersion.findFirst({where:{recordId:id,organisationId:user.organisationId!},orderBy:{version:"desc"}});const assignment=(assignedVersion?.structuredContent||{}) as Record<string,unknown>;const assigned=action==="review"?assignment.reviewerId:action==="approve"?assignment.approverId:null;if(assigned&&assigned!==user.id&&user.role!=="ADMINISTRATOR")return NextResponse.json({error:"This decision is assigned to another authorised person."},{status:403});
       const body = await req.json().catch(() => ({}));
       return NextResponse.json(await transitionVersion({
         user,

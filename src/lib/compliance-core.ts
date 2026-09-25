@@ -7,8 +7,8 @@ export function riskScore(likelihood: number, severity: number, size = 5) {
   return likelihood * severity;
 }
 const transitions: Record<ComplianceWorkflowStatus, readonly ComplianceWorkflowStatus[]> = {
-  DRAFT:["UNDER_REVIEW","ARCHIVED"], UNDER_REVIEW:["AWAITING_APPROVAL","DRAFT","ARCHIVED"], AWAITING_APPROVAL:["APPROVED","DRAFT"],
-  APPROVED:["PUBLISHED","DRAFT"], PUBLISHED:["SUPERSEDED"], SUPERSEDED:["ARCHIVED"], ARCHIVED:[],
+  DRAFT:["UNDER_REVIEW","ARCHIVED"], CHANGES_REQUESTED:["UNDER_REVIEW","ARCHIVED"], UNDER_REVIEW:["AWAITING_APPROVAL","CHANGES_REQUESTED","DRAFT","ARCHIVED"], AWAITING_APPROVAL:["APPROVED","CHANGES_REQUESTED","DRAFT","ARCHIVED"],
+  APPROVED:["PUBLISHED","ARCHIVED"], PUBLISHED:["SUPERSEDED","ARCHIVED"], SUPERSEDED:["ARCHIVED"], ARCHIVED:[],
 };
 export const canTransition=(from:ComplianceWorkflowStatus,to:ComplianceWorkflowStatus)=>transitions[from].includes(to);
 export function assertTransition(from:ComplianceWorkflowStatus,to:ComplianceWorkflowStatus){if(!canTransition(from,to))throw new Error("INVALID_COMPLIANCE_TRANSITION");}

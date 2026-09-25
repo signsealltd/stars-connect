@@ -4,19 +4,19 @@ import { audit } from "@/lib/audit";
 import { requestContext, withCapability } from "@/lib/api";
 import { requireOrganisation, updateRamsDraft } from "@/lib/compliance-service";
 import { ramsDraftInput } from "@/lib/compliance-input";
-import { CAPABILITIES } from "@/lib/permissions";
+import { CAPABILITIES,hasCapability } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
-import { isRamsPilotRole } from "@/lib/rams-access";
+
 
 type RouteContext = { params: Promise<{ id: string }> };
 
 export async function GET(req: NextRequest, { params }: RouteContext) {
   return withCapability(req, CAPABILITIES.RAMS_VIEW, async user => {
-    if (!isRamsPilotRole(user.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
     const organisationId = requireOrganisation(user);
     const { id } = await params;
     const record = await prisma.complianceRecord.findFirst({
-      where: { id, organisationId, recordType: "RAMS", archivedAt: null },
+      where: { id, organisationId, recordType: "RAMS" },
       include: {
         versions: {
           orderBy: { version: "desc" },
@@ -31,13 +31,13 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
         },
       },
     });
-    return record ? NextResponse.json(record) : NextResponse.json({ error: "RAMS record not found." }, { status: 404 });
+    const people=record?await prisma.user.findMany({where:{organisationId},select:{id:true,name:true}}):[];const acceptanceIds=record?.versions.flatMap(v=>{const c=v.structuredContent as Record<string,unknown>|null;return Array.isArray(c?.cliveAcceptances)?c.cliveAcceptances.filter((x):x is string=>typeof x==="string"):[]})||[];const accepted=acceptanceIds.length?await prisma.auditLog.findMany({where:{id:{in:acceptanceIds},action:"CLIVE_SUGGESTION_ACCEPTED",actorId:{in:people.map(p=>p.id)}},select:{id:true,actorId:true,createdAt:true}}):[];return record ? NextResponse.json({...record,people,accepted,versions:record.versions.map(v=>({...v,acknowledgements:hasCapability(user.role,CAPABILITIES.COMPLIANCE_REPORTS_VIEW,user.permissionOverrides)?v.acknowledgements:[]}))}) : NextResponse.json({ error: "RAMS record not found." }, { status: 404 });
   });
 }
 
 export async function PATCH(req: NextRequest, { params }: RouteContext) {
   return withCapability(req, CAPABILITIES.RAMS_EDIT, async user => {
-    if (!isRamsPilotRole(user.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
     const { id } = await params;
     const parsed = ramsDraftInput.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return NextResponse.json({ error: "Check the RAMS details.", fields: parsed.error.flatten().fieldErrors }, { status: 422 });
@@ -52,7 +52,7 @@ export async function PATCH(req: NextRequest, { params }: RouteContext) {
 
 export async function DELETE(req: NextRequest, { params }: RouteContext) {
   return withCapability(req, CAPABILITIES.RAMS_EDIT, async user => {
-    if (!isRamsPilotRole(user.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
     const body = await req.json().catch(() => null) as { password?: unknown } | null;
     if (!body?.password || !await bcrypt.compare(String(body.password), user.passwordHash)) {
       return NextResponse.json({ error: "Your password was not accepted." }, { status: 401 });

@@ -1,8 +1,9 @@
+import {hasCapability,CAPABILITIES as C} from "@/lib/permissions";
 import { NextRequest, NextResponse } from "next/server";
 import { audit } from "@/lib/audit";
 import { requestContext } from "@/lib/api";
 import { extractCliveResponse } from "@/lib/clive-core";
-import { isRamsPilotRole } from "@/lib/rams-access";
+
 import { extractRamsSuggestion, ramsSuggestionRequest } from "@/lib/rams-clive";
 import { rateLimit } from "@/lib/rate-limit";
 import { getSession } from "@/lib/security";
@@ -18,7 +19,8 @@ For safeMethod return {"kind":"safeMethod","methodStatement":"...","methodSteps"
 export async function POST(req: NextRequest) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Please sign in again to use Clive." }, { status: 401 });
-  if (!isRamsPilotRole(session.user.role)) return NextResponse.json({ error: "You do not have access to RAMS suggestions." }, { status: 403 });
+
+  if(!hasCapability(session.user.role,C.RAMS_EDIT,session.user.permissionOverrides)||!hasCapability(session.user.role,C.ASSISTANT_USE,session.user.permissionOverrides))return NextResponse.json({error:"RAMS editing and Clive permissions are required."},{status:403});
   if (!sameOriginAllowed(req.headers.get("origin"), req.nextUrl.origin, process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL)) return NextResponse.json({ error: "The request origin was not accepted." }, { status: 403 });
   const parsed = ramsSuggestionRequest.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Add a clear activity title and description before asking Clive." }, { status: 422 });

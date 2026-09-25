@@ -79,3 +79,7 @@ export async function withCapability(
 export function jsonError(message: string, status = 400) {
   return NextResponse.json({ error: message }, { status });
 }
+export async function withAnyCapability(req:NextRequest,capabilities:Capability[],handler:(user:User)=>Promise<NextResponse>){
+ if(!mutationOriginAllowed(req))return jsonError('Request origin was rejected.',403);
+ try{const {getSession}=await import('./security');const session=await getSession();if(!session)return jsonError('Please sign in.',401);if(!capabilities.some(c=>hasCapability(session.user.role,c,session.user.permissionOverrides)))return jsonError('You do not have permission to do that.',403);return await handler(session.user)}catch(error){if(error instanceof RequestError)return jsonError(error.message,error.status);return jsonError('Request failed.',500)}
+}

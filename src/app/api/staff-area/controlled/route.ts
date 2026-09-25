@@ -1,0 +1,3 @@
+import {NextRequest} from "next/server";import {withStaff,staffJson} from "@/lib/staff-area-auth";import {staffControlledRecords,acknowledgeControlled} from "@/lib/controlled-documents";import {requestContext} from "@/lib/api";import {z} from "zod";
+export async function GET(req:NextRequest){return withStaff(req,async i=>staffJson({rows:await staffControlledRecords(i.user)}))}
+export async function POST(req:NextRequest){return withStaff(req,async i=>{const p=z.object({id:z.string().uuid(),confirmed:z.literal(true)}).safeParse(await req.json());if(!p.success)return staffJson({error:'Confirm that you have read this version.'},422);return staffJson(await acknowledgeControlled(i.user,p.data.id,{...requestContext(req),sessionReference:i.session.id}))})}

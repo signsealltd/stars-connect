@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { audit } from "@/lib/audit";
 import { requestContext, withRole } from "@/lib/api";
-import { deleteStoredDocument, loadDocument, storeDocument } from "@/lib/documents";
+import { loadDocument, storeDocument } from "@/lib/documents";
 import { prisma } from "@/lib/prisma";
 
 const allowedTypes = new Set([
@@ -18,8 +18,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const { id } = await params;
     const premisesDocument = await prisma.premisesDocument.findFirst({ where: { id, active: true } });
     if (!premisesDocument) return NextResponse.json({ error: "Document not found." }, { status: 404 });
+    if(req.nextUrl.searchParams.get("history")==="1")return NextResponse.json({rows:await prisma.documentRecord.findMany({where:{sourceType:"PREMISES_DOCUMENT",sourceId:id},select:{id:true,version:true,createdAt:true,mimeType:true,revisionReason:true},orderBy:{version:"desc"}})},{headers:{"cache-control":"private, no-store"}});
     const stored = await prisma.documentRecord.findFirst({
-      where: { sourceType: "PREMISES_DOCUMENT", sourceId: id },
+      where: { sourceType: "PREMISES_DOCUMENT", sourceId: id, ...(req.nextUrl.searchParams.get("version")?{version:Number(req.nextUrl.searchParams.get("version"))}:{}) },
       orderBy: { version: "desc" },
     });
     if (!stored) return NextResponse.json({ error: "No uploaded file is attached." }, { status: 404 });
@@ -73,10 +74,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       where: { id },
       data: { documentUrl: `/api/premises/documents/${id}/file`, updatedById: user.id },
     });
-    if (previous) {
-      await deleteStoredDocument(previous.storagePath).catch(() => undefined);
-      await prisma.documentRecord.delete({ where: { id: previous.id } }).catch(() => undefined);
-    }
+    // Previous versions remain available in the document audit trail.
     await audit("PREMISES_DOCUMENT_FILE_UPLOADED", {
       actorType: "USER", actorId: user.id, entityType: "PremisesDocument", entityId: id,
       afterValue: { mimeType: file.type, fileSize: file.size, version: stored.version, replaced: Boolean(previous) },

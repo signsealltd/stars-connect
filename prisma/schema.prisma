@@ -175,6 +175,7 @@ enum ComplianceRecordType {
 }
 
 enum ComplianceWorkflowStatus {
+  CHANGES_REQUESTED
   DRAFT
   UNDER_REVIEW
   AWAITING_APPROVAL
@@ -1228,6 +1229,11 @@ model ScheduledJobRun {
 }
 
 model PremisesAsset {
+  qrToken String @unique @default(uuid()) @db.Char(36)
+  reference String? @unique @db.VarChar(80)
+  status String @default("OPERATIONAL") @db.VarChar(30)
+  details Json?
+
   id              String                     @id @default(uuid()) @db.Char(36)
   name            String                     @db.VarChar(191)
   category        String                     @db.VarChar(60)
@@ -1254,6 +1260,7 @@ model PremisesAsset {
 }
 
 model PremisesInspection {
+  evidence Json?
   id                   String                     @id @default(uuid()) @db.Char(36)
   assetId              String                     @db.Char(36)
   asset                PremisesAsset              @relation(fields: [assetId], references: [id], onDelete: Cascade)
@@ -1274,6 +1281,13 @@ model PremisesInspection {
 }
 
 model PremisesCorrectiveAction {
+  assignedUserId String? @db.Char(36)
+  evidenceUrl String? @db.VarChar(500)
+  verificationRequired Boolean @default(false)
+  completedById String? @db.Char(36)
+  verifiedById String? @db.Char(36)
+  verifiedAt DateTime?
+
   id           String              @id @default(uuid()) @db.Char(36)
   assetId      String?             @db.Char(36)
   asset        PremisesAsset?      @relation(fields: [assetId], references: [id], onDelete: SetNull)
@@ -1296,6 +1310,7 @@ model PremisesCorrectiveAction {
 }
 
 model PremisesDocument {
+  responsibleName String? @db.VarChar(120)
   id           String         @id @default(uuid()) @db.Char(36)
   assetId      String?        @db.Char(36)
   asset        PremisesAsset? @relation(fields: [assetId], references: [id], onDelete: SetNull)

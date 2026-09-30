@@ -11,7 +11,7 @@ export async function POST(req:NextRequest){return withCapability(req,CAPABILITI
  if(!hasCapability(user.role,CAPABILITIES.DOCUMENT_DOWNLOAD,user.permissionOverrides))return jsonError("Document download access is required.",403);
  const parsed=selection.safeParse(await req.json().catch(()=>null));if(!parsed.success)return jsonError("Select between 1 and 100 invoices to download.",422);
  const ids=[...new Set(parsed.data.invoiceIds)];
- const invoices=await prisma.invoice.findMany({where:{id:{in:ids}},orderBy:[{createdAt:"asc"},{id:"asc"}],select:{id:true,invoiceNumber:true,version:true,documentId:true}});
+ const invoices=await prisma.invoice.findMany({where:{id:{in:ids},status:{not:"DELETED"}},orderBy:[{createdAt:"asc"},{id:"asc"}],select:{id:true,invoiceNumber:true,version:true,documentId:true}});
  if(invoices.length!==ids.length||invoices.some(invoice=>!invoice.documentId))return jsonError("One or more selected invoices no longer have a downloadable PDF. Refresh the list and check your selection.",409);
  const documents=await prisma.documentRecord.findMany({where:{id:{in:invoices.map(invoice=>invoice.documentId!)}}});
  const files:Array<{name:string;content:Buffer}>=[];let bytes=0;

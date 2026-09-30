@@ -9,7 +9,7 @@ import { requestContext } from "@/lib/api";
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await requireCapability(CAPABILITIES.BILLING_APPROVE);
   const { id } = await params;
-  const run = await prisma.billingRun.findUnique({ where: { id }, include: { invoices: true } });
+  const run = await prisma.billingRun.findUnique({ where: { id }, include: { invoices: {where:{status:{not:"DELETED"}}} } });
   if (!run) return NextResponse.json({ error: "Not found" }, { status: 404 });
   if (run.status !== "INVOICES_GENERATED") return NextResponse.json({ error: "Generate invoices first." }, { status: 409 });
 
@@ -45,8 +45,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     run.invoices.map(invoice => [invoice.invoiceNumber, invoice.payerName, invoice.invoiceDate.toISOString().slice(0, 10), invoice.dueDate.toISOString().slice(0, 10), invoice.netTotal, invoice.vatTotal, invoice.grossTotal, invoice.status]),
   ));
   const zip = zipFiles(files);
-  const zipDoc = existingZip || await storeDocument({ documentNumber: `INVOICE-RUN-${id.slice(0, 8)}`, documentType: "INVOICE_ZIP", periodStart: run.periodStart, periodEnd: run.periodEnd, version: run.version, createdById: user.id, generationSource: "ADMINISTRATOR", sourceType: "BillingRun", sourceId: id, mimeType: "application/zip", content: zip });
-  const csvDoc = existingCsv || await storeDocument({ documentNumber: `INVOICE-REGISTER-${id.slice(0, 8)}`, documentType: "INVOICE_REGISTER_CSV", periodStart: run.periodStart, periodEnd: run.periodEnd, version: run.version, createdById: user.id, generationSource: "ADMINISTRATOR", sourceType: "BillingRun", sourceId: id, mimeType: "text/csv", content: csv });
+  const nextVersion=async(documentNumber:string)=>(await prisma.documentRecord.findFirst({where:{documentNumber},orderBy:{version:"desc"},select:{version:true}}))?.version||0;
+  const zipDoc = existingZip || await storeDocument({ documentNumber: `INVOICE-RUN-${id.slice(0, 8)}`, documentType: "INVOICE_ZIP", periodStart: run.periodStart, periodEnd: run.periodEnd, version: await nextVersion(`INVOICE-RUN-${id.slice(0, 8)}`)+1, createdById: user.id, generationSource: "ADMINISTRATOR", sourceType: "BillingRun", sourceId: id, mimeType: "application/zip", content: zip });
+  const csvDoc = existingCsv || await storeDocument({ documentNumber: `INVOICE-REGISTER-${id.slice(0, 8)}`, documentType: "INVOICE_REGISTER_CSV", periodStart: run.periodStart, periodEnd: run.periodEnd, version: await nextVersion(`INVOICE-REGISTER-${id.slice(0, 8)}`)+1, createdById: user.id, generationSource: "ADMINISTRATOR", sourceType: "BillingRun", sourceId: id, mimeType: "text/csv", content: csv });
   await audit("INVOICE_BULK_EXPORT_GENERATED", { actorType: "USER", actorId: user.id, entityType: "BillingRun", entityId: id, afterValue: { count: run.invoices.length }, ...requestContext(req) });
   return NextResponse.json({ zipDocument: zipDoc, csvDocument: csvDoc });
 }

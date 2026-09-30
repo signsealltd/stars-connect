@@ -21,7 +21,7 @@ export async function billingChoices(selection:string|ManualBillingPeriod,exclud
  const [students,profiles,invoices]=await Promise.all([
   prisma.student.findMany({where:input?{}:{active:true,startDate:{lte:period.periodEnd},OR:[{endDate:null},{endDate:{gte:period.periodStart}}]},orderBy:{displayName:"asc"},select:{id:true,displayName:true,startDate:true,endDate:true}}),
   prisma.billingProfile.findMany({where:{activeFrom:{lte:period.periodEnd},OR:[{activeTo:null},{activeTo:{gte:period.periodStart}}]},include:{chargeRules:true}}),
-  prisma.invoice.findMany({where:{status:"ISSUED",grossTotal:{gte:0},billingRun:{periodStart:{lte:period.periodEnd},periodEnd:{gte:period.periodStart}}},orderBy:{createdAt:"desc"},select:{id:true,studentId:true,billingProfileId:true,invoiceNumber:true,billingRun:{select:{periodStart:true,periodEnd:true}}}})
+  prisma.invoice.findMany({where:{status:"ISSUED",grossTotal:{gte:0},billingRun:{OR:[{requestKey:null},{requestKey:{not:{startsWith:"manual:"}}}],periodStart:{lte:period.periodEnd},periodEnd:{gte:period.periodStart}}},orderBy:{createdAt:"desc"},select:{id:true,studentId:true,billingProfileId:true,invoiceNumber:true,billingRun:{select:{periodStart:true,periodEnd:true}}}})
  ]);
  const rows=students.flatMap(student=>{
   const matching=profiles.filter(p=>p.studentId===student.id),profile=matching[0];

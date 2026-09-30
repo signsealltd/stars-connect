@@ -96,3 +96,5 @@ describe("official invoice PDF", () => {
 });
 
 it("uses simple client columns and repeats a supplied PO below the invoice number",()=>{const pdf=invoicePdf({...fixture(),purchaseOrderNumber:"PO-123"}).toString("latin1");for(const label of ["CLIENT","QTY","RATE","NET","TOTAL","Your Ref: PO-123","PO: PO-123"])expect(pdf).toContain(`(${label})`);expect(pdf).not.toContain("FUNDED");expect(pdf).not.toContain("SERVICE USER")});
+
+it("preserves long custom descriptions and service dates across continuation rows",()=>{const input=fixture();input.rows[0].service="Additional respite weekend with staff support and transport included";input.rows[0].date="Monday 7 September to Wednesday 9 September 2026";const pdf=invoicePdf(input).toString("latin1");for(const word of ["Additional respite","weekend with staff","support and transport","included","Monday 7 September to Wednesday","9 September 2026"])expect(pdf).toContain(word);expect(pdf).not.toContain("...");});

@@ -115,7 +115,7 @@ function tableRow(row: InvoicePdfRow, y: number, alternate: boolean, showVat: bo
   if (alternate) commands.push(rect(42, y - 14, 511, ATTENDANCE_ROW_HEIGHT, "0.985 0.98 0.99"));
   commands.push(
     text(row.date, 50, y - 1, 6.2),
-    text(fit(row.service || "Attendance", 22), 149, y - 1, 7.5, true),
+    text(fit(row.service ?? "Attendance", 22), 149, y - 1, 7.5, true),
     text(row.days, 260, y - 1, 7.5),
     text(row.rate, 306, y - 1, 7.5),
     text(row.net, 374, y - 1, 7.5),
@@ -126,9 +126,18 @@ function tableRow(row: InvoicePdfRow, y: number, alternate: boolean, showVat: bo
   return commands;
 }
 
+function wrapColumn(value:string,width:number){
+  const lines:string[]=[];let current="";
+  for(const word of value.split(/\s+/)){if(!word)continue;if(current&&(current+" "+word).length>width){lines.push(current);current="";}let rest=word;while(rest.length>width){if(current){lines.push(current);current="";}lines.push(rest.slice(0,width));rest=rest.slice(width);}current=current?current+" "+rest:rest;}
+  if(current)lines.push(current);return lines.length?lines:[""];
+}
 export function invoicePdf(input: InvoicePdfInput) {
   const showVat = Boolean(input.vatNumber?.trim()) || !/GBP\s+0(?:\.00)?$/.test(input.vatTotal.trim());
-  const rows = input.rows.length ? input.rows : [{ date: "-", service: "Attendance", days: "0", rate: "GBP 0.00", net: "GBP 0.00", vat: "GBP 0.00", total: "GBP 0.00" }];
+  const expandedRows = input.rows.flatMap(row => {
+    const service = row.service || "Attendance", chunks = wrapColumn(service,22), dates = wrapColumn(row.date,32);
+    return Array.from({length:Math.max(chunks.length,dates.length)},(_,index)=>index===0?{...row,service:chunks[0],date:dates[0]}:{date:dates[index]||"",service:chunks[index]||"",days:"",rate:"",net:"",vat:"",total:""});
+  });
+  const rows = expandedRows.length ? expandedRows : [{ date: "-", service: "Attendance", days: "0", rate: "GBP 0.00", net: "GBP 0.00", vat: "GBP 0.00", total: "GBP 0.00" }];
   const firstPageRows = 10;
   const continuedRows = 20;
   const finalPageRows = 15;

@@ -1751,6 +1751,8 @@ model StaffScheduleException {
   paid               Boolean                @default(false)
   approvalStatus     ScheduleApprovalStatus @default(PENDING)
   notes              String?                @db.Text
+  bradfordExcluded   Boolean                @default(false)
+  bradfordReason     String?                @db.VarChar(500)
   createdById        String                 @db.Char(36)
   approvedById       String?                @db.Char(36)
   createdAt          DateTime               @default(now())

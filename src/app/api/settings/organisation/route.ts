@@ -15,13 +15,15 @@ const logoSchema = z.object({
 });
 
 const schema = z.object({
+  leaveYearStartMonth: z.number().int().min(1).max(12).default(1),
+  leaveYearStartDay: z.number().int().min(1).max(31).default(1),
   organisationName: z.string().trim().min(2).max(120),
   organisationLegalName: z.string().trim().min(2).max(191),
   organisationAddress: z.string().trim().max(2000),
   organisationLogoUrl: z.string().trim().max(250000),
   organisationLogos: z.array(logoSchema).min(1).max(5),
   themePreset: z.string(),
-});
+}).refine(v => new Date(Date.UTC(2025, v.leaveYearStartMonth - 1, v.leaveYearStartDay)).getUTCMonth() === v.leaveYearStartMonth - 1, "Choose a leave-year start date valid every year.");
 
 export async function GET() {
   await requireCapability(CAPABILITIES.SETTINGS_MANAGE);

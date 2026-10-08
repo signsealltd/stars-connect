@@ -20,6 +20,7 @@ export async function PATCH(req:NextRequest){return withStaff(req,async i=>{
  return prisma.$transaction(async tx=>{
   const r=await tx.staffRequest.findFirst({where:{id:v.id,staffId:i.staff.id,organisationId:i.user.organisationId!}});if(!r)return staffJson({error:"Request unavailable."},404);
   let status=r.status;
+  if(r.status==="CANCELLED")return staffJson({error:"This absence was cancelled. Submit a new request if needed."},409);
   if(v.action==="withdraw"){if(!["NEW","WAITING","DRAFT"].includes(status))return staffJson({error:"Ask your manager to amend an approved request."},409);status="WITHDRAWN";if(r.absenceId)await tx.staffScheduleException.update({where:{id:r.absenceId},data:{approvalStatus:"REJECTED"}})}
   if(v.action==="cancel-request"){if(status!=="APPROVED")return staffJson({error:"Only approved leave can be cancelled."},409);status="CANCELLATION_REQUESTED"}
   if(v.action==="reply"){if(r.status==="DRAFT")return staffJson({error:"Edit the draft, then confirm its declaration before submitting."},409);if(!v.message)return staffJson({error:"Enter your update."},422);status=["APPROVED","CANCELLATION_REQUESTED"].includes(r.status)?r.status:"NEW"}

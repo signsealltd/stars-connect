@@ -4,6 +4,7 @@ import {StaffDialog} from "./staff-dialog";
 
 import{appConfirm}from"@/lib/app-dialog";
 
+import {StaffAbsenceProfile} from "./staff-absence-profile";
 import {StaffHrEditor} from "./staff-hr-editor";
 import {StaffAbsences} from "./staff-absences";
 import {StaffWorkingDays} from "./staff-working-days";
@@ -104,7 +105,7 @@ export function StaffManager({canHr=false}:{canHr?:boolean}) {
           </div></td>
         </tr>)}</tbody></table> : <div className="empty"><b>No staff found</b><p>Change the search or status filter, or add a staff member.</p></div>}
     </section>
-    {hrStaff&&<StaffDialog management label="Staff HR profile" onClose={()=>setHrStaff(undefined)}><button className="btn secondary" onClick={()=>setHrStaff(undefined)}>Close</button><StaffHrEditor staffId={hrStaff}/></StaffDialog>}
+    {hrStaff&&<StaffDialog management label="Staff HR profile" onClose={()=>setHrStaff(undefined)}><button className="btn secondary" onClick={()=>setHrStaff(undefined)}>Close</button><StaffAbsenceProfile staffId={hrStaff}/><StaffHrEditor staffId={hrStaff}/></StaffDialog>}
     {editing && <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={editing === "new" ? "Add staff" : "Edit staff"}>
       <form autoComplete="off" className="modal" onSubmit={save}>
         <h2 style={{ marginTop: 0 }}>{editing === "new" ? "Add staff member" : `Edit ${(editing as Staff).displayName}`}</h2>

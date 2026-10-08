@@ -4,6 +4,8 @@ import { isThemePreset, themePresets } from "./theme-presets";
 export type OrganisationLogo = { id: string; name: string; url: string };
 
 export const organisationDefaults = {
+  leaveYearStartMonth: 1,
+  leaveYearStartDay: 1,
   organisationName: "STARS Day Service",
   organisationLegalName: "STARS Day Service",
   organisationAddress: "",

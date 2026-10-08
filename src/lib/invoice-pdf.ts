@@ -110,11 +110,11 @@ function tableHeader(y: number, showVat: boolean) {
   ];
 }
 
-type DisplayRow = InvoicePdfRow & { lineIndex: number; lastSegment: boolean };
+type DisplayRow = InvoicePdfRow & { lineIndex: number; lastSegment: boolean; height: number };
 
 function tableRow(row: DisplayRow, y: number, alternate: boolean, showVat: boolean) {
   const commands = [];
-  if (alternate) commands.push(rect(42, y - 14, 511, ATTENDANCE_ROW_HEIGHT, "0.985 0.98 0.99"));
+  if (alternate) commands.push(rect(42, y + 8 - row.height, 511, row.height, "0.985 0.98 0.99"));
   commands.push(
     text(row.date, 50, y - 1, 6.2),
     text(fit(row.service ?? "Attendance", 22), 149, y - 1, 7.5, true),
@@ -123,7 +123,7 @@ function tableRow(row: DisplayRow, y: number, alternate: boolean, showVat: boole
     text(row.net, 374, y - 1, 7.5),
     ...(showVat ? [text(row.vat, 433, y - 1, 7.5)] : []),
     text(row.total, 487, y - 1, 7.5, true),
-    ...(row.lastSegment ? [line(42, y - 14, 553, y - 14)] : []),
+    ...(row.lastSegment ? [line(42, y + 8 - row.height, 553, y + 8 - row.height)] : []),
   );
   return commands;
 }
@@ -138,6 +138,49 @@ function wrapParagraph(value:string,width:number){
   for(const word of value.split(/\s+/)){if(!word)continue;if(current&&(current+" "+word).length>width){lines.push(current);current="";}let rest=word;while(rest.length>width){if(current){lines.push(current);current="";}lines.push(rest.slice(0,width));rest=rest.slice(width);}current=current?current+" "+rest:rest;}
   if(current)lines.push(current);return lines.length?lines:[""];
 }
+// Keep ordinary single-line invoice pagination unchanged. Multiline items use
+// their actual printed height, reserving space for totals and payment details.
+function paginateDescriptionRows(rows: DisplayRow[]): DisplayRow[][] {
+  const pages: DisplayRow[][] = [];
+  const remaining = [...rows];
+  while (remaining.length) {
+    const firstPage = pages.length === 0;
+    const finalCapacity = firstPage ? 154 : 330;
+    const bodyCapacity = firstPage ? 220 : 440;
+    const remainingHeight = remaining.reduce((sum, row) => sum + row.height, 0);
+    if (remainingHeight <= finalCapacity) {
+      pages.push(remaining);
+      break;
+    }
+    const page: DisplayRow[] = [];
+    let used = 0;
+    while (remaining.length) {
+      const groupEnd = remaining.findIndex(row => row.lastSegment) + 1;
+      const group = remaining.slice(0, groupEnd);
+      const groupHeight = group.reduce((sum, row) => sum + row.height, 0);
+      if (used + groupHeight <= bodyCapacity) {
+        page.push(...remaining.splice(0, groupEnd));
+        used += groupHeight;
+      } else if (page.length || groupHeight <= 440) {
+        // Move a complete item to the next page when it fits there.
+        break;
+      } else {
+        // An item taller than a whole page must continue across pages.
+        while (remaining.length && used + remaining[0].height <= bodyCapacity) {
+          const row = remaining.shift()!;
+          page.push(row);
+          used += row.height;
+        }
+        break;
+      }
+    }
+    pages.push(page);
+    // An item may fit on the page without leaving room for payment details.
+    if (!remaining.length) pages.push([]);
+  }
+  return pages;
+}
+
 export function invoicePdf(input: InvoicePdfInput) {
   const showVat = Boolean(input.vatNumber?.trim()) || !/GBP\s+0(?:\.00)?$/.test(input.vatTotal.trim());
   const expandedRows = input.rows.flatMap((row, lineIndex) => {
@@ -149,15 +192,18 @@ export function invoicePdf(input: InvoicePdfInput) {
       }),
       lineIndex,
       lastSegment: index === length - 1,
+      height: index === length - 1 ? ATTENDANCE_ROW_HEIGHT : 12,
     }));
   });
-  const rows: DisplayRow[] = expandedRows.length ? expandedRows : [{ lineIndex: 0, lastSegment: true, date: "-", service: "Attendance", days: "0", rate: "GBP 0.00", net: "GBP 0.00", vat: "GBP 0.00", total: "GBP 0.00" }];
+  const rows: DisplayRow[] = expandedRows.length ? expandedRows : [{ lineIndex: 0, lastSegment: true, height: ATTENDANCE_ROW_HEIGHT, date: "-", service: "Attendance", days: "0", rate: "GBP 0.00", net: "GBP 0.00", vat: "GBP 0.00", total: "GBP 0.00" }];
   const firstPageRows = 10;
   const continuedRows = 20;
   const finalPageRows = 15;
   const firstPageRowsWithPaymentDetails = 7;
   const pageRows: DisplayRow[][] = [];
-  if (rows.length <= firstPageRowsWithPaymentDetails) {
+  if (rows.some(row => !row.lastSegment)) {
+    pageRows.push(...paginateDescriptionRows(rows));
+  } else if (rows.length <= firstPageRowsWithPaymentDetails) {
     pageRows.push(rows);
   } else {
     const firstCount = Math.min(firstPageRows, Math.ceil(rows.length / 2));
@@ -214,10 +260,14 @@ export function invoicePdf(input: InvoicePdfInput) {
       tableY = 427;
     }
     commands.push(...tableHeader(tableY, showVat));
-    page.forEach((row, index) => commands.push(...tableRow(row, tableY - 25 - index * ATTENDANCE_ROW_HEIGHT, row.lineIndex % 2 === 1, showVat)));
+    let rowOffset = 0;
+    page.forEach(row => {
+      commands.push(...tableRow(row, tableY - 25 - rowOffset, row.lineIndex % 2 === 1, showVat));
+      rowOffset += row.height;
+    });
 
     if (pageIndex === pageCount - 1) {
-      const totalY=tableY-40-page.length*ATTENDANCE_ROW_HEIGHT;
+      const totalY=tableY-40-rowOffset;
       commands.push(text(`NET: ${input.netTotal}`,310,totalY,8,true));
       if(showVat)commands.push(text(`VAT: ${input.vatTotal}`,310,totalY-14,8,true));
       commands.push(text(`TOTAL: ${input.grossTotal}`,420,totalY,10,true,PURPLE));

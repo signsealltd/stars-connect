@@ -104,10 +104,10 @@ it.each(["\n", "\r\n", "\r"])("preserves entered description lines and blank lin
   input.rows[0].service = ["Respite", "", "Transport"].join(newline);
   const pdf = invoicePdf(input).toString("latin1");
   expect(pdf).toContain("149 401 Td (Respite)");
-  expect(pdf).toContain("149 357 Td (Transport)");
+  expect(pdf).toContain("149 377 Td (Transport)");
   expect(pdf.match(/260 [\d.]+ Td \(1.000\)/g)).toHaveLength(1);
   expect(pdf).not.toContain("42 388 m 553 388 l S");
-  expect(pdf).toContain("42 344 m 553 344 l S");
+  expect(pdf).toContain("42 364 m 553 364 l S");
 });
 
 it("paginates a multiline description without duplicating its charge", () => {
@@ -118,4 +118,41 @@ it("paginates a multiline description without duplicating its charge", () => {
   for (let i = 1; i <= 24; i++) expect(pdf).toContain("(Detail " + i + ")");
   expect(pdf.match(/260 [\d.]+ Td \(1.000\)/g)).toHaveLength(1);
   expect(pdf).toContain("(TOTAL: GBP 100.00)");
+});
+
+it("keeps the reported multiline custom invoice on one page with its payment details", () => {
+  const input = fixture();
+  input.rows[0].service = "This is a test of multiple line invoices.\nLine 2\nLine 3\nLine 4\nLine 5\nLine 6\nLine 7";
+  const pdf = invoicePdf(input).toString("latin1");
+  expect(pdf).toContain("/Count 1");
+  expect(pdf).toContain("(Line 7)");
+  expect(pdf).toContain("(PAYMENT AND DOCUMENT DETAILS)");
+  expect(pdf.match(/260 [\d.]+ Td \(1.000\)/g)).toHaveLength(1);
+});
+
+it("moves a multiline item together when the current page cannot fit it", () => {
+  const input = fixture(8);
+  input.rows[7].service = Array.from({length: 8}, (_, i) => "Detail " + i).join("\n");
+  const pages = invoicePdf(input).toString("latin1").split("endstream");
+  expect(pages[0]).not.toContain("(Detail 0)");
+  expect(pages[1]).toContain("(Detail 0)");
+  expect(pages[1]).toContain("(Detail 7)");
+});
+
+it.each([1, 7, 8, 10, 31, 100])("keeps normal %i-row invoice content and totals clear of the footer", count => {
+  const pdf = invoicePdf(fixture(count)).toString("latin1");
+  expect(pdf.match(/260 [\d.]+ Td \(1.000\)/g)).toHaveLength(count);
+  expect(pdf.match(/\(TOTAL: GBP /g)).toHaveLength(1);
+  for (const match of pdf.matchAll(/149 ([\d.]+) Td/g)) expect(Number(match[1])).toBeGreaterThan(78);
+  const total = pdf.match(/420 ([\d.]+) Td \(TOTAL:/);
+  expect(Number(total?.[1])).toBeGreaterThanOrEqual(232);
+});
+
+it("keeps very tall descriptions above the footer without losing or repeating text", () => {
+  const input = fixture();
+  input.rows[0].service = Array.from({length: 100}, (_, i) => "Detail " + i).join("\n");
+  const pdf = invoicePdf(input).toString("latin1");
+  for (let i = 0; i < 100; i++) expect(pdf.split("(Detail " + i + ")")).toHaveLength(2);
+  for (const match of pdf.matchAll(/149 ([\d.]+) Td/g)) expect(Number(match[1])).toBeGreaterThan(78);
+  expect(pdf.match(/260 [\d.]+ Td \(1.000\)/g)).toHaveLength(1);
 });

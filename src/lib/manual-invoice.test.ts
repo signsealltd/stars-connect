@@ -10,3 +10,13 @@ describe("Custom Invoice",()=>{
  it("rejects missing lines, reversed dates and excessive totals",()=>{expect(manualInvoiceSchema.safeParse({...sample(),lines:[]}).success).toBe(false);expect(manualInvoiceSchema.safeParse({...sample(),periodEnd:"2026-08-01"}).success).toBe(false);expect(manualInvoiceSchema.safeParse({...sample(),dueDate:"2026-09-01"}).success).toBe(false);const input=sample();input.lines[0].quantity=10000;input.lines[0].unitRate=1000000;expect(manualInvoiceSchema.safeParse(input).success).toBe(false);});
  it("rejects negative charges and fractions of a penny",()=>{const input=sample();input.lines[0].unitRate=-1;expect(manualInvoiceSchema.safeParse(input).success).toBe(false);input.lines[0].unitRate=0.001;expect(manualInvoiceSchema.safeParse(input).success).toBe(false);});
 });
+
+it("preserves line breaks within a single custom invoice charge", () => {
+  const input = sample();
+  input.lines = [{...input.lines[0], service: "Respite\n\nTransport included"}];
+  const parsed = manualInvoiceSchema.parse(JSON.parse(JSON.stringify(input)));
+  const lines = calculateInvoiceLines(parsed.lines);
+  expect(lines).toHaveLength(1);
+  expect(lines[0].service).toBe("Respite\n\nTransport included");
+  expect(calculateInvoiceTotals(lines)).toEqual({net: 220.98, vat: 0, gross: 220.98});
+});

@@ -98,3 +98,24 @@ describe("official invoice PDF", () => {
 it("uses simple client columns and repeats a supplied PO below the invoice number",()=>{const pdf=invoicePdf({...fixture(),purchaseOrderNumber:"PO-123"}).toString("latin1");for(const label of ["CLIENT","QTY","RATE","NET","TOTAL","Your Ref: PO-123","PO: PO-123"])expect(pdf).toContain(`(${label})`);expect(pdf).not.toContain("FUNDED");expect(pdf).not.toContain("SERVICE USER")});
 
 it("preserves long custom descriptions and service dates across continuation rows",()=>{const input=fixture();input.rows[0].service="Additional respite weekend with staff support and transport included";input.rows[0].date="Monday 7 September to Wednesday 9 September 2026";const pdf=invoicePdf(input).toString("latin1");for(const word of ["Additional respite","weekend with staff","support and transport","included","Monday 7 September to Wednesday","9 September 2026"])expect(pdf).toContain(word);expect(pdf).not.toContain("...");});
+
+it.each(["\n", "\r\n", "\r"])("preserves entered description lines and blank lines (%j) within one charge", newline => {
+  const input = fixture();
+  input.rows[0].service = ["Respite", "", "Transport"].join(newline);
+  const pdf = invoicePdf(input).toString("latin1");
+  expect(pdf).toContain("149 401 Td (Respite)");
+  expect(pdf).toContain("149 357 Td (Transport)");
+  expect(pdf.match(/260 [\d.]+ Td \(1.000\)/g)).toHaveLength(1);
+  expect(pdf).not.toContain("42 388 m 553 388 l S");
+  expect(pdf).toContain("42 344 m 553 344 l S");
+});
+
+it("paginates a multiline description without duplicating its charge", () => {
+  const input = fixture();
+  input.rows[0].service = Array.from({length: 24}, (_, i) => "Detail " + (i + 1)).join("\n");
+  const pdf = invoicePdf(input).toString("latin1");
+  expect(pdf).toContain("/Count 2");
+  for (let i = 1; i <= 24; i++) expect(pdf).toContain("(Detail " + i + ")");
+  expect(pdf.match(/260 [\d.]+ Td \(1.000\)/g)).toHaveLength(1);
+  expect(pdf).toContain("(TOTAL: GBP 100.00)");
+});

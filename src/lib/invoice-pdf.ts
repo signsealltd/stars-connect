@@ -110,7 +110,9 @@ function tableHeader(y: number, showVat: boolean) {
   ];
 }
 
-function tableRow(row: InvoicePdfRow, y: number, alternate: boolean, showVat: boolean) {
+type DisplayRow = InvoicePdfRow & { lineIndex: number; lastSegment: boolean };
+
+function tableRow(row: DisplayRow, y: number, alternate: boolean, showVat: boolean) {
   const commands = [];
   if (alternate) commands.push(rect(42, y - 14, 511, ATTENDANCE_ROW_HEIGHT, "0.985 0.98 0.99"));
   commands.push(
@@ -121,28 +123,40 @@ function tableRow(row: InvoicePdfRow, y: number, alternate: boolean, showVat: bo
     text(row.net, 374, y - 1, 7.5),
     ...(showVat ? [text(row.vat, 433, y - 1, 7.5)] : []),
     text(row.total, 487, y - 1, 7.5, true),
-    line(42, y - 14, 553, y - 14),
+    ...(row.lastSegment ? [line(42, y - 14, 553, y - 14)] : []),
   );
   return commands;
 }
 
-function wrapColumn(value:string,width:number){
+function wrapColumn(value: string, width: number): string[] {
+  // Wrap each entered line independently, preserving intentional blank lines.
+  return value.split(/\r\n|\r|\n/).flatMap(part => wrapParagraph(part, width));
+}
+
+function wrapParagraph(value:string,width:number){
   const lines:string[]=[];let current="";
   for(const word of value.split(/\s+/)){if(!word)continue;if(current&&(current+" "+word).length>width){lines.push(current);current="";}let rest=word;while(rest.length>width){if(current){lines.push(current);current="";}lines.push(rest.slice(0,width));rest=rest.slice(width);}current=current?current+" "+rest:rest;}
   if(current)lines.push(current);return lines.length?lines:[""];
 }
 export function invoicePdf(input: InvoicePdfInput) {
   const showVat = Boolean(input.vatNumber?.trim()) || !/GBP\s+0(?:\.00)?$/.test(input.vatTotal.trim());
-  const expandedRows = input.rows.flatMap(row => {
+  const expandedRows = input.rows.flatMap((row, lineIndex) => {
     const service = row.service || "Attendance", chunks = wrapColumn(service,22), dates = wrapColumn(row.date,32);
-    return Array.from({length:Math.max(chunks.length,dates.length)},(_,index)=>index===0?{...row,service:chunks[0],date:dates[0]}:{date:dates[index]||"",service:chunks[index]||"",days:"",rate:"",net:"",vat:"",total:""});
+    const length = Math.max(chunks.length, dates.length);
+    return Array.from({length}, (_, index) => ({
+      ...(index === 0 ? {...row, service: chunks[0], date: dates[0]} : {
+        date: dates[index] || "", service: chunks[index] || "", days: "", rate: "", net: "", vat: "", total: "",
+      }),
+      lineIndex,
+      lastSegment: index === length - 1,
+    }));
   });
-  const rows = expandedRows.length ? expandedRows : [{ date: "-", service: "Attendance", days: "0", rate: "GBP 0.00", net: "GBP 0.00", vat: "GBP 0.00", total: "GBP 0.00" }];
+  const rows: DisplayRow[] = expandedRows.length ? expandedRows : [{ lineIndex: 0, lastSegment: true, date: "-", service: "Attendance", days: "0", rate: "GBP 0.00", net: "GBP 0.00", vat: "GBP 0.00", total: "GBP 0.00" }];
   const firstPageRows = 10;
   const continuedRows = 20;
   const finalPageRows = 15;
   const firstPageRowsWithPaymentDetails = 7;
-  const pageRows: InvoicePdfRow[][] = [];
+  const pageRows: DisplayRow[][] = [];
   if (rows.length <= firstPageRowsWithPaymentDetails) {
     pageRows.push(rows);
   } else {
@@ -200,7 +214,7 @@ export function invoicePdf(input: InvoicePdfInput) {
       tableY = 427;
     }
     commands.push(...tableHeader(tableY, showVat));
-    page.forEach((row, index) => commands.push(...tableRow(row, tableY - 25 - index * ATTENDANCE_ROW_HEIGHT, index % 2 === 1, showVat)));
+    page.forEach((row, index) => commands.push(...tableRow(row, tableY - 25 - index * ATTENDANCE_ROW_HEIGHT, row.lineIndex % 2 === 1, showVat)));
 
     if (pageIndex === pageCount - 1) {
       const totalY=tableY-40-page.length*ATTENDANCE_ROW_HEIGHT;

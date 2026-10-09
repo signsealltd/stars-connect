@@ -164,7 +164,7 @@ export async function reviewScheduleException(user:User,staffId:string,exception
   let occurrencesChanged=0;
   if(approvalStatus==="APPROVED"){
    const endExclusive=new Date(exception.endDate.getTime()+86400000);
-   const status=exception.type==="SICKNESS"?"SICKNESS":exception.type==="TRAINING"?"TRAINING":["ANNUAL_LEAVE","UNPAID_LEAVE","NON_WORKING_DAY"].includes(exception.type)?"LEAVE":"CHANGED";
+   const status=exception.type==="SICKNESS"?"SICKNESS":exception.type==="TRAINING"?"TRAINING":["ANNUAL_LEAVE","UNPAID_LEAVE","COMPASSIONATE_LEAVE","NON_WORKING_DAY"].includes(exception.type)?"LEAVE":"CHANGED";
    const result=await tx.staffScheduleOccurrence.updateMany({where:{organisationId,staffId,date:{gte:exception.startDate,lt:endExclusive},manuallyModified:false,status:{not:"CANCELLED"}},data:{status}});
    occurrencesChanged=result.count;
    if(["LEAVE","SICKNESS"].includes(status))await tx.expectedStaffAttendance.updateMany({where:{organisationId,staffId,date:{gte:exception.startDate,lt:endExclusive}},data:{state:"ABSENT_APPROVED"}});

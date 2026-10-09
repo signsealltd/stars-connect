@@ -3,7 +3,7 @@ import {z} from "zod";
 import {generatePatternOccurrences, type PatternInterval} from "./operations-core";
 
 export const workingDaysInput=z.object({effectiveStart:z.string().date(),days:z.array(z.object({dayOfWeek:z.number().int().min(0).max(6),startTime:z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),endTime:z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/)}).refine(day=>day.endTime>day.startTime,"End time must be after start time.")).max(7)}).refine(value=>new Set(value.days.map(day=>day.dayOfWeek)).size===value.days.length,"Choose each weekday once.");
-export const staffAbsenceInput=z.object({staffId:z.string().uuid(),type:z.enum(["ANNUAL_LEAVE","SICKNESS"]),startDate:z.string().date(),endDate:z.string().date(),notes:z.string().trim().max(2000).optional()}).refine(value=>value.endDate>=value.startDate&&Date.parse(value.endDate)-Date.parse(value.startDate)<=366*86400000,"Choose a valid absence of up to one year.");
+export {absenceCreateInput as staffAbsenceInput} from "./staff-absence-input";
 type Shift={premisesName?:string|null;staffId:string;date:Date;startAt:Date;endAt:Date;status:string;role?:string|null;patternId?:string|null;generationKey:string;staff:{displayName:string;startDate?:Date;endDate?:Date|null}};
 type Pattern={id:string;staffId:string;effectiveStart:Date;effectiveEnd:Date|null;timezone:string;cycleWeeks:number;intervals:PatternInterval[];staff:{displayName:string;startDate:Date;endDate:Date|null}};
 type Absence={staffId:string;startDate:Date;endDate:Date;startTime?:string|null;endTime?:string|null};

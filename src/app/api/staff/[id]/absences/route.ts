@@ -1,3 +1,4 @@
+import {staffAbsenceTypes} from "@/lib/staff-absence-types";
 import {NextRequest,NextResponse} from "next/server";
 import {z} from "zod";
 import {withCapability,jsonError} from "@/lib/api";
@@ -24,7 +25,7 @@ export async function GET(req:NextRequest,{params}:Params){return withCapability
   const [patterns,stored,records,pending]=await Promise.all([
     prisma.staffWorkingPattern.findMany({where:{staffId:id,organisationId,active:true,effectiveStart:{lte:new Date(to)},OR:[{effectiveEnd:null},{effectiveEnd:{gte:new Date(from)}}]},include:{intervals:true,staff:{select:{displayName:true,startDate:true,endDate:true}}}}),
     prisma.staffScheduleOccurrence.findMany({where:{staffId:id,organisationId,date:{gte:new Date(from),lte:new Date(to)}},include:{staff:{select:{displayName:true,startDate:true,endDate:true}}}}),
-    prisma.staffScheduleException.findMany({where:{staffId:id,organisationId,type:{in:["ANNUAL_LEAVE","SICKNESS"]}},orderBy:{startDate:"desc"}}),
+    prisma.staffScheduleException.findMany({where:{staffId:id,organisationId,type:{in:[...staffAbsenceTypes]}},orderBy:{startDate:"desc"}}),
     prisma.staffRequest.count({where:{staffId:id,organisationId,type:"LEAVE",status:{in:["NEW","IN_REVIEW","WAITING"]}}}),
   ]);
   const work=new Map<string,WorkDay>();

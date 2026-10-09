@@ -61,6 +61,7 @@ enum ScheduleExceptionType {
   NON_WORKING_DAY
   APPOINTMENT
   OTHER
+  COMPASSIONATE_LEAVE
 }
 
 enum ScheduleApprovalStatus {

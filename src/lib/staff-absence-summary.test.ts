@@ -25,3 +25,16 @@ describe("absence editing validation",()=>{
  it("requires both partial-day times and valid dates",()=>{expect(absenceCreateInput.safeParse({...values,startTime:"09:00"}).success).toBe(false);expect(absenceCreateInput.safeParse({...values,endDate:"2026-02-01"}).success).toBe(false)});
  it("requires a record version and change reason",()=>{expect(absenceEditInput.safeParse({id:values.staffId,values}).success).toBe(false)});
 });
+
+it.each(["UNPAID_LEAVE","COMPASSIONATE_LEAVE"])("counts only scheduled %s time without changing annual leave or Bradford",type=>{
+ const partial=absence("2026-02-09",undefined,type,{startTime:"09:00",endTime:"13:00"});
+ const result=absenceSummary({...base,absences:[absence("2026-02-06","2026-02-08",type),partial,absence("2026-03-02",undefined,type),absence("2026-02-10",undefined,type,{approvalStatus:"REJECTED"})]});
+ expect(result.otherLeave.find(l=>l.type===type)).toMatchObject({taken:{days:1.5},booked:{days:1}});
+ expect(result.taken.days).toBe(0);expect(result.booked.days).toBe(0);expect(result.remainingDays).toBe(30);
+ expect(result.bradford).toMatchObject({spells:0,days:0,score:0});
+});
+it.each(["UNPAID_LEAVE","COMPASSIONATE_LEAVE"])("accepts %s and rejects sickness-only exclusion settings",type=>{
+ const value={staffId:"11111111-1111-4111-8111-111111111111",type,startDate:"2026-02-02",endDate:"2026-02-03"};
+ expect(absenceCreateInput.safeParse(value).success).toBe(true);
+ expect(absenceCreateInput.safeParse({...value,bradfordExcluded:true,bradfordReason:"Not sickness"}).success).toBe(false);
+});

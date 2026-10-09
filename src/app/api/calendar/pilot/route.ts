@@ -1,3 +1,4 @@
+import {staffAbsenceTypes} from "@/lib/staff-absence-types";
 import {editCalendarActivity} from "@/lib/calendar-activity-edit";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
@@ -48,7 +49,7 @@ export async function GET(req: NextRequest) {
       prisma.billingRun.findMany({ where: { periodStart: { lte: endDate }, periodEnd: { gte: startDate } }, select: { id: true, label: true, periodStart: true, periodEnd: true, status: true, selectedStudentIds: true }, orderBy: { periodStart: "asc" }, take: 100 }),
       prisma.operationalTask.findMany({where:{status:{notIn:["ARCHIVED","CANCELLED","COMPLETED"]},sourceKey:{startsWith:"billing-period:"},dueDate:{gte:startDate,lte:endDate}},orderBy:{dueDate:"asc"}}),
       prisma.staffWorkingPattern.findMany({where:{organisationId,active:true,effectiveStart:{lte:endDate},OR:[{effectiveEnd:null},{effectiveEnd:{gte:startDate}}],staff:{active:true,archivedAt:null}},include:{intervals:true,staff:{select:{displayName:true,startDate:true,endDate:true}}}}),
-      prisma.staffScheduleException.findMany({where:{organisationId,approvalStatus:"APPROVED",type:{in:["ANNUAL_LEAVE","SICKNESS","UNPAID_LEAVE"]},startDate:{lte:endDate},endDate:{gte:startDate}},include:{staff:{select:{displayName:true}}}}),
+      prisma.staffScheduleException.findMany({where:{organisationId,approvalStatus:"APPROVED",type:{in:[...staffAbsenceTypes]},startDate:{lte:endDate},endDate:{gte:startDate}},include:{staff:{select:{displayName:true}}}}),
       prisma.staffMember.findMany({where:{active:true,archivedAt:null},select:{id:true,displayName:true},orderBy:{displayName:"asc"}}),
     ]);
     const extra=operations.filter(o=>o.operation.type==="ADDITIONAL_SHIFT").flatMap(o=>o.assignments.map(a=>({staffId:a.staffId,date:localDateAsDatabaseDate(dateKey(o.startAt)),startAt:o.startAt,endAt:o.endAt,status:"SCHEDULED",generationKey:"operation:"+a.id,staff:{displayName:a.staff.displayName}})));

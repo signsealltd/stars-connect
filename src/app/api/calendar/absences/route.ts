@@ -1,3 +1,4 @@
+import {staffAbsenceTypes} from "@/lib/staff-absence-types";
 import {NextRequest,NextResponse} from "next/server";
 
 import {withCapability,jsonError} from "@/lib/api";
@@ -23,7 +24,7 @@ export async function PATCH(req:NextRequest){return withCapability(req,CAPABILIT
  if(!parsed.success)return jsonError(parsed.error.issues[0].message,422);
  const input=parsed.data,organisationId=requireOrganisation(user);
  return prisma.$transaction(async tx=>{
-  const record=await tx.staffScheduleException.findFirst({where:{id:input.id,organisationId,type:{in:["ANNUAL_LEAVE","SICKNESS"]},approvalStatus:"APPROVED"}});
+  const record=await tx.staffScheduleException.findFirst({where:{id:input.id,organisationId,type:{in:[...staffAbsenceTypes]},approvalStatus:"APPROVED"}});
   if(!record)return jsonError("Absence not found.",404);
   if(record.updatedAt.toISOString()!==input.updatedAt)return jsonError("This absence changed. Reload before editing.",409);
   const values=editing?absenceEditInput.parse(body).values:null;
@@ -41,4 +42,4 @@ export async function PATCH(req:NextRequest){return withCapability(req,CAPABILIT
  },{isolationLevel:"Serializable"});
 });}
 
-export async function GET(req:NextRequest){return withCapability(req,CAPABILITIES.STAFF_SCHEDULE_VIEW,async user=>{const organisationId=requireOrganisation(user),staffId=req.nextUrl.searchParams.get("staffId")||undefined;const [staff,records]=await Promise.all([prisma.staffMember.findMany({where:{archivedAt:null},select:{id:true,displayName:true},orderBy:{displayName:"asc"}}),prisma.staffScheduleException.findMany({where:{organisationId,...(staffId?{staffId}:{}),type:{in:["ANNUAL_LEAVE","SICKNESS"]},approvalStatus:"APPROVED"},include:{staff:{select:{displayName:true}}},orderBy:{startDate:"desc"},...(staffId?{}:{take:100})})]);return NextResponse.json({staff:staff.map(item=>({id:item.id,name:item.displayName})),records:records.map(item=>({id:item.id,staffId:item.staffId,name:item.staff.displayName,type:item.type,startDate:item.startDate,endDate:item.endDate,startTime:item.startTime,endTime:item.endTime,updatedAt:item.updatedAt,...(hasCapability(user.role,CAPABILITIES.STAFF_SCHEDULE_MANAGE,user.permissionOverrides)?{notes:item.notes,bradfordExcluded:item.bradfordExcluded,bradfordReason:item.bradfordReason}:{})})),canManage:hasCapability(user.role,CAPABILITIES.STAFF_SCHEDULE_MANAGE,user.permissionOverrides)});});}
+export async function GET(req:NextRequest){return withCapability(req,CAPABILITIES.STAFF_SCHEDULE_VIEW,async user=>{const organisationId=requireOrganisation(user),staffId=req.nextUrl.searchParams.get("staffId")||undefined;const [staff,records]=await Promise.all([prisma.staffMember.findMany({where:{archivedAt:null},select:{id:true,displayName:true},orderBy:{displayName:"asc"}}),prisma.staffScheduleException.findMany({where:{organisationId,...(staffId?{staffId}:{}),type:{in:[...staffAbsenceTypes]},approvalStatus:"APPROVED"},include:{staff:{select:{displayName:true}}},orderBy:{startDate:"desc"},...(staffId?{}:{take:100})})]);return NextResponse.json({staff:staff.map(item=>({id:item.id,name:item.displayName})),records:records.map(item=>({id:item.id,staffId:item.staffId,name:item.staff.displayName,type:item.type,startDate:item.startDate,endDate:item.endDate,startTime:item.startTime,endTime:item.endTime,updatedAt:item.updatedAt,...(hasCapability(user.role,CAPABILITIES.STAFF_SCHEDULE_MANAGE,user.permissionOverrides)?{notes:item.notes,bradfordExcluded:item.bradfordExcluded,bradfordReason:item.bradfordReason}:{})})),canManage:hasCapability(user.role,CAPABILITIES.STAFF_SCHEDULE_MANAGE,user.permissionOverrides)});});}

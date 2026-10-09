@@ -46,6 +46,11 @@ export function absenceSummary(input:{today:string;year:{start:string;end:string
   const holiday=approved.filter(a=>a.type==="ANNUAL_LEAVE");
   const taken=measure(holiday,input.year.start,input.today<input.year.end?input.today:input.year.end);
   const booked=measure(holiday,input.today>=input.year.start?shiftDate(input.today,1):input.year.start,input.year.end);
+  const otherLeave = ["UNPAID_LEAVE", "COMPASSIONATE_LEAVE"].map(type => {
+    const records = approved.filter(a => a.type === type);
+    return {type, taken: measure(records,input.year.start,input.today<input.year.end?input.today:input.year.end),
+      booked: measure(records,input.today>=input.year.start?shiftDate(input.today,1):input.year.start,input.year.end)};
+  });
   const bradfordStart=shiftDate(input.today,-363);
   const sickness=approved.filter(a=>a.type==="SICKNESS"&&!a.bradfordExcluded&&a.startDate<=input.today&&a.endDate>=bradfordStart).sort((a,b)=>a.startDate.localeCompare(b.startDate));
   const sickDays=measure(sickness,bradfordStart,input.today);
@@ -62,7 +67,7 @@ export function absenceSummary(input:{today:string;year:{start:string;end:string
     else spells.push({start,end});
   }
   const holidayKnown=!taken.unknownDates.length&&!booked.unknownDates.length;
-  return {year:input.year,taken,booked,entitlementDays:input.entitlementDays,carryOverDays:input.carryOverDays,
+  return {year:input.year,taken,booked,otherLeave,entitlementDays:input.entitlementDays,carryOverDays:input.carryOverDays,
     remainingDays:input.entitlementDays===null||!holidayKnown?null:Math.round((input.entitlementDays+input.carryOverDays-taken.days-booked.days)*100)/100,
     bradford:{start:bradfordStart,end:input.today,spells:spells.length,days:sickDays.days,score:sickDays.unknownDates.length?null:Math.round(spells.length**2*sickDays.days*100)/100,unknownDates:sickDays.unknownDates,
       excludedRecords:approved.filter(a=>a.type==="SICKNESS"&&a.bradfordExcluded&&a.startDate<=input.today&&a.endDate>=bradfordStart).length}};

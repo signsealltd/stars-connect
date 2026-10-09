@@ -289,6 +289,7 @@ model StaffMember {
   clockEvents           ClockEvent[]
   presenceEvents        StaffPresenceEvent[]
   trainingRecords       StaffTrainingRecord[]
+  trainingAssignments   StaffTrainingAssignment[]
   workingPatterns       StaffWorkingPattern[]
   scheduleOccurrences   StaffScheduleOccurrence[]
   scheduleExceptions    StaffScheduleException[]   @relation("ScheduleExceptionStaff")
@@ -316,6 +317,7 @@ model StaffTrainingRecord {
   completedDate        DateTime          @db.Date
   expiryDate           DateTime?         @db.Date
   mandatory            Boolean           @default(false)
+  fullTier2Verified    Boolean           @default(false)
   notes                String?           @db.Text
   active               Boolean           @default(true)
   createdById          String            @db.Char(36)
@@ -346,8 +348,8 @@ model TrainingProvider {
   active                 Boolean                  @default(true)
   courses                TrainingCourseProvider[]
   trainingRecords        StaffTrainingRecord[]
-  createdById            String                   @db.Char(36)
-  updatedById            String                   @db.Char(36)
+  createdById            String?                  @db.Char(36)
+  updatedById            String?                  @db.Char(36)
   createdAt              DateTime                 @default(now())
   updatedAt              DateTime                 @updatedAt
 
@@ -360,18 +362,41 @@ model TrainingCourse {
   name             String                   @unique @db.VarChar(191)
   category         String                   @db.VarChar(100)
   description      String?                  @db.Text
+  catalogueKey     String?                  @unique @db.VarChar(100)
+  numberedLevel    Int?
+  atlasCourseId    String?                  @db.VarChar(191)
+  integrationSource String?                 @db.VarChar(100)
+  priority         String?                  @db.VarChar(40)
+  evidenceKind     String                   @default("COURSE") @db.VarChar(40)
   renewalMonths    Int?
   warningDays      Int                      @default(60)
   requirementRules Json
   active           Boolean                  @default(true)
   providers        TrainingCourseProvider[]
   trainingRecords  StaffTrainingRecord[]
+  assignments      StaffTrainingAssignment[]
   createdById      String?                  @db.Char(36)
   updatedById      String?                  @db.Char(36)
   createdAt        DateTime                 @default(now())
   updatedAt        DateTime                 @updatedAt
 
   @@index([active, category, name])
+}
+
+model StaffTrainingAssignment {
+  id          String         @id @default(uuid()) @db.Char(36)
+  staffId     String         @db.Char(36)
+  staff       StaffMember    @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  courseId    String         @db.Char(36)
+  course      TrainingCourse @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  required    Boolean
+  reason      String?        @db.VarChar(1000)
+  updatedById String         @db.Char(36)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@unique([staffId, courseId])
+  @@index([courseId])
 }
 
 model TrainingCourseProvider {

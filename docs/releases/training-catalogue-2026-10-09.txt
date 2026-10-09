@@ -1,0 +1,44 @@
+STARS training catalogue — 9 October 2026
+
+Deploy using the normal migration procedure: npx prisma migrate deploy
+Apply migrations before serving the new application code. The migration imports
+the approved 40 provider courses automatically; no manual course entry is needed.
+
+Data changes
+- Inserts exact CSV course titles, providers, proposed role requirements and priorities.
+- Only the explicit Level 3 course receives a numbered level. GDPR 1/2 and CPD
+  are not qualification levels. Atlas IDs and new refresher periods stay NULL.
+- Inserts protected local/practical/external titles only where absent, plus a
+  separate Oliver McGowan Tier 2 Full Package requirement. Missing protected
+  titles use conditional assignments (local induction uses induction for support
+  workers). Managers should review these assignments for the relevant roles.
+- On the supplied snapshot: 37 existing courses remain, 40 provider courses are
+  added, 9 missing protected titles are added, and 1 full-package requirement is
+  added (87 courses in total). There were no providers or provider links in the
+  snapshot. Similar existing titles are not renamed or treated as equivalents.
+- Exact-name collisions at deployment are skipped without changing the existing
+  course. They are not assigned an import key or provider link automatically.
+- Does not update or delete existing staff completions, dates, certificates,
+  course titles, requirement rules or provider snapshots. Historic record titles
+  are displayed from the record itself even after a catalogue rename.
+
+Manager controls
+- Training > Courses: edit proposed requirements, priority, numbered level,
+  evidence type and confirmed refresher period.
+- Assign training to a staff member: require a conditional/induction course for
+  an individual, record an exemption, or revert to the role requirement.
+- Mandatory matrix totals exclude optional and unassigned conditional/induction
+  items, including their expired records. Filters also update the totals.
+- Existing broad subjects remain separate from the imported provider courses.
+  Review overlapping role requirements to avoid counting duplicate obligations.
+  No course equivalence or historical completion credit is inferred.
+- Full Tier 2 requires a separate record, explicit manager verification of both
+  online and face-to-face evidence, and an evidence reference. The online module
+  and face-to-face session alone do not automatically complete the package.
+- Integration source and Atlas course ID are visible. Atlas IDs are reserved for
+  an eventual API integration; this change does not call Atlas or invent IDs.
+
+The original SQL backup is not included in the repository or restored anywhere.
+The migration generator only reads the reviewed, non-personal course definitions.
+Proposed STARS requirements are editable organisational policy, not an assertion
+of provider-confirmed legal requirements.

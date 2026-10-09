@@ -1,0 +1,617 @@
+[
+  {
+    "key": "stars-plan-2026-01",
+    "name": "Safeguarding and Protection of Adults (Careskills)",
+    "provider": "Careskills",
+    "numberedLevel": null,
+    "priority": "Immediate",
+    "requirementRules": {
+      "Support Worker": "REQUIRED",
+      "Team Leader": "REQUIRED",
+      "Manager": "REQUIRED"
+    },
+    "possibleExistingSubjects": [
+      "Safeguarding Adults"
+    ],
+    "reviewNote": "Review broad subject; do not replace with Level 3."
+  },
+  {
+    "key": "stars-plan-2026-02",
+    "name": "Safeguarding of Adults Level 3 CSTF Aligned (Flexebee)",
+    "provider": "Flexebee",
+    "numberedLevel": 3,
+    "priority": "Role-specific",
+    "requirementRules": {
+      "Support Worker": "CONDITIONAL",
+      "Team Leader": "CONDITIONAL",
+      "Manager": "CONDITIONAL"
+    },
+    "possibleExistingSubjects": [
+      "Safeguarding Adults",
+      "Safeguarding Lead Training"
+    ],
+    "reviewNote": "Separate Level 3 variant; manager must confirm any mapping."
+  },
+  {
+    "key": "stars-plan-2026-03",
+    "name": "Health and Safety (Careskills)",
+    "provider": "Careskills",
+    "numberedLevel": null,
+    "priority": "Immediate",
+    "requirementRules": {
+      "Support Worker": "REQUIRED",
+      "Team Leader": "REQUIRED",
+      "Manager": "REQUIRED"
+    },
+    "possibleExistingSubjects": [
+      "Health & Safety"
+    ],
+    "reviewNote": "Candidate for manager review."
+  },
+  {
+    "key": "stars-plan-2026-04",
+    "name": "Fire Safety (Careskills)",
+    "provider": "Careskills",
+    "numberedLevel": null,
+    "priority": "Immediate",
+    "requirementRules": {
+      "Support Worker": "REQUIRED",
+      "Team Leader": "REQUIRED",
+      "Manager": "REQUIRED"
+    },
+    "possibleExistingSubjects": [
+      "Fire Safety"
+    ],
+    "reviewNote": "Keep site familiarisation and evacuation evidence separate."
+  },
+  {
+    "key": "stars-plan-2026-05",
+    "name": "Infection Control (Careskills)",
+    "provider": "Careskills",
+    "numberedLevel": null,
+    "priority": "Immediate",
+    "requirementRules": {
+      "Support Worker": "REQUIRED",
+      "Team Leader": "REQUIRED",
+      "Manager": "REQUIRED"
+    },
+    "possibleExistingSubjects": [
+      "Infection Prevention & Control"
+    ],
+    "reviewNote": "Candidate for manager review."
+  },
+  {
+    "key": "stars-plan-2026-06",
+    "name": "Mental Capacity (Careskills)",
+    "provider": "Careskills",
+    "numberedLevel": null,
+    "priority": "Immediate",
+    "requirementRules": {
+      "Support Worker": "REQUIRED",
+      "Team Leader": "REQUIRED",
+      "Manager": "REQUIRED"
+    },
+    "possibleExistingSubjects": [
+      "Mental Capacity Act"
+    ],
+    "reviewNote": "Candidate for manager review."
+  },
+  {
+    "key": "stars-plan-2026-07",
+    "name": "The Oliver McGowan Mandatory Training",
+    "provider": "Confirm with Atlas",
+    "numberedLevel": null,
+    "priority": "Immediate",
+    "requirementRules": {
+      "Support Worker": "REQUIRED",
+      "Team Leader": "REQUIRED",
+      "Manager": "REQUIRED"
+    },
+    "possibleExistingSubjects": [
+      "Oliver McGowan Mandatory Training - Part 1",
+      "Oliver McGowan Mandatory Training - Part 2"
+    ],
+    "reviewNote": "Confirm Atlas course scope and provider. No automatic equivalence to either part or full Tier 2; face-to-face remains separate."
+  },
+  {
+    "key": "stars-plan-2026-08",
+    "name": "Learning Disability (Careskills)",
+    "provider": "Careskills",
+    "numberedLevel": null,
+    "priority": "Immediate",
+    "requirementRules": {
+      "Support Worker": "REQUIRED",
+      "Team Leader": "REQUIRED",
+      "Manager": "REQUIRED"
+    },
+    "possibleExistingSubjects": [
+      "Learning Disability Awareness"
+    ],
+    "reviewNote": "Awareness variant: explicit manager review, no automatic merge."
+  },
+  {
+    "key": "stars-plan-2026-09",
+    "name": "Autism (Careskills)",
+    "provider": "Careskills",
+    "numberedLevel": null,
+    "priority": "Immediate",
+    "requirementRules": {
+      "Support Worker": "REQUIRED",
+      "Team Leader": "REQUIRED",
+      "Manager": "REQUIRED"
+    },
+    "possibleExistingSubjects": [
+      "Autism Awareness"
+    ],
+    "reviewNote": "Awareness variant: explicit manager review, no automatic merge."
+  },
+  {
+    "key": "stars-plan-2026-10",
+    "name": "GDPR 1 (Careskills)",
+    "provider": "Careskills",
+    "numberedLevel": null,
+    "priority": "Immediate",
+    "requirementRules": {
+      "Support Worker": "REQUIRED",
+      "Team Leader": "REQUIRED",
+      "Manager": "REQUIRED"
+    },
+    "possibleExistingSubjects": [
+      "GDPR / Data Protection"
+    ],
+    "reviewNote": "GDPR 1 and GDPR 2 compete for broad subject; manager selection required. 1 is not a qualification level."
+  },
+  {
+    "key": "stars-plan-2026-11",
+    "name": "Epilepsy Awareness (Careskills)",
+    "provider": "Careskills",
+    "numberedLevel": null,
+    "priority": "Immediate",
+    "requirementRules": {
+      "Support Worker": "CONDITIONAL",
+      "Team Leader": "CONDITIONAL",
+      "Manager": "CONDITIONAL"
+    },
+    "possibleExistingSubjects": [
+      "Epilepsy Awareness"
+    ],
+    "reviewNote": "Review exact provider and variant."
+  },
+  {
+    "key": "stars-plan-2026-12",
+    "name": "Buccal Midazolam (Careskills)",
+    "provider": "Careskills",
+    "numberedLevel": null,
+    "priority": "Immediate",
+    "requirementRules": {
+      "Support Worker": "CONDITIONAL",
+      "Team Leader": "CONDITIONAL",
+      "Manager": "CONDITIONAL"
+    },
+    "possibleExistingSubjects": [
+      "Buccal Midazolam Administration & Competency"
+    ],
+    "reviewNote": "Add separate theory course; preserve existing combined/practical evidence without relinking."
+  },
+  {
+    "key": "stars-plan-2026-13",
+    "name": "Person Centred Care (Careskills)",
+    "provider": "Careskills",
+    "numberedLevel": null,
+    "priority": "Next",
+    "requirementRules": {
+      "Support Worker": "REQUIRED",
+      "Team Leader": "REQUIRED",
+      "Manager": "REQUIRED"
+    },
+    "possibleExistingSubjects": [
+      "Person-Centred Working"
+    ],
+    "reviewNote": "Candidate for manager review."
+  },
+  {
+    "key": "stars-plan-2026-14",
+    "name": "Positive Behaviour Support (Careskills)",
+    "provider": "Careskills",
+    "numberedLevel": null,
+    "priority": "Next",
+    "requirementRules": {
+      "Support Worker": "REQUIRED",
+      "Team Leader": "REQUIRED",
+      "Manager": "REQUIRED"
+    },
+    "possibleExistingSubjects": [
+      "Positive Behaviour Support (PBS) - Level 1"
+    ],
+    "reviewNote": "Existing numbered variant stays separate pending explicit review; new title has no numbered level."
+  },
+  {
+    "key": "stars-plan-2026-15",
+    "name": "Behaviours that Challenge (Careskills)",
+    "provider": "Careskills",
+    "numberedLevel": null,
+    "priority": "Next",
+    "requirementRules": {
+      "Support Worker": "REQUIRED",
+      "Team Leader": "REQUIRED",
+      "Manager": "REQUIRED"
+    },
+    "possibleExistingSubjects": [],
+    "reviewNote": "Propose separate new course; do not equate with PBS."
+  },
+  {
+    "key": "stars-plan-2026-16",
+    "name": "Communication (Careskills)",
+    "provider": "Careskills",
+    "numberedLevel": null,
+    "priority": "Next",
+    "requirementRules": {
+      "Support Worker": "REQUIRED",
+      "Team Leader": "REQUIRED",
+      "Manager": "REQUIRED"
+    },
+    "possibleExistingSubjects": [],
+    "reviewNote": "Propose separate new course."
+  },
+  {
+    "key": "stars-plan-2026-17",
+    "name": "Recording Information (Careskills)",
+    "provider": "Careskills",
+    "numberedLevel": null,
+    "priority": "Next",
+    "requirementRules": {
+      "Support Worker": "REQUIRED",
+      "Team Leader": "REQUIRED",
+      "Manager": "REQUIRED"
+    },
+    "possibleExistingSubjects": [],
+    "reviewNote": "Propose separate new course."
+  },
+  {
+    "key": "stars-plan-2026-18",
+    "name": "Duty of Care (Careskills)",
+    "provider": "Careskills",
+    "numberedLevel": null,
+    "priority": "Next",
+    "requirementRules": {
+      "Support Worker": "REQUIRED",
+      "Team Leader": "REQUIRED",
+      "Manager": "REQUIRED"
+    },
+    "possibleExistingSubjects": [],
+    "reviewNote": "Propose separate new course."
+  },
+  {
+    "key": "stars-plan-2026-19",
+    "name": "Equality, Diversity, Inclusion (Careskills)",
+    "provider": "Careskills",
+    "numberedLevel": null,
+    "priority": "Next",
+    "requirementRules": {
+      "Support Worker": "REQUIRED",
+      "Team Leader": "REQUIRED",
+      "Manager": "REQUIRED"
+    },
+    "possibleExistingSubjects": [
+      "Equality, Diversity & Inclusion"
+    ],
+    "reviewNote": "Candidate for manager review."
+  },
+  {
+    "key": "stars-plan-2026-20",
+    "name": "Basic Life Support (Careskills)",
+    "provider": "Careskills",
+    "numberedLevel": null,
+    "priority": "Next",
+    "requirementRules": {
+      "Support Worker": "REQUIRED",
+      "Team Leader": "REQUIRED",
+      "Manager": "REQUIRED"
+    },
+    "possibleExistingSubjects": [
+      "Basic Life Support / CPR & AED"
+    ],
+    "reviewNote": "Confirm practical scope; never overwrite First Aid at Work or Emergency First Aid at Work."
+  },
+  {
+    "key": "stars-plan-2026-21",
+    "name": "Mental Health (Careskills)",
+    "provider": "Careskills",
+    "numberedLevel": null,
+    "priority": "Next",
+    "requirementRules": {
+      "Support Worker": "REQUIRED",
+      "Team Leader": "REQUIRED",
+      "Manager": "REQUIRED"
+    },
+    "possibleExistingSubjects": [
+      "Mental Health Awareness"
+    ],
+    "reviewNote": "Awareness variant: explicit manager review, no automatic merge."
+  },
+  {
+    "key": "stars-plan-2026-22",
+    "name": "Whistleblowing (Flexebee)",
+    "provider": "Flexebee",
+    "numberedLevel": null,
+    "priority": "Next",
+    "requirementRules": {
+      "Support Worker": "REQUIRED",
+      "Team Leader": "REQUIRED",
+      "Manager": "REQUIRED"
+    },
+    "possibleExistingSubjects": [],
+    "reviewNote": "Propose separate new course."
+  },
+  {
+    "key": "stars-plan-2026-23",
+    "name": "Risk Assessment (Careskills)",
+    "provider": "Careskills",
+    "numberedLevel": null,
+    "priority": "Next",
+    "requirementRules": {
+      "Support Worker": "CONDITIONAL",
+      "Team Leader": "REQUIRED",
+      "Manager": "REQUIRED"
+    },
+    "possibleExistingSubjects": [],
+    "reviewNote": "Propose separate new course."
+  },
+  {
+    "key": "stars-plan-2026-24",
+    "name": "Care Planning (Careskills)",
+    "provider": "Careskills",
+    "numberedLevel": null,
+    "priority": "Next",
+    "requirementRules": {
+      "Support Worker": "CONDITIONAL",
+      "Team Leader": "REQUIRED",
+      "Manager": "REQUIRED"
+    },
+    "possibleExistingSubjects": [],
+    "reviewNote": "Propose separate new course."
+  },
+  {
+    "key": "stars-plan-2026-25",
+    "name": "GDPR 2 (Careskills)",
+    "provider": "Careskills",
+    "numberedLevel": null,
+    "priority": "Next",
+    "requirementRules": {
+      "Support Worker": "CONDITIONAL",
+      "Team Leader": "REQUIRED",
+      "Manager": "REQUIRED"
+    },
+    "possibleExistingSubjects": [
+      "GDPR / Data Protection"
+    ],
+    "reviewNote": "GDPR 1 and GDPR 2 compete for broad subject; manager selection required. 2 is not a qualification level."
+  },
+  {
+    "key": "stars-plan-2026-26",
+    "name": "Cyber Security Awareness (Careskills)",
+    "provider": "Careskills",
+    "numberedLevel": null,
+    "priority": "Next",
+    "requirementRules": {
+      "Support Worker": "CONDITIONAL",
+      "Team Leader": "REQUIRED",
+      "Manager": "REQUIRED"
+    },
+    "possibleExistingSubjects": [],
+    "reviewNote": "Propose separate new course."
+  },
+  {
+    "key": "stars-plan-2026-27",
+    "name": "Supervision (Careskills)",
+    "provider": "Careskills",
+    "numberedLevel": null,
+    "priority": "Next",
+    "requirementRules": {
+      "Support Worker": "OPTIONAL",
+      "Team Leader": "REQUIRED",
+      "Manager": "REQUIRED"
+    },
+    "possibleExistingSubjects": [
+      "Management / Supervision"
+    ],
+    "reviewNote": "Confirm scope; Support Worker optional excluded from mandatory totals."
+  },
+  {
+    "key": "stars-plan-2026-28",
+    "name": "Complaints Handling (Careskills)",
+    "provider": "Careskills",
+    "numberedLevel": null,
+    "priority": "Next",
+    "requirementRules": {
+      "Support Worker": "OPTIONAL",
+      "Team Leader": "REQUIRED",
+      "Manager": "REQUIRED"
+    },
+    "possibleExistingSubjects": [],
+    "reviewNote": "Propose separate new course."
+  },
+  {
+    "key": "stars-plan-2026-29",
+    "name": "Medication Practice (Careskills)",
+    "provider": "Careskills",
+    "numberedLevel": null,
+    "priority": "Role-specific",
+    "requirementRules": {
+      "Support Worker": "CONDITIONAL",
+      "Team Leader": "CONDITIONAL",
+      "Manager": "CONDITIONAL"
+    },
+    "possibleExistingSubjects": [
+      "Medication Awareness",
+      "Medication Administration Training"
+    ],
+    "reviewNote": "Ambiguous subjects/variants: manager selection; practical competency always remains separate."
+  },
+  {
+    "key": "stars-plan-2026-30",
+    "name": "Diabetes Awareness (Careskills)",
+    "provider": "Careskills",
+    "numberedLevel": null,
+    "priority": "Role-specific",
+    "requirementRules": {
+      "Support Worker": "CONDITIONAL",
+      "Team Leader": "CONDITIONAL",
+      "Manager": "CONDITIONAL"
+    },
+    "possibleExistingSubjects": [
+      "Diabetes Awareness"
+    ],
+    "reviewNote": "Review exact provider and variant."
+  },
+  {
+    "key": "stars-plan-2026-31",
+    "name": "Moving and Handling (Careskills)",
+    "provider": "Careskills",
+    "numberedLevel": null,
+    "priority": "Role-specific",
+    "requirementRules": {
+      "Support Worker": "CONDITIONAL",
+      "Team Leader": "CONDITIONAL",
+      "Manager": "CONDITIONAL"
+    },
+    "possibleExistingSubjects": [
+      "Moving & Handling"
+    ],
+    "reviewNote": "Confirm people-handling scope versus objects course; practical competency remains separate."
+  },
+  {
+    "key": "stars-plan-2026-32",
+    "name": "Manual Handling of Objects (Careskills)",
+    "provider": "Careskills",
+    "numberedLevel": null,
+    "priority": "Role-specific",
+    "requirementRules": {
+      "Support Worker": "CONDITIONAL",
+      "Team Leader": "CONDITIONAL",
+      "Manager": "CONDITIONAL"
+    },
+    "possibleExistingSubjects": [
+      "Moving & Handling"
+    ],
+    "reviewNote": "Do not equate people and objects courses; manager must resolve broad existing subject."
+  },
+  {
+    "key": "stars-plan-2026-33",
+    "name": "Food Hygiene (Careskills)",
+    "provider": "Careskills",
+    "numberedLevel": null,
+    "priority": "Role-specific",
+    "requirementRules": {
+      "Support Worker": "CONDITIONAL",
+      "Team Leader": "CONDITIONAL",
+      "Manager": "CONDITIONAL"
+    },
+    "possibleExistingSubjects": [
+      "Food Safety & Hygiene"
+    ],
+    "reviewNote": "Candidate for manager review."
+  },
+  {
+    "key": "stars-plan-2026-34",
+    "name": "Allergen Awareness (Flexebee)",
+    "provider": "Flexebee",
+    "numberedLevel": null,
+    "priority": "Role-specific",
+    "requirementRules": {
+      "Support Worker": "CONDITIONAL",
+      "Team Leader": "CONDITIONAL",
+      "Manager": "CONDITIONAL"
+    },
+    "possibleExistingSubjects": [],
+    "reviewNote": "Propose separate new course."
+  },
+  {
+    "key": "stars-plan-2026-35",
+    "name": "Lone Working (Careskills)",
+    "provider": "Careskills",
+    "numberedLevel": null,
+    "priority": "Role-specific",
+    "requirementRules": {
+      "Support Worker": "CONDITIONAL",
+      "Team Leader": "CONDITIONAL",
+      "Manager": "CONDITIONAL"
+    },
+    "possibleExistingSubjects": [],
+    "reviewNote": "Propose separate new course."
+  },
+  {
+    "key": "stars-plan-2026-36",
+    "name": "Conflict Resolution (Flexebee)",
+    "provider": "Flexebee",
+    "numberedLevel": null,
+    "priority": "Role-specific",
+    "requirementRules": {
+      "Support Worker": "CONDITIONAL",
+      "Team Leader": "CONDITIONAL",
+      "Manager": "CONDITIONAL"
+    },
+    "possibleExistingSubjects": [
+      "Conflict Resolution & Personal Safety"
+    ],
+    "reviewNote": "Confirm course scope; combined subject is not automatic equivalence."
+  },
+  {
+    "key": "stars-plan-2026-37",
+    "name": "COSHH (Careskills)",
+    "provider": "Careskills",
+    "numberedLevel": null,
+    "priority": "Role-specific",
+    "requirementRules": {
+      "Support Worker": "CONDITIONAL",
+      "Team Leader": "CONDITIONAL",
+      "Manager": "CONDITIONAL"
+    },
+    "possibleExistingSubjects": [
+      "COSHH"
+    ],
+    "reviewNote": "Candidate for manager review."
+  },
+  {
+    "key": "stars-plan-2026-38",
+    "name": "RIDDOR (Careskills)",
+    "provider": "Careskills",
+    "numberedLevel": null,
+    "priority": "Role-specific",
+    "requirementRules": {
+      "Support Worker": "OPTIONAL",
+      "Team Leader": "CONDITIONAL",
+      "Manager": "CONDITIONAL"
+    },
+    "possibleExistingSubjects": [],
+    "reviewNote": "Propose separate new course."
+  },
+  {
+    "key": "stars-plan-2026-39",
+    "name": "Dysphagia (Careskills)",
+    "provider": "Careskills",
+    "numberedLevel": null,
+    "priority": "Role-specific",
+    "requirementRules": {
+      "Support Worker": "CONDITIONAL",
+      "Team Leader": "CONDITIONAL",
+      "Manager": "CONDITIONAL"
+    },
+    "possibleExistingSubjects": [],
+    "reviewNote": "Propose separate new course."
+  },
+  {
+    "key": "stars-plan-2026-40",
+    "name": "Care Certificate (Careskills)",
+    "provider": "Careskills",
+    "numberedLevel": null,
+    "priority": "Induction",
+    "requirementRules": {
+      "Support Worker": "INDUCTION",
+      "Team Leader": "INDUCTION",
+      "Manager": "INDUCTION"
+    },
+    "possibleExistingSubjects": [],
+    "reviewNote": "Separate theory course for relevant new starters; local induction and workplace assessment remain separate."
+  }
+]

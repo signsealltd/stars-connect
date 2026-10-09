@@ -1,3 +1,4 @@
+import { tier2EvidenceError } from "@/lib/training-catalogue";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { trainingSchema } from "@/lib/training-input";
@@ -16,6 +17,7 @@ export async function GET(req: NextRequest) { return withRole(req, "MANAGER", as
 }); }
 export async function POST(req: NextRequest) { return withRole(req, "MANAGER", async (user) => {
   const parsed = trainingSchema.safeParse(await req.json().catch(() => null)); if (!parsed.success) return jsonError("Please check the training details.", 422);
+const selectedCourse = parsed.data.courseId ? await prisma.trainingCourse.findUnique({where:{id:parsed.data.courseId}}) : null; if(parsed.data.courseId && !selectedCourse)return jsonError("Course not found.",422); const evidenceError = tier2EvidenceError(selectedCourse || {name:parsed.data.courseName}, parsed.data); if(evidenceError)return jsonError(evidenceError,422);
   const row = await prisma.staffTrainingRecord.create({ data: { ...dates(parsed.data), createdById: user.id, updatedById: user.id } });
   await audit("STAFF_TRAINING_CREATED", { actorType: "USER", actorId: user.id, entityType: "StaffTrainingRecord", entityId: row.id, afterValue: row, ...requestContext(req) });
   return NextResponse.json(row, { status: 201 });

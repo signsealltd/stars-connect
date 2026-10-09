@@ -1,5 +1,5 @@
 export const trainingRoles = ["Director", "Manager", "Assistant Manager", "Team Leader", "Support Worker", "Driver", "Volunteer"] as const;
-export type TrainingRequirement = "REQUIRED" | "CONDITIONAL" | "NOT_REQUIRED";
+export type TrainingRequirement = "REQUIRED" | "CONDITIONAL" | "NOT_REQUIRED" | "OPTIONAL" | "INDUCTION";
 export type RequirementRules = Record<string, TrainingRequirement>;
 
 const all = (value: TrainingRequirement): RequirementRules => Object.fromEntries(trainingRoles.map(role => [role, value]));
@@ -37,10 +37,21 @@ export function normaliseTrainingRole(jobRole: string) {
 
 export function trainingState(input: { requirement: TrainingRequirement; expiryDate?: Date | string | null; completedDate?: Date | string | null }, now = new Date(), warningDays = 60) {
   if (input.requirement === "NOT_REQUIRED") return "NOT_REQUIRED" as const;
-  if (!input.completedDate) return input.requirement === "REQUIRED" ? "MISSING" as const : "CONDITIONAL" as const;
+  if (!input.completedDate) return input.requirement === "REQUIRED" ? "MISSING" as const : input.requirement;
   if (!input.expiryDate) return "CURRENT" as const;
   const days = Math.ceil((new Date(input.expiryDate).getTime() - now.getTime()) / 86400000);
   if (days < 0) return "EXPIRED" as const;
   if (days <= warningDays) return "DUE_SOON" as const;
   return "CURRENT" as const;
+}
+
+export function effectiveTrainingRequirement(roleRequirement: TrainingRequirement, assigned?: boolean | null): TrainingRequirement {
+  return assigned == null ? roleRequirement : assigned ? "REQUIRED" : "NOT_REQUIRED";
+}
+
+export function mandatoryTrainingCounts(cells: { requirement: TrainingRequirement; state: string }[]) {
+  return cells.filter(cell => cell.requirement === "REQUIRED").reduce<Record<string, number>>((counts, cell) => {
+    counts[cell.state] = (counts[cell.state] || 0) + 1;
+    return counts;
+  }, {});
 }

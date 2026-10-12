@@ -20,6 +20,20 @@ export async function GET(req:NextRequest){return withRole(req,"MANAGER",async()
 
 export async function POST(req:NextRequest){return withRole(req,"MANAGER",async user=>{
   const body=await req.json().catch(()=>null);
+  if(body?.action==="delete-courses"){
+    const parsed=z.object({ids:z.array(z.string().uuid()).min(1).max(1000)}).safeParse(body);
+    if(!parsed.success)return jsonError("Select between 1 and 1,000 valid courses to delete.",422);
+    const ids=[...new Set(parsed.data.ids)];
+    const result=await prisma.$transaction(async tx=>{
+      const courses=await tx.trainingCourse.findMany({where:{id:{in:ids}},select:{id:true,name:true,active:true}});
+      if(courses.length!==ids.length)return null;
+      const changed=await tx.trainingCourse.updateMany({where:{id:{in:ids},active:true},data:{active:false,updatedById:user.id}});
+      if(changed.count)await tx.auditLog.create({data:{action:"TRAINING_COURSES_DELETED",actorType:"USER",actorId:user.id,entityType:"TrainingCourse",beforeValue:{courses},afterValue:{active:false,count:changed.count},...requestContext(req)}});
+      return {deleted:changed.count};
+    });
+    if(!result)return jsonError("One or more courses no longer exist. Refresh the catalogue and try again.",404);
+    return NextResponse.json(result);
+  }
   if(body?.action==="install-framework"){
     let created=0;
     for(const item of starsTrainingFramework){

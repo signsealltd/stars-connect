@@ -7,7 +7,8 @@ vi.mock("./audit",()=>({audit:state.audit}));
 vi.mock("./ihasco-client",async original=>{const actual=await original<typeof import("./ihasco-client")>();return {...actual,IhascoClient:class {list=state.list;codes=state.codes;result=state.result;}};});
 vi.mock("./ihasco-certificates",()=>({downloadCertificate:state.download}));
 vi.mock("./staff-private-storage",()=>({writeStaffPrivateFile:async()=>"private-file",removeStaffPrivateFile:async()=>{},staffDocumentExpiry:()=>new Date("2030-01-01Z")}));
-import {ihSync,withIhascoLock} from "./ihasco-service";
+import {ihSync,withIhascoLock,ihConfirmCourseProposal} from "./ihasco-service";
+import {courseMappingProposal} from "./ihasco-course-mapping";
 import {IhascoError} from "./ihasco-client";
 let integration:TrainingIntegration;
 let external:Map<string,Record<string,unknown>>,records:Map<string,Record<string,unknown>>;
@@ -51,6 +52,19 @@ beforeEach(()=>{
 it("blocks initial import without a manager's current preview and confirmed statuses",async()=>{
   await expect(ihSync(integration,{actorId:"manager"})).rejects.toMatchObject({status:409});expect(external.size).toBe(0);
   integration.successCodes=[];await expect(ihSync(integration,{actorId:"manager",previewToken:"preview"})).rejects.toMatchObject({status:422});
+});
+it("confirms reviewed course matches without importing results and invalidates the first-import preview",async()=>{
+  const mappings=[{externalId:"22",title:"Fire Safety (Careskills)",courseId:null}],courses=[{id:"course",name:"Fire Safety (Careskills)",evidenceKind:"THEORY",active:true}];
+  const updateMany=vi.fn(async()=>({count:1}));
+  state.db.trainingIntegrationCourse={findMany:vi.fn(async()=>mappings),updateMany};
+  state.db.trainingCourse={findMany:vi.fn(async()=>courses)};
+  const proposal=courseMappingProposal(mappings,courses,0);
+  await expect(ihConfirmCourseProposal(integration,"stale-token","manager")).rejects.toMatchObject({status:409});
+  expect(updateMany).not.toHaveBeenCalled();
+  await expect(ihConfirmCourseProposal(integration,proposal.token,"manager")).resolves.toMatchObject({ok:true,confirmed:1});
+  expect(updateMany).toHaveBeenCalledWith(expect.objectContaining({where:{integrationId:"integration",externalId:"22",courseId:null},data:expect.objectContaining({courseId:"course",confirmedById:"manager"})}));
+  expect(integration.previewToken).toBeNull();expect(records.size).toBe(1);expect(external.size).toBe(0);
+  expect(state.audit).toHaveBeenCalledWith("IHASCO_COURSE_MATCHES_CONFIRMED",expect.anything());
 });
 it("imports historic/repeat completions once each without replacing manual evidence",async()=>{
   results=[fixture("101"),fixture("102","2024-01-01 10:00:00")];

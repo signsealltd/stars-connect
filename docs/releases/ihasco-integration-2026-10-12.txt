@@ -44,6 +44,14 @@ Use Retry certificates to request fresh links and retry independently.
 
 Manager setup — first live import remains gated
 Training > iHasco integration requires training.manage for all integration actions.
+- Course mappings now hide unused courses by default. Courses with results,
+  existing mappings or unique exact-title proposals remain visible. Search and
+  Show all available courses expose the rest without deleting catalogue entries.
+- Prepared course matches can be reviewed and confirmed together. Titles retain
+  provider suffixes, numbered levels and variants; ambiguous or duplicate titles
+  and practical/full-package requirements are excluded. Confirmation is atomic,
+  audited and invalidates the import preview. A changed proposal must be reviewed
+  again. This UI update requires no additional database migration.
 - Test connection checks /meta/codes and reports safe status only.
 - Generate preview fetches all pages, including include_archived=1. It stages
   directory/mapping data, but creates no staff, catalogue or compliance records.

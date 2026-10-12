@@ -135,3 +135,5 @@ categories only; response bodies, credentials and signed download links are omit
 The API lists 100 rows per page; the client follows pagination with loop detection,
 caps listings at 1,000 pages and paces requests below 200/minute. HTTP 429/5xx/network
 retries are bounded; long Retry-After delays stop the run for a later safe retry.
+
+Automatic sync update: iHasco is now called by the existing protected POST /api/internal/reports/daily/run job. Existing daily-job installations need no additional schedule. The separate /api/cron/ihasco endpoint remains available. Initial manager approval, reconciliation pause, a 20-hour successful-sync guard and concurrency leases still apply. Confirm the server scheduler invokes the daily job using REPORT_JOB_SECRET; no live scheduler was configured by this code update. Daily-job responses include an ihasco outcome without changing report delivery status. Review iHasco last-success/errors and audit history for sync failures.

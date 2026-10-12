@@ -7,7 +7,7 @@ vi.mock("./audit",()=>({audit:state.audit}));
 vi.mock("./ihasco-client",async original=>{const actual=await original<typeof import("./ihasco-client")>();return {...actual,IhascoClient:class {list=state.list;codes=state.codes;result=state.result;}};});
 vi.mock("./ihasco-certificates",()=>({downloadCertificate:state.download}));
 vi.mock("./staff-private-storage",()=>({writeStaffPrivateFile:async()=>"private-file",removeStaffPrivateFile:async()=>{},staffDocumentExpiry:()=>new Date("2030-01-01Z")}));
-import {ihSync,withIhascoLock,ihConfirmCourseProposal,ihImportCatalogue} from "./ihasco-service";
+import {ihMap,ihSync,withIhascoLock,ihConfirmCourseProposal,ihImportCatalogue} from "./ihasco-service";
 import {courseMappingProposal,catalogueImportProposal} from "./ihasco-course-mapping";
 import {IhascoError} from "./ihasco-client";
 let integration:TrainingIntegration;
@@ -130,3 +130,24 @@ it("prevents concurrent manual/scheduled operations",async()=>{
 
 it("imports results without requesting or downloading certificates when disabled",async()=>{integration.certificatesEnabled=false;await ihSync(integration,{actorId:"manager",previewToken:"preview"});expect(external.size).toBe(1);expect(records.size).toBe(2);expect(state.result).not.toHaveBeenCalled();expect(state.download).not.toHaveBeenCalled();expect(state.list.mock.calls.filter(c=>String(c[0]).startsWith("/results")).every(c=>!String(c[0]).includes("certificate_link"))).toBe(true);});
 it("blocks normal sync while a reset awaits reconciliation",async()=>{integration.syncPaused=true;await expect(ihSync(integration,{actorId:"manager",previewToken:"preview"})).rejects.toMatchObject({status:409});expect(state.list).not.toHaveBeenCalled();});
+
+it("blocks an activated sync with empty approved statuses without changing evidence or checkpoints",async()=>{
+  await ihSync(integration,{actorId:"manager",previewToken:"preview"});
+  const checkpoint=integration.checkpoint, evidence=JSON.stringify([...external.values()]);
+  integration.successCodes=[];state.list.mockClear();
+  await expect(ihSync(integration,{actorId:"manager"})).rejects.toMatchObject({status:422});
+  expect(state.list).not.toHaveBeenCalled();expect(integration.checkpoint).toEqual(checkpoint);
+  expect(JSON.stringify([...external.values()])).toBe(evidence);
+});
+it("rejects empty and unsuccessful status selections before saving",async()=>{
+  await expect(ihMap(integration,{kind:"statuses",codes:[]},"manager")).rejects.toMatchObject({status:422});
+  await expect(ihMap(integration,{kind:"statuses",codes:[988]},"manager")).rejects.toMatchObject({status:422});
+  expect(integration.successCodes).toEqual([{code:987,description:"Passed"}]);
+});
+it("restores credit on existing results after status confirmation without duplicating evidence",async()=>{
+  await ihSync(integration,{actorId:"manager",previewToken:"preview"});
+  external.get("101")!.qualifies=false;
+  await ihMap(integration,{kind:"statuses",codes:[987]},"manager");
+  await ihSync(integration,{actorId:"manager"});
+  expect(external.get("101")?.qualifies).toBe(true);expect(records.size).toBe(2);expect(external.size).toBe(1);
+});

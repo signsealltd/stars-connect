@@ -1,5 +1,5 @@
 import {describe,it,expect} from "vitest";
-import {matchIhascoEmail,onlineCourseAllowed,qualifiesIhasco,renewalDates,syncRange,checkpointMayAdvance} from "./ihasco-rules";
+import {matchIhascoEmail,ihascoQualificationIssue,onlineCourseAllowed,qualifiesIhasco,renewalDates,syncRange,checkpointMayAdvance} from "./ihasco-rules";
 import {trainingRecordMatchesCourse} from "./training-catalogue";
 import type {IhResult} from "./ihasco-client";
 const user={id:"1",email:"Person@example.test",first_name:"Same",last_name:"Name"};
@@ -40,4 +40,13 @@ describe("iHasco mapping and compliance",()=>{
     expect(syncRange(new Date("2026-10-11Z"),new Date("2026-09-01Z"),now).full).toBe(true);
     expect(checkpointMayAdvance({unmatched:1,failed:0})).toBe(false);expect(checkpointMayAdvance({unmatched:0,failed:1})).toBe(false);
   });
+});
+
+it("explains why a matched Test complete result is not credited",()=>{
+ const codes=[{code:140,description:"Test complete"}],result={status_code:140,completed_at:"2026-10-09 17:15:17",test_score:100,pass_mark:80} as IhResult;
+ expect(ihascoQualificationIssue(result,codes,[])).toContain("has not been confirmed");
+ expect(ihascoQualificationIssue(result,codes,codes)).toBeNull();
+ expect(ihascoQualificationIssue({...result,pass_mark:null},codes,codes)).toContain("did not supply a result pass mark");
+ expect(ihascoQualificationIssue({...result,test_score:70},codes,codes)).toContain("below the supplied pass mark");
+ expect(ihascoQualificationIssue({...result,test_score:null},codes,codes)).toContain("no test score");
 });

@@ -65,7 +65,7 @@ export function CliveAssistant() {
     setQuestion("");
     setBusy(true);
     try {
-      const response = await fetch("/api/clive", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ question: text, pathname:pathname+window.location.search }) });
+      const response = await fetch("/api/clive", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ question: text, previousQuestions:messages.filter(message=>message.from==="user").slice(-2).map(message=>message.text.slice(0,600)), pathname:pathname+window.location.search }) });
       const result = await response.json().catch(() => null);
       if (response.status === 401) { location.assign("/login"); return; }
       setMessages((current) => [...current, { id: crypto.randomUUID(), from: "clive", ...result,text: response.ok ? result.answer : result?.error || "I am temporarily unavailable. STARS Connect itself is still working normally.", route: response.ok ? result.suggestedRoute : undefined, billingTopic:response.ok&&(billing||payments||pathname==="/dashboard")?(payments||/payment|paid|ignore|outstanding/.test(text.toLowerCase())?paymentHelpForQuestion(text):billingHelpForQuestion(text)):undefined }]);

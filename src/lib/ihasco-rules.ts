@@ -15,7 +15,7 @@ export function onlineCourseAllowed(course:{name:string;evidenceKind?:string;act
 }
 export function qualifiesIhasco(result:IhResult,codes:IhCode[],approved:IhCode[]) {
   const status=codes.find(c=>c.code===result.status_code);
-  return !!result.completed_at&&!!status&&approved.some(c=>c.code===status.code&&c.description===status.description)&&(result.pass_mark==null||result.test_score!=null&&result.test_score>=result.pass_mark);
+  return !!status&&!/fail|in.?progress|not.?started|viewed/i.test(status.description)&&(!/^(test complete|expired|expiring soon)$/i.test(status.description)||(result.pass_mark!=null&&result.test_score!=null&&result.test_score>=result.pass_mark))&&approved.some(c=>c.code===status.code&&c.description===status.description)&&(result.pass_mark==null||result.test_score!=null&&result.test_score>=result.pass_mark);
 }
 export function providerDate(value:string|null|undefined) {
   if(!value)return null;
@@ -30,7 +30,7 @@ export function renewalDates(completed:Date|null,providerExpiry:Date|null,renewa
 }
 export function syncRange(checkpoint:Date|null,lastFull:Date|null,now:Date) {
   const full=!checkpoint||!lastFull||+now-+lastFull>=30*86400000;
-  const query=new URLSearchParams({include_archived:"1",fields:"certificate_link"});
+  const query=new URLSearchParams({include_archived:"1"});
   if(!full){query.set("completion_date_from",new Date(+checkpoint!-7*86400000).toISOString().slice(0,10));query.set("completion_date_to",now.toISOString().slice(0,10));}
   return {full,path:`/results?${query}`};
 }

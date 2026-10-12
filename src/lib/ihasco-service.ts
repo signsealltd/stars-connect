@@ -13,8 +13,8 @@ const json=(value:unknown)=>JSON.parse(JSON.stringify(value)) as Prisma.InputJso
 const keyOf=(integrationId:string,externalId:string)=>({integrationId_externalId:{integrationId,externalId}});
 const withoutLink=(result:IhResult)=>{const {certificate_link,...safe}=result;void certificate_link;return safe;};
 type Preview={codes:IhCode[];results:IhResult[];revision:number;startedAt:string};
-type Counts={imported:number;updated:number;unmatched:number;failed:number;certificates:number;certificateFailed:number;processed:number};
-const emptyCounts=():Counts=>({imported:0,updated:0,unmatched:0,failed:0,certificates:0,certificateFailed:0,processed:0});
+type Counts={unresolved:number;skipped:number;imported:number;updated:number;unmatched:number;failed:number;certificates:number;certificateFailed:number;processed:number};
+const emptyCounts=():Counts=>({unresolved:0,skipped:0,imported:0,updated:0,unmatched:0,failed:0,certificates:0,certificateFailed:0,processed:0});
 export function ihConfigurationReady(){return !!(process.env.IHASCO_ACCOUNT_KEY&&process.env.IHASCO_ORGANISATION_ID);}
 async function staffScope(organisationId:string) { return {userId:{in:(await prisma.user.findMany({where:{organisationId},select:{id:true}})).map(user=>user.id)}}; }
 export async function ihIntegration(organisationId:string) {
@@ -70,7 +70,7 @@ export async function ihPreview(integration:TrainingIntegration,userId:string) {
   return withIhascoLock(integration,async({client,heartbeat})=>{
     const startedAt=new Date();
     try {
-      const results=(await client.list("/results?include_archived=1&fields=certificate_link",ihResult)).map(withoutLink);
+      const results=(await client.list("/results?include_archived=1",ihResult)).map(withoutLink);
       const {users,courses}=await refreshDirectory(integration,client,heartbeat,results);const codes=await client.codes();
       const token=randomUUID();await prisma.trainingIntegration.update({where:{id:integration.id},data:{connectionStatus:"CONNECTED",lastError:null,preview:json({codes,results,revision:integration.revision,startedAt:startedAt.toISOString()}),previewToken:token,previewAt:new Date()}});
       await integrationAudit(integration.id,"IHASCO_PREVIEW_CREATED",userId,{users:users.length,courses:courses.length,results:results.length});
@@ -164,7 +164,7 @@ export async function ihStatus(integration:TrainingIntegration) {
     prisma.trainingCourse.findMany({select:{id:true,name:true,evidenceKind:true,active:true},orderBy:{name:"asc"}}),
     prisma.scheduledJobRun.findMany({where:{jobType:"IHASCO",executionKey:{startsWith:`ihasco:${integration.id}:`}},orderBy:{startedAt:"desc"},take:20}),
     prisma.auditLog.findMany({where:{entityType:"TrainingIntegration",entityId:integration.id},select:{id:true,action:true,createdAt:true},orderBy:{createdAt:"desc"},take:30}),
-    prisma.trainingExternalResult.findMany({where:{integrationId:integration.id,OR:[{staffId:null},{courseId:null},{certificateState:"RETRY"},{statusLabel:"Unknown status"}]},select:{id:true,externalId:true,courseTitle:true,statusLabel:true,certificateError:true,staffId:true,courseId:true},take:200}),
+    prisma.trainingExternalResult.findMany({where:{integrationId:integration.id,OR:[{staffId:null},{courseId:null},{certificateState:"RETRY"},{statusLabel:"Unknown status"},{qualifies:true,completedAt:null}]},select:{id:true,externalId:true,courseTitle:true,statusLabel:true,certificateError:true,staffId:true,courseId:true},take:200}),
     prisma.trainingExternalResult.findMany({where:{integrationId:integration.id},select:{externalId:true,externalCourseId:true}}),
   ]);
   const preview=integration.preview as Preview|null;const approved=(integration.successCodes||[]) as IhCode[];
@@ -177,7 +177,7 @@ export async function ihStatus(integration:TrainingIntegration) {
   const resultCounts=new Map<string,number>();
   for(const courseId of resultCourses.values())resultCounts.set(courseId,(resultCounts.get(courseId)||0)+1);
   const rows=preview?.results.map(r=>{const user=users.find(u=>u.externalId===r.user_id),mapping=mappings.find(c=>c.externalId===r.course_id);const course=eligibleCourses.find(c=>c.id===mapping?.courseId);return {id:r.id,userId:r.user_id,courseId:r.course_id,staffId:user?.staffId||null,courseTitle:mapping?.title||`Unlisted course ${r.course_id}`,completedAt:r.completed_at,status:preview.codes.find(c=>c.code===r.status_code)?.description||"Unknown status — review required",score:r.test_score,matched:!!(user?.staffId&&course&&mapping?.confirmedAt),qualifies:qualifiesIhasco(r,preview.codes,approved)};})||[];
-  return {configured:true,keyConfigured:!!process.env.IHASCO_API_KEY,connectionStatus:integration.connectionStatus,lastError:integration.lastError,activatedAt:integration.activatedAt,lastSuccessAt:integration.lastSuccessAt,lastCounts:integration.lastCounts,running:!!integration.lockToken&&!!integration.lockExpiresAt&&integration.lockExpiresAt>new Date(),users,mappingProposal,catalogueProposal,resetProposal,mappings:mappings.map(m=>({...m,resultCount:resultCounts.get(m.externalId)||0,suggestions:eligibleCourses.filter(c=>c.name.toLowerCase().includes(m.title.toLowerCase())||m.title.toLowerCase().includes(c.name.toLowerCase())).map(c=>c.id)})),staff,courses:eligibleCourses,codes:preview?.codes||[],approvedCodes:approved,preview:preview?{token:integration.previewToken,at:integration.previewAt,total:rows.length,matched:rows.filter(r=>r.matched).length,unmatched:rows.filter(r=>!r.matched).length,qualifying:rows.filter(r=>r.matched&&r.qualifies).length,rows:rows.slice(0,200)}:null,runs:runs.map(r=>({id:r.id,status:r.status,startedAt:r.startedAt,finishedAt:r.finishedAt,summary:r.safeSummary})),audits,issues};
+  return {configured:true,syncPaused:integration.syncPaused,certificatesEnabled:integration.certificatesEnabled,rebuildVersion:integration.rebuildVersion,keyConfigured:!!process.env.IHASCO_API_KEY,connectionStatus:integration.connectionStatus,lastError:integration.lastError,activatedAt:integration.activatedAt,lastSuccessAt:integration.lastSuccessAt,lastCounts:integration.lastCounts,running:!!integration.lockToken&&!!integration.lockExpiresAt&&integration.lockExpiresAt>new Date(),users,mappingProposal,catalogueProposal,resetProposal,mappings:mappings.map(m=>({...m,resultCount:resultCounts.get(m.externalId)||0,suggestions:eligibleCourses.filter(c=>c.name.toLowerCase().includes(m.title.toLowerCase())||m.title.toLowerCase().includes(c.name.toLowerCase())).map(c=>c.id)})),staff,courses:eligibleCourses,codes:preview?.codes||[],approvedCodes:approved,preview:preview?{token:integration.previewToken,at:integration.previewAt,total:rows.length,matched:rows.filter(r=>r.matched).length,unmatched:rows.filter(r=>!r.matched).length,qualifying:rows.filter(r=>r.matched&&r.qualifies).length,rows:rows.slice(0,200)}:null,runs:runs.map(r=>({id:r.id,status:r.status,startedAt:r.startedAt,finishedAt:r.finishedAt,summary:r.safeSummary})),audits,issues};
 }
 
 async function importResult(integration:TrainingIntegration,result:IhResult,codes:IhCode[],actorId:string,lease:Lease,counts:Counts) {
@@ -185,10 +185,13 @@ async function importResult(integration:TrainingIntegration,result:IhResult,code
   const [staff,course]=await Promise.all([user?.staffId?prisma.staffMember.findFirst({where:{id:user.staffId,...await staffScope(integration.organisationId)},select:{id:true}}):null,mapping?.courseId?prisma.trainingCourse.findUnique({where:{id:mapping.courseId}}):null]);
   const matched=!!(staff&&course&&mapping?.confirmedAt&&onlineCourseAllowed(course));
   const codesKnown=codes.some(c=>c.code===result.status_code);
-  if(!matched)counts.unmatched++;
-  if(!codesKnown)counts.failed++;
+  if(!matched){if(mapping?.courseId)counts.unmatched++;else counts.skipped++;}
+  if(!codesKnown&&mapping?.courseId)counts.failed++;
   const qualifies=matched&&qualifiesIhasco(result,codes,(integration.successCodes||[]) as IhCode[]);
-  const completed=providerDate(result.completed_at),expiry=providerDate(result.expires_at),renewal=renewalDates(completed,expiry,course?.renewalMonths||null);
+  let completed:Date|null=null;
+  try{completed=providerDate(result.completed_at);}catch{counts.failed++;/* Retain reported status and original timestamp for date review. */}
+  if(qualifies&&!completed)counts.unresolved++;
+  const expiry=providerDate(result.expires_at),renewal=renewalDates(completed,expiry,course?.renewalMonths||null);
   const hash=createHash("sha256").update(JSON.stringify({result:withoutLink(result),staff:staff?.id,course:course?.id,qualifies,renewal:renewal.applicable})).digest("hex");
   await prisma.$transaction(async tx=>{
     await lease.fence(tx);
@@ -199,7 +202,7 @@ async function importResult(integration:TrainingIntegration,result:IhResult,code
       if(trainingRecordId){await tx.staffTrainingRecord.update({where:{id:trainingRecordId},data:{completedDate:completed,expiryDate:renewal.applicable,updatedById:actorId}});}
       else {const record=await tx.staffTrainingRecord.create({data:{staffId:staff.id,courseId:course.id,courseName:mapping!.title,provider:"iHasco",completedDate:completed,expiryDate:renewal.applicable,createdById:actorId,updatedById:actorId,notes:"Imported from iHasco. Online completion only; no practical or supervised sign-off."}});trainingRecordId=record.id;}
     }
-    const data={externalUserId:result.user_id,externalCourseId:result.course_id,staffId:existing?.trainingRecordId?existing.staffId:staff?.id||null,courseId:existing?.trainingRecordId?existing.courseId:course?.id||null,courseTitle:mapping?.title||`iHasco course ${result.course_id}`,completedAt:completed,providerExpiryDate:expiry,starsExpiryDate:renewal.stars,score:result.test_score,passMark:result.pass_mark,attempts:result.test_attempts,statusCode:result.status_code,statusLabel:codes.find(c=>c.code===result.status_code)?.description||"Unknown status",qualifies,archivedAt:providerDate(result.archived_at),providerUpdatedAt:providerDate(result.updated_at),trainingRecordId,contentHash:hash,lastSeenAt:new Date()};
+    const data={completionTimestamp:result.completed_at,externalUserId:result.user_id,externalCourseId:result.course_id,staffId:existing?.trainingRecordId?existing.staffId:staff?.id||null,courseId:existing?.trainingRecordId?existing.courseId:course?.id||null,courseTitle:mapping?.title||`iHasco course ${result.course_id}`,completedAt:completed,providerExpiryDate:expiry,starsExpiryDate:renewal.stars,score:result.test_score,passMark:result.pass_mark,attempts:result.test_attempts,statusCode:result.status_code,statusLabel:codes.find(c=>c.code===result.status_code)?.description||"Unknown status",qualifies,archivedAt:providerDate(result.archived_at),providerUpdatedAt:providerDate(result.updated_at),trainingRecordId,contentHash:hash,lastSeenAt:new Date()};
     await tx.trainingExternalResult.upsert({where:keyOf(integration.id,result.id),create:{...data,integrationId:integration.id,externalId:result.id},update:data});
     if(!existing)counts.imported++;else if(existing.contentHash!==hash)counts.updated++;
   });counts.processed++;
@@ -218,9 +221,10 @@ async function retryCertificates(integration:TrainingIntegration,lease:Lease,cou
     }catch(error){if(storedPath)await removeStaffPrivateFile(storedPath);counts.certificateFailed++;await prisma.$transaction(async tx=>{await lease.fence(tx);await tx.trainingExternalResult.update({where:{id:item.id},data:{certificateState:"RETRY",certificateError:safeIhascoError(error),certificateAttemptedAt:new Date()}});});}
   }
 }
-export async function ihSync(integration:TrainingIntegration,input:{actorId:string;previewToken?:string;certificatesOnly?:boolean;scheduled?:boolean}) {
+export async function ihSync(integration:TrainingIntegration,input:{actorId:string;previewToken?:string;certificatesOnly?:boolean;scheduled?:boolean;reconciliation?:boolean}) {
   return withIhascoLock(integration,async lease=>{
     const current=await prisma.trainingIntegration.findUniqueOrThrow({where:{id:integration.id}});
+    if(current.syncPaused&&!input.reconciliation)throw new RequestError("Training sync is paused for reconciliation. Resolve mappings, then rerun the rebuild command to resume.",409);
     if(!current.activatedAt){const preview=current.preview as Preview|null;if(!input.previewToken||input.previewToken!==current.previewToken||!preview||preview.revision!==current.revision||!current.previewAt||Date.now()-+current.previewAt>24*3600_000)throw new RequestError("Generate and review a fresh preview after confirming mappings before the first import.",409);if(!(current.successCodes as unknown[]|null)?.length)throw new RequestError("Confirm which documented statuses represent successful completion before importing.",422);}
     const startedAt=new Date(),range=syncRange(current.checkpoint,current.lastFullSyncAt,startedAt),counts=emptyCounts();
     const job=await prisma.scheduledJobRun.create({data:{executionKey:`ihasco:${current.id}:${randomUUID()}`,jobType:"IHASCO",reportDate:startedAt,status:"RUNNING",lockExpiresAt:new Date(Date.now()+5*60_000)}});
@@ -235,7 +239,7 @@ export async function ihSync(integration:TrainingIntegration,input:{actorId:stri
         if(approved.some(a=>!codes.some(c=>c.code===a.code&&c.description===a.description)))throw new IhascoError("STATUS_CHANGED","The meaning of an approved status code changed. Review /meta/codes and confirm successful statuses again.");
         for(const result of results){try{await lease.heartbeat();await importResult(current,result,codes,input.actorId,lease,counts);}catch(error){counts.failed++;errorSummary=`Result ${result.id}: ${safeIhascoError(error)}`;}}
       }
-      await retryCertificates(current,lease,counts);
+      if(current.certificatesEnabled)await retryCertificates(current,lease,counts);
       const success=checkpointMayAdvance(counts);
       await prisma.$transaction(async tx=>{await lease.fence(tx);await tx.trainingIntegration.update({where:{id:current.id},data:{activatedAt:current.activatedAt||new Date(),approvedById:current.approvedById||input.actorId,lastCounts:json(counts),lastError:errorSummary||(!success?"Some results are unmatched or failed. Review mappings and retry; the checkpoint was retained.":counts.certificateFailed?"Results were saved; some certificates need a separate retry.":null),...(!input.certificatesOnly&&success?{checkpoint:startedAt,lastSuccessAt:new Date(),...(range.full?{lastFullSyncAt:startedAt}:{})}:{})}});});
       await prisma.scheduledJobRun.update({where:{id:job.id},data:{status:success?(counts.certificateFailed?"PARTIAL":"SUCCESS"):"PARTIAL",finishedAt:new Date(),safeSummary:JSON.stringify(counts)}});
@@ -248,6 +252,7 @@ export async function scheduledIhascoSync() {
   try {
   if(!ihConfigurationReady()||!process.env.IHASCO_API_KEY)return {status:"NOT_CONFIGURED"};
   const integration=await ihIntegration(process.env.IHASCO_ORGANISATION_ID!);
+  if(integration.syncPaused)return {status:"PAUSED_FOR_RECONCILIATION"};
   if(!integration.activatedAt||!integration.approvedById)return {status:"AWAITING_MANAGER_PREVIEW"};
   if(integration.lastSuccessAt&&Date.now()-+integration.lastSuccessAt<20*3600_000)return {status:"ALREADY_SYNCED"};
   return await ihSync(integration,{actorId:integration.approvedById,scheduled:true});}catch(error){return {status:"FAILED",error:error instanceof RequestError?error.message:safeIhascoError(error)};}

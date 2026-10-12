@@ -304,6 +304,7 @@ model StaffMember {
 }
 
 model StaffTrainingRecord {
+  evidenceDetails      Json?
   externalResult       TrainingExternalResult?
   id                   String            @id @default(uuid()) @db.Char(36)
   staffId              String            @db.Char(36)
@@ -334,6 +335,9 @@ model StaffTrainingRecord {
 }
 
 model TrainingIntegration {
+  rebuildVersion String? @db.VarChar(100)
+  certificatesEnabled Boolean @default(false)
+  syncPaused Boolean @default(false)
   id               String   @id @default(uuid()) @db.Char(36)
   accountKey       String   @unique @db.VarChar(100)
   organisationId   String   @db.Char(36)
@@ -383,6 +387,7 @@ model TrainingIntegrationCourse {
 }
 
 model TrainingExternalResult {
+  completionTimestamp String? @db.VarChar(50)
   id String @id @default(uuid()) @db.Char(36)
   integrationId String @db.Char(36)
   integration TrainingIntegration @relation(fields: [integrationId], references: [id], onDelete: Restrict)
@@ -442,6 +447,7 @@ model TrainingProvider {
 }
 
 model TrainingCourse {
+  policy Json?
   id               String                   @id @default(uuid()) @db.Char(36)
   name             String                   @unique @db.VarChar(191)
   category         String                   @db.VarChar(100)
@@ -468,6 +474,7 @@ model TrainingCourse {
 }
 
 model StaffTrainingAssignment {
+  policy Json?
   id          String         @id @default(uuid()) @db.Char(36)
   staffId     String         @db.Char(36)
   staff       StaffMember    @relation(fields: [staffId], references: [id], onDelete: Cascade)

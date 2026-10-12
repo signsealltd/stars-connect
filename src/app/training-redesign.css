@@ -65,3 +65,6 @@
 .training-workspace .training-course-actions { display:flex; gap:8px; flex-wrap:nowrap; }
 .training-workspace .btn.training-delete { color:#a51d35; border-color:#efc9d0; background:#fff5f6; }
 body:has(.training-workspace) .app-dialog p { max-height:55vh; overflow-y:auto; }
+
+.training-workspace .status-requires_review,.training-workspace .status-review_due,.training-workspace .status-part_complete { color:#8b5705; background:#fff2d7; }
+.training-workspace .status-in_progress,.training-workspace .status-booked { color:#603099; background:#eee4fb; }

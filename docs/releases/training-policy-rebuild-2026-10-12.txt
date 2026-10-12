@@ -1,0 +1,87 @@
+STARS training rebuild — deployment and runbook
+
+Deploy main with the normal scripts/deploy-vps.sh process. It applies migration
+20261012193000_training_policy_rebuild before restarting the application.
+This migration only adds training fields; it does not reset live records itself.
+
+Then, from the application folder on the live server, run:
+
+  npx tsx scripts/rebuild-training.ts --apply --actor=YOUR_MANAGER_LOGIN_EMAIL
+
+Use the existing administrator/manager login email or user UUID. The command
+loads the server .env, verifies training-management permission, and reuses
+IHASCO_API_KEY, IHASCO_ACCOUNT_KEY and IHASCO_ORGANISATION_ID. No API key belongs
+in this command. DATABASE_URL must point to the live STARS database.
+
+The first run:
+1. Acquires the existing integration lease, excluding concurrent sync jobs.
+2. Writes and verifies a private JSON backup in .data/training-backups (override
+   with TRAINING_BACKUP_DIR outside the public web directory if desired).
+3. Archives old training records/courses, resets individual assignments and local
+   result links, and rebuilds 60 active canonical courses: 45 online and 15
+   practical/local/external. Online role totals: Assistant Manager 44, Team
+   Leader 43, Support Worker 37. GDPR 1 is one shared course.
+4. Retains verified learner IDs and verified mappings to canonical online
+   courses, all provider attempt IDs, certificate files and general audits.
+5. Pauses scheduled training sync, clears its checkpoint and disables certificate
+   downloads. Fetches learners, licensed courses and historic results using the
+   documented read-only API. Matches unique exact emails and exact course names;
+   variants and unmatched titles remain for manager review.
+6. Resolves success meanings from the account's /meta/codes. A 'Test complete'
+   result needs a score at or above the supplied pass mark; ambiguous semantics
+   are not invented. A successful result without a usable date is retained for
+   review without a fabricated completion/renewal date.
+7. Prints a JSON reconciliation report, including imported/updated/skipped/
+   unresolved/failed counts, matched/unmatched learners, unmapped provider
+   courses and canonical courses awaiting mapping. Unselected provider courses
+   are retained as uncredited results; they do not become mandatory courses.
+8. Resumes the existing daily scheduled sync only after successful reconciliation.
+
+If partial/failed, resolve mappings in Staff training > iHasco integration and
+run the SAME command again. It fetches a full reconciliation but does NOT clear
+the catalogue again. No --force reset is provided. Missing API credentials do
+not undo a successfully rebuilt catalogue; set the existing server key and retry.
+Staff accounts, roles, authentication and other modules are never reset.
+The existing shared-catalogue schema means multi-organisation installations are
+blocked before changes rather than silently resetting another organisation.
+
+Evidence and policy
+- Manager matrix and My Training use the same policy status calculation.
+- Recurring deadlines use actual completion + calendar months, clamped at month
+  end; displayed boundaries use Europe/London. Earlier provider expiry is kept.
+- One-off completion has no policy expiry. Appraisal/Supervision use Review due.
+- Individual assignments support booking, justified renewal overrides and
+  reassessment dates. Booking never makes an overdue completion compliant.
+- Conditional applicability remains Requires review until a manager decides it;
+  it does not add every staff member to overdue totals.
+- Practical/local records have assessor/outcome/scope, plan/version, standards,
+  prior Care Certificate achievement, formal training and first-aid fields.
+- Client plans are assigned individually under Courses > Individual staff
+  requirements. Use client reference | plan reference | version per line.
+  STARS ComplianceRecord IDs track published version changes automatically;
+  external plan references require the manager to update the version here.
+- Oliver McGowan and Care Certificate overall statuses are derived displays,
+  not additional counted courses. Online results never complete practicals.
+- Prior Care Certificate achievement requires a verifying manager and reason.
+- Formal buccal refresher and annual first-aid reminders are separate dates.
+- No new certificates are downloaded; existing stored files remain accessible.
+
+Recovery (only if deliberately reverting a rebuild)
+Keep the private JSON backup and existing private file storage together.
+From the same server/application version:
+
+  npx tsx scripts/restore-training.ts --apply --backup=/absolute/path/to/backup.json
+
+This restores the backed-up training records/mappings and appends an audit entry.
+It leaves sync paused for manager review; it does not delete certificate files or
+rewrite general audit history. Backups contain staff training information and
+must remain private. They contain no API credentials or temporary certificate URLs.
+
+API reference reviewed: https://api.ihasco.co.uk/
+No progress percentage field is documented by this API; status is retained
+instead. Completion timestamps are preserved verbatim alongside calendar dates.
+
+Local verification: catalogue totals, dates, conditional applicability, composite
+status, attempt history, permissions, backup-before-reset, repeat rebuilds,
+certificate suppression, typechecking and production build. Live counts are
+only known after running the command against the configured production account.

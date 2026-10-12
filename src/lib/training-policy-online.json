@@ -1,0 +1,441 @@
+[
+  {
+    "name": "Moving and Handling (Careskills)",
+    "roles": [
+      "AM",
+      "TL",
+      "SW"
+    ],
+    "renewalMonths": 36,
+    "renewalKind": "RENEWAL"
+  },
+  {
+    "name": "Care Planning (Careskills)",
+    "roles": [
+      "AM",
+      "TL",
+      "SW"
+    ],
+    "renewalMonths": 24,
+    "renewalKind": "RENEWAL"
+  },
+  {
+    "name": "Basic Life Support (Careskills)",
+    "roles": [
+      "AM",
+      "TL",
+      "SW"
+    ],
+    "renewalMonths": 12,
+    "renewalKind": "RENEWAL"
+  },
+  {
+    "name": "Autism (Careskills)",
+    "roles": [
+      "AM",
+      "TL",
+      "SW"
+    ],
+    "renewalMonths": 36,
+    "renewalKind": "RENEWAL"
+  },
+  {
+    "name": "Appraisal (Careskills)",
+    "roles": [
+      "AM",
+      "TL"
+    ],
+    "renewalMonths": 36,
+    "renewalKind": "REVIEW"
+  },
+  {
+    "name": "Complaints Handling (Careskills)",
+    "roles": [
+      "AM",
+      "TL"
+    ],
+    "renewalMonths": 24,
+    "renewalKind": "RENEWAL"
+  },
+  {
+    "name": "Fire Safety (Careskills)",
+    "roles": [
+      "AM",
+      "TL",
+      "SW"
+    ],
+    "renewalMonths": 36,
+    "renewalKind": "RENEWAL"
+  },
+  {
+    "name": "Health and Safety (Careskills)",
+    "roles": [
+      "AM",
+      "TL",
+      "SW"
+    ],
+    "renewalMonths": 36,
+    "renewalKind": "RENEWAL"
+  },
+  {
+    "name": "Dysphagia (Careskills)",
+    "roles": [
+      "AM",
+      "TL",
+      "SW"
+    ],
+    "renewalMonths": 12,
+    "renewalKind": "RENEWAL"
+  },
+  {
+    "name": "Risk Assessment (Careskills)",
+    "roles": [
+      "AM",
+      "TL",
+      "SW"
+    ],
+    "renewalMonths": 24,
+    "renewalKind": "RENEWAL"
+  },
+  {
+    "name": "Supervision (Careskills)",
+    "roles": [
+      "AM",
+      "TL"
+    ],
+    "renewalMonths": 36,
+    "renewalKind": "REVIEW"
+  },
+  {
+    "name": "Behaviours that Challenge (Careskills)",
+    "roles": [
+      "AM",
+      "TL",
+      "SW"
+    ],
+    "renewalMonths": 24,
+    "renewalKind": "RENEWAL"
+  },
+  {
+    "name": "Buccal Midazolam (Careskills)",
+    "roles": [
+      "AM",
+      "TL",
+      "SW"
+    ],
+    "renewalMonths": 24,
+    "renewalKind": "RENEWAL"
+  },
+  {
+    "name": "Equality, Diversity, Inclusion (Careskills)",
+    "roles": [
+      "AM",
+      "TL",
+      "SW"
+    ],
+    "renewalMonths": 36,
+    "renewalKind": "RENEWAL"
+  },
+  {
+    "name": "Food Hygiene (Careskills)",
+    "roles": [
+      "AM",
+      "TL",
+      "SW"
+    ],
+    "renewalMonths": 36,
+    "renewalKind": "RENEWAL"
+  },
+  {
+    "name": "GDPR 1 (Careskills)",
+    "roles": [
+      "AM",
+      "TL",
+      "SW"
+    ],
+    "renewalMonths": 24,
+    "renewalKind": "RENEWAL"
+  },
+  {
+    "name": "GDPR 2 (Careskills)",
+    "roles": [
+      "AM",
+      "TL"
+    ],
+    "renewalMonths": 24,
+    "renewalKind": "RENEWAL"
+  },
+  {
+    "name": "Infection Control (Careskills)",
+    "roles": [
+      "AM",
+      "TL",
+      "SW"
+    ],
+    "renewalMonths": 36,
+    "renewalKind": "RENEWAL"
+  },
+  {
+    "name": "Manual Handling of Objects (Careskills)",
+    "roles": [
+      "AM",
+      "TL",
+      "SW"
+    ],
+    "renewalMonths": 36,
+    "renewalKind": "RENEWAL"
+  },
+  {
+    "name": "Medication Practice (Careskills)",
+    "roles": [
+      "AM",
+      "TL",
+      "SW"
+    ],
+    "renewalMonths": 24,
+    "renewalKind": "RENEWAL"
+  },
+  {
+    "name": "Mental Capacity (Careskills)",
+    "roles": [
+      "AM",
+      "TL",
+      "SW"
+    ],
+    "renewalMonths": 24,
+    "renewalKind": "RENEWAL"
+  },
+  {
+    "name": "Personal Care (Careskills)",
+    "roles": [
+      "AM",
+      "TL",
+      "SW"
+    ],
+    "renewalMonths": 24,
+    "renewalKind": "RENEWAL"
+  },
+  {
+    "name": "Person Centred Care (Careskills)",
+    "roles": [
+      "AM",
+      "TL",
+      "SW"
+    ],
+    "renewalMonths": 36,
+    "renewalKind": "RENEWAL"
+  },
+  {
+    "name": "Recording Information (Careskills)",
+    "roles": [
+      "AM",
+      "TL",
+      "SW"
+    ],
+    "renewalMonths": 24,
+    "renewalKind": "RENEWAL"
+  },
+  {
+    "name": "Care Certificate Assessor Tutorial (Careskills)",
+    "roles": [
+      "AM",
+      "TL"
+    ],
+    "renewalMonths": null,
+    "renewalKind": "ONE_OFF"
+  },
+  {
+    "name": "Communication (Careskills)",
+    "roles": [
+      "AM",
+      "TL",
+      "SW"
+    ],
+    "renewalMonths": 36,
+    "renewalKind": "RENEWAL"
+  },
+  {
+    "name": "COSHH (Careskills)",
+    "roles": [
+      "AM",
+      "TL",
+      "SW"
+    ],
+    "renewalMonths": 24,
+    "renewalKind": "RENEWAL"
+  },
+  {
+    "name": "Diabetes Awareness (Careskills)",
+    "roles": [
+      "AM",
+      "TL",
+      "SW"
+    ],
+    "renewalMonths": 12,
+    "renewalKind": "RENEWAL"
+  },
+  {
+    "name": "Duty of Care (Careskills)",
+    "roles": [
+      "AM",
+      "TL",
+      "SW"
+    ],
+    "renewalMonths": 36,
+    "renewalKind": "RENEWAL"
+  },
+  {
+    "name": "Positive Behaviour Support (Careskills)",
+    "roles": [
+      "AM",
+      "TL",
+      "SW"
+    ],
+    "renewalMonths": 24,
+    "renewalKind": "RENEWAL"
+  },
+  {
+    "name": "RIDDOR (Careskills)",
+    "roles": [
+      "AM",
+      "TL"
+    ],
+    "renewalMonths": 36,
+    "renewalKind": "RENEWAL"
+  },
+  {
+    "name": "Learning Disability (Careskills)",
+    "roles": [
+      "AM",
+      "TL",
+      "SW"
+    ],
+    "renewalMonths": 36,
+    "renewalKind": "RENEWAL"
+  },
+  {
+    "name": "Lone Working (Careskills)",
+    "roles": [
+      "AM",
+      "TL",
+      "SW"
+    ],
+    "renewalMonths": 24,
+    "renewalKind": "RENEWAL"
+  },
+  {
+    "name": "Mental Health (Careskills)",
+    "roles": [
+      "AM",
+      "TL",
+      "SW"
+    ],
+    "renewalMonths": 36,
+    "renewalKind": "RENEWAL"
+  },
+  {
+    "name": "Nutrition and Hydration (Careskills)",
+    "roles": [
+      "AM",
+      "TL",
+      "SW"
+    ],
+    "renewalMonths": 24,
+    "renewalKind": "RENEWAL"
+  },
+  {
+    "name": "Epilepsy Awareness (Careskills)",
+    "roles": [
+      "AM",
+      "TL",
+      "SW"
+    ],
+    "renewalMonths": 12,
+    "renewalKind": "RENEWAL"
+  },
+  {
+    "name": "Safeguarding and Protection of Adults (Careskills)",
+    "roles": [
+      "AM",
+      "TL",
+      "SW"
+    ],
+    "renewalMonths": 36,
+    "renewalKind": "RENEWAL"
+  },
+  {
+    "name": "Cyber Security Awareness (Careskills)",
+    "roles": [
+      "AM",
+      "TL",
+      "SW"
+    ],
+    "renewalMonths": 24,
+    "renewalKind": "RENEWAL"
+  },
+  {
+    "name": "The Oliver McGowan Mandatory Training",
+    "roles": [
+      "AM",
+      "TL",
+      "SW"
+    ],
+    "renewalMonths": 36,
+    "renewalKind": "RENEWAL"
+  },
+  {
+    "name": "Whistleblowing (Flexebee)",
+    "roles": [
+      "AM",
+      "TL",
+      "SW"
+    ],
+    "renewalMonths": 24,
+    "renewalKind": "RENEWAL"
+  },
+  {
+    "name": "Allergen Awareness (Flexebee)",
+    "roles": [
+      "AM",
+      "TL",
+      "SW"
+    ],
+    "renewalMonths": 12,
+    "renewalKind": "RENEWAL"
+  },
+  {
+    "name": "Conflict Resolution (Flexebee)",
+    "roles": [
+      "AM",
+      "TL",
+      "SW"
+    ],
+    "renewalMonths": 24,
+    "renewalKind": "RENEWAL"
+  },
+  {
+    "name": "Food Safety Level 3 (Flexebee)",
+    "roles": [
+      "AM"
+    ],
+    "renewalMonths": 36,
+    "renewalKind": "RENEWAL"
+  },
+  {
+    "name": "Safeguarding of Adults Level 3 CSTF Aligned (Flexebee)",
+    "roles": [
+      "AM",
+      "TL"
+    ],
+    "renewalMonths": 36,
+    "renewalKind": "RENEWAL"
+  },
+  {
+    "name": "Care Certificate (Careskills)",
+    "roles": [
+      "SW"
+    ],
+    "renewalMonths": null,
+    "renewalKind": "ONE_OFF"
+  }
+]

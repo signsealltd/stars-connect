@@ -16,7 +16,7 @@ let results:IhResult[];
 const fixture=(id:string,date="2020-01-01 10:00:00"):IhResult=>({id,user_id:"11",course_id:"22",completed_at:date,expires_at:"2027-01-01",test_score:90,pass_mark:80,test_attempts:2,status_code:987,archived_at:"2021-01-01",updated_at:"2026-10-12 10:00:00"});
 beforeEach(()=>{
   vi.clearAllMocks();
-  integration={id:"integration",organisationId:"org",accountKey:"account",activatedAt:null,approvedById:null,checkpoint:null,lastFullSyncAt:null,lastSuccessAt:null,previewToken:"preview",previewAt:new Date(),preview:{revision:0,codes:[{code:987,description:"Passed"}],results:[]},revision:0,successCodes:[{code:987,description:"Passed"}],lockToken:null,lockExpiresAt:null} as unknown as TrainingIntegration;
+  integration={certificatesEnabled:true,id:"integration",organisationId:"org",accountKey:"account",activatedAt:null,approvedById:null,checkpoint:null,lastFullSyncAt:null,lastSuccessAt:null,previewToken:"preview",previewAt:new Date(),preview:{revision:0,codes:[{code:987,description:"Passed"}],results:[]},revision:0,successCodes:[{code:987,description:"Passed"}],lockToken:null,lockExpiresAt:null} as unknown as TrainingIntegration;
   external=new Map();records=new Map([["manual",{id:"manual",notes:"Manual evidence stays untouched"}]]);results=[fixture("101")];
   const userMap={integrationId:"integration",externalId:"11",staffId:"staff",email:"person@example.test",name:"Test",matchState:"EXACT_EMAIL"};
   const courseMap={externalId:"22",title:"Fire Safety",courseId:"course",confirmedAt:new Date()};
@@ -116,7 +116,7 @@ it("retains imported results and retrieves a fresh certificate link on a separat
 });
 it("does not advance checkpoints after partial result failures or lose earlier successful results",async()=>{
   results=[fixture("101"),fixture("102","2026-99-01")];const result=await ihSync(integration,{actorId:"manager",previewToken:"preview"});
-  expect(result.counts.failed).toBe(1);expect(integration.checkpoint).toBeNull();expect(external.has("101")).toBe(true);expect(records.size).toBe(2);
+  expect(result.counts.failed).toBe(1);expect(integration.checkpoint).toBeNull();expect(external.has("101")).toBe(true);expect(external.get("102")).toMatchObject({completedAt:null,completionTimestamp:"2026-99-01",qualifies:true});expect(result.counts.unresolved).toBe(1);expect(records.size).toBe(2);
 });
 it("does not remove local evidence when the provider omits records or fails",async()=>{
   await ihSync(integration,{actorId:"manager",previewToken:"preview"});const checkpoint=integration.checkpoint;
@@ -127,3 +127,6 @@ it("prevents concurrent manual/scheduled operations",async()=>{
   integration.lockToken="other";integration.lockExpiresAt=new Date(Date.now()+60000);
   const callback=vi.fn();await expect(withIhascoLock(integration,callback)).rejects.toMatchObject({status:409});expect(callback).not.toHaveBeenCalled();
 });
+
+it("imports results without requesting or downloading certificates when disabled",async()=>{integration.certificatesEnabled=false;await ihSync(integration,{actorId:"manager",previewToken:"preview"});expect(external.size).toBe(1);expect(records.size).toBe(2);expect(state.result).not.toHaveBeenCalled();expect(state.download).not.toHaveBeenCalled();expect(state.list.mock.calls.filter(c=>String(c[0]).startsWith("/results")).every(c=>!String(c[0]).includes("certificate_link"))).toBe(true);});
+it("blocks normal sync while a reset awaits reconciliation",async()=>{integration.syncPaused=true;await expect(ihSync(integration,{actorId:"manager",previewToken:"preview"})).rejects.toMatchObject({status:409});expect(state.list).not.toHaveBeenCalled();});

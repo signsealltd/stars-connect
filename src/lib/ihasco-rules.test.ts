@@ -26,7 +26,7 @@ describe("iHasco mapping and compliance",()=>{
     expect(qualifiesIhasco({...result,status_code:901},codes,approved)).toBe(false);
     expect(qualifiesIhasco({...result,status_code:150},codes,approved)).toBe(false);
     expect(qualifiesIhasco({...result,test_score:79},codes,approved)).toBe(false);
-    expect(qualifiesIhasco({...result,completed_at:null},codes,approved)).toBe(false);
+    expect(qualifiesIhasco({...result,completed_at:null},codes,approved)).toBe(true); // Preserve provider success; matrix requires a date review.
     expect(qualifiesIhasco(result,[{code:900,description:"Meaning changed"}],approved)).toBe(false);
   });
   it("retains provider expiry separately and uses the earlier configured renewal",()=>{
@@ -36,7 +36,7 @@ describe("iHasco mapping and compliance",()=>{
   });
   it("includes historic results, overlaps recent dates and periodically fully reconciles",()=>{
     const now=new Date("2026-10-12Z");expect(syncRange(null,null,now).full).toBe(true);
-    const recent=syncRange(new Date("2026-10-11Z"),new Date("2026-10-01Z"),now);expect(recent.full).toBe(false);expect(recent.path).toContain("completion_date_from=2026-10-04");expect(recent.path).toContain("include_archived=1");expect(recent.path).toContain("fields=certificate_link");
+    const recent=syncRange(new Date("2026-10-11Z"),new Date("2026-10-01Z"),now);expect(recent.full).toBe(false);expect(recent.path).toContain("completion_date_from=2026-10-04");expect(recent.path).toContain("include_archived=1");expect(recent.path).not.toContain("certificate_link");
     expect(syncRange(new Date("2026-10-11Z"),new Date("2026-09-01Z"),now).full).toBe(true);
     expect(checkpointMayAdvance({unmatched:1,failed:0})).toBe(false);expect(checkpointMayAdvance({unmatched:0,failed:1})).toBe(false);
   });

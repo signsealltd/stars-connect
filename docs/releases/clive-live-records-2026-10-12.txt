@@ -1,0 +1,23 @@
+Clive permission-aware live record lookups
+
+Deploy the application normally. No database migration or external AI credential is needed for live lookups.
+
+Clive now has a Live records selector populated from the current account's capabilities. Basic record questions can also select a source automatically. Use the separate name/reference filter for an explicit search; HR and absence lookups require one exact display-name match. Calendar, operation and attendance-report lookups accept date ranges up to 93 days.
+
+Security boundaries:
+- Server checks active account, assistant.use and the source capability on every request; existing source GET handlers then execute their normal session, organisation, role and record checks again.
+- Fixed imported handlers only: no caller-selected URL, SQL, field list or account identity.
+- Explicit response field lists, not whole objects. Passwords, tokens, private login links, raw audit payloads and file contents are excluded.
+- Source results are formatted within STARS. They never enter the external AI prompt. No record bodies or questions are placed in the new lookup audit event.
+- Staff portal sources use the existing staff-area authentication/own-record restrictions. They cannot be switched to management training by changing the request.
+- Errors and denied lookups do not fall back to an AI answer claiming records were checked.
+- Responses are private/no-store. The source's existing data limits are retained; answers explicitly distinguish the returned subset from whole-system totals and show at most 12 rows.
+- These lookups are read-only. Existing separately confirmed task creation/ownership workflows remain unchanged. Some source reads produce their existing audit events.
+
+Coverage: training matrix/providers; staff/client directories; invoices/payments/payroll-period summaries; current on-site register/visitors; attendance reports; devices; calendar/operations; assets/inspections/vehicles; policy/COSHH version metadata; medication-stock summaries; client information review status; audit/user/conflict summaries; operational settings; staff employment summaries/absence calculations; own portal training/schedule/request status. Existing task and published RAMS lookups remain available.
+
+This is bounded record lookup, not unrestricted database access or arbitrary analysis. Sensitive clinical/HR narratives, document contents, credentials, and record fields not on a source's explicit list remain accessible only through their normal screens. Dates and source limits are reported; use the source screen for other pages or unsupported filters. Existing server session permissions are the authority; no new role grants are installed.
+
+Validation: capability denials for every source, disabled users/assistant, staff vs management separation, source-level denial, field projection, own portal token exclusion, fixed GET dispatch, filtering, truncated totals, date limits and safe error handling.
+
+Conversation state clears when a session or capability change is detected on navigation, opening/closing Clive, or window focus. Responses from an earlier session generation cannot restore cleared messages. Chat is not persisted in browser storage.

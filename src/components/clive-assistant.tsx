@@ -12,7 +12,7 @@ import { ExternalLink, Send, ShieldCheck, X } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 
 type Message = CliveLiveExtras & { id: string; from: "user" | "clive"; text: string; route?: string; billingTopic?: BillingHelpTopic };
-const managerPaths = ["/dashboard", "/timesheets", "/live", "/reports", "/settings"];
+const managerPaths = ["/staff", "/dashboard", "/timesheets", "/live", "/reports", "/settings"];
 const suggestions = ["How do I correct a forgotten clock-out?", "How do I run payroll safely?", "What should I check every morning?"];
 
 function CliveImage({className,meaningful=false}:{className:string;meaningful?:boolean}) {
@@ -30,20 +30,26 @@ export function CliveAssistant() {
   useEffect(()=>setGuide(undefined),[pathname]);
   const [authorised, setAuthorised] = useState(false);
   const [open, setOpen] = useState(false);
+  const [recordFrom,setRecordFrom]=useState(""),[recordTo,setRecordTo]=useState("");
+  const [recordSource,setRecordSource]=useState(""),[recordSearch,setRecordSearch]=useState(""),[sources,setSources]=useState<{id:string;label:string}[]>([]);
+  useEffect(()=>{if(!open)return;const controller=new AbortController();fetch("/api/clive",{cache:"no-store",signal:controller.signal}).then(r=>r.ok?r.json():{sources:[]}).then(data=>setSources(data.sources||[])).catch(()=>setSources([]));return()=>controller.abort();},[open]);
   const [question, setQuestion] = useState("");
   const [busy, setBusy] = useState(false);
   const [messages, setMessages] = useState<Message[]>([{ id: "welcome", from: "clive", text: "Hello, I am Clive. Ask me how to use STARS Connect and I will guide you through it step by step." }]);
+  const identity = useRef<string|null>(null),requestGeneration=useRef(0);
   const launcher = useRef<HTMLButtonElement>(null);
   const input = useRef<HTMLInputElement>(null);
   const end = useRef<HTMLDivElement>(null);
   const visible = managerPaths.some((path) => pathname === path || pathname.startsWith(`${path}/`));
 
   useEffect(() => {
-    if (!visible) { setAuthorised(false); setOpen(false); return; }
-    const controller = new AbortController();
-    fetch("/api/auth/me", { cache: "no-store", signal: controller.signal }).then((response) => setAuthorised(response.ok)).catch(() => setAuthorised(false));
-    return () => controller.abort();
-  }, [visible]);
+    const clear=()=>{requestGeneration.current++;identity.current=null;setMessages([]);setQuestion("");setRecordSearch("");setRecordSource("");setSources([]);setBusy(false);setAuthorised(false);setOpen(false);};
+    if(!visible){clear();return;}
+    const controller=new AbortController();
+    const check=async()=>{try{const response=await fetch("/api/auth/me",{cache:"no-store",signal:controller.signal});const account=response.ok?await response.json():null;if(controller.signal.aborted)return;if(!account?.id||!account.capabilities?.includes("assistant.use")){clear();return;}const fingerprint=JSON.stringify([account.id,account.role,[...account.capabilities].sort()]);if(identity.current&&identity.current!==fingerprint){clear();}identity.current=fingerprint;setAuthorised(true);}catch{if(!controller.signal.aborted)clear();}};
+    void check();window.addEventListener("focus",check);
+    return()=>{controller.abort();window.removeEventListener("focus",check);};
+  },[visible,pathname,open]);
   useEffect(() => { if (open) setTimeout(() => input.current?.focus(), 0); }, [open]);
   useEffect(() => { if(messages.length>1)end.current?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches?"instant":"smooth",block:"nearest" }); }, [messages, busy]);
   function close(){setOpen(false);requestAnimationFrame(()=>launcher.current?.focus())}
@@ -64,14 +70,17 @@ export function CliveAssistant() {
     setMessages((current) => [...current, { id: crypto.randomUUID(), from: "user", text }]);
     setQuestion("");
     setBusy(true);
+    const generation=requestGeneration.current;
     try {
-      const response = await fetch("/api/clive", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ question: text, previousQuestions:messages.filter(message=>message.from==="user").slice(-2).map(message=>message.text.slice(0,600)), pathname:pathname+window.location.search }) });
+      const response = await fetch("/api/clive", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ question: text, source:recordSource||undefined,from:["calendar","operations","reports"].includes(recordSource)?recordFrom||undefined:undefined,to:["calendar","operations","reports"].includes(recordSource)?recordTo||undefined:undefined,search:recordSource?recordSearch:undefined, previousQuestions:messages.filter(message=>message.from==="user").slice(-2).map(message=>message.text.slice(0,600)), pathname:pathname+window.location.search }) });
       const result = await response.json().catch(() => null);
+      if(generation!==requestGeneration.current)return;
       if (response.status === 401) { location.assign("/login"); return; }
       setMessages((current) => [...current, { id: crypto.randomUUID(), from: "clive", ...result,text: response.ok ? result.answer : result?.error || "I am temporarily unavailable. STARS Connect itself is still working normally.", route: response.ok ? result.suggestedRoute : undefined, billingTopic:response.ok&&(billing||payments||pathname==="/dashboard")?(payments||/payment|paid|ignore|outstanding/.test(text.toLowerCase())?paymentHelpForQuestion(text):billingHelpForQuestion(text)):undefined }]);
     } catch {
+      if(generation!==requestGeneration.current)return;
       setMessages((current) => [...current, { id: crypto.randomUUID(), from: "clive", text: "I am temporarily unavailable. STARS Connect itself is still working normally." }]);
-    } finally { setBusy(false); }
+    } finally { if(generation===requestGeneration.current)setBusy(false); }
   }
 
   if (!visible || !authorised) return null;
@@ -82,7 +91,7 @@ export function CliveAssistant() {
       <div className="clive-privacy"><ShieldCheck size={16} /> You may name a task or owner. Never enter PINs, passwords or private medical information.</div>
       <div className="clive-messages" aria-live="polite">{messages.length===1&&<div className="clive-welcome"><CliveImage className="clive-welcome-image" meaningful /><h2>How can I help?</h2></div>}{messages.map((message) => <div className={`clive-message ${message.from}`} key={message.id}><span>{message.text}</span>{message.from==="clive"&&<CliveLiveResult result={message}/>}{message.billingTopic&&<button className="btn secondary" onClick={()=>{setGuide(message.billingTopic);setOpen(false)}}>Show me</button>}{message.from === "clive" && message.route && <Link href={message.route} onClick={() => setOpen(false)}>Open the relevant page <ExternalLink size={14} /></Link>}</div>)}{busy && <div className="clive-message clive"><span>Clive is checking the approved guidance...</span></div>}<div ref={end} /></div>
       {messages.length === 1 && <div className="clive-suggestions">{(payments?["How do I mark an invoice as paid?","How do I ignore an old invoice?","What is the payment tracking start date?","How do I reverse a payment?"]:billing?["How do I choose manual billing dates?","How do I exclude bank holidays?","How do I change a client total?","Where are previous invoices?"]:suggestions).map((suggestion) => <button type="button" key={suggestion} onClick={() => void ask(undefined, suggestion)}>{suggestion}</button>)}</div>}
-      <form className="clive-form" onSubmit={(event) => void ask(event)}><label htmlFor="clive-question">Ask Clive</label><div><input ref={input} id="clive-question" value={question} maxLength={600} autoComplete="off" placeholder="How do I...?" onChange={(event) => setQuestion(event.target.value)} /><button type="submit" disabled={busy || question.trim().length < 2} aria-label="Send question"><Send /></button></div></form>
+      <div style={{padding:"8px 16px"}}><label>Live records<select className="field" value={recordSource} onChange={e=>{setRecordSource(e.target.value);setRecordSearch("");}}><option value="">Automatic / guidance</option>{sources.map(source=><option key={source.id} value={source.id}>{source.label}</option>)}</select></label>{recordSource&&<label>Filter records by name or reference<input className="field" value={recordSearch} maxLength={100} onChange={e=>setRecordSearch(e.target.value)} placeholder="Optional search"/></label>}{["calendar","operations","reports"].includes(recordSource)&&<div><label>From<input className="field" type="date" value={recordFrom} onChange={e=>setRecordFrom(e.target.value)}/></label><label>To<input className="field" type="date" value={recordTo} onChange={e=>setRecordTo(e.target.value)}/></label></div>}<small>Live lookups stay inside STARS and respect your current access.</small></div><form className="clive-form" onSubmit={(event) => void ask(event)}><label htmlFor="clive-question">Ask Clive</label><div><input ref={input} id="clive-question" value={question} maxLength={600} autoComplete="off" placeholder="How do I...?" onChange={(event) => setQuestion(event.target.value)} /><button type="submit" disabled={busy || question.trim().length < 2} aria-label="Send question"><Send /></button></div></form>
       <p className="clive-disclaimer">Live lookups respect your permissions. Draft creation and ownership changes require your confirmation. Clive cannot approve or complete safety, clinical or HR decisions.</p>
     </section>}
     <button ref={launcher} hidden={open||!!guide} type="button" className="clive-launcher no-print" aria-controls="clive-panel" onClick={() => setOpen((current) => !current)} aria-expanded={open} aria-label={open ? "Close Clive" : "Ask Clive for help"}><CliveImage className="clive-launcher-image" /><span>{open ? "Close" : "Ask Clive"}</span></button>

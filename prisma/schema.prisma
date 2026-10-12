@@ -401,6 +401,8 @@ model TrainingExternalResult {
   providerExpiryDate DateTime? @db.Date
   starsExpiryDate DateTime? @db.Date
   score Float?
+  appliedPassMark Float?
+  passMarkSource String? @db.VarChar(20)
   passMark Float?
   attempts Int?
   statusCode Int

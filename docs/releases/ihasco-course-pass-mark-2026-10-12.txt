@@ -1,0 +1,9 @@
+iHasco course pass-mark fallback
+
+Deploy main, install dependencies, run npx prisma migrate deploy and npx prisma generate, then build/restart using the normal deployment process. Migration 20261012213000_ihasco_course_pass_mark adds nullable appliedPassMark and passMarkSource fields; original result passMark stays unchanged. No credential or scheduler changes.
+
+In Training > iHasco integration, generate a fresh preview. Review and confirm Test complete alongside Test passed, then refresh the preview and Sync now. Confirming statuses clears sync checkpoints so historic results are reconsidered. Do not reset the catalogue.
+
+Threshold precedence: result pass_mark first; otherwise the exact provider course pass_mark retrieved from GET /courses (individual documented course endpoint for historic missing courses). The course value is the CURRENT course setting, not proof of its historic setting. Preview labels that distinction; imported results retain both original and applied thresholds plus source. Missing thresholds never default to 60. Status approval, score, date, mapping and practical safeguards remain.
+
+If neither endpoint supplies a threshold, the result stays uncredited with an actionable reason. Provider/API failures retain existing evidence.

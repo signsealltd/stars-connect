@@ -13,18 +13,23 @@ export function matchIhascoEmail(user:IhUser,users:IhUser[],staff:{id:string;ema
 export function onlineCourseAllowed(course:{name:string;evidenceKind?:string;active?:boolean}) {
   return course.active!==false && ["COURSE","THEORY"].includes(course.evidenceKind||"COURSE") && !needsFullTier2Verification(course) && !protectedTrainingEntries.some(c=>c.name===course.name) && !/practical|competency|face.to.face|workplace assessment|local induction|administration & competency|first aid at work|site familiarisation|oliver.*(?:part\s*2|tier\s*2)/i.test(course.name);
 }
-export function ihascoQualificationIssue(result:IhResult,codes:IhCode[],approved:IhCode[]):string|null {
+export function ihascoPassMark(result:IhResult,coursePassMark?:number|null) {
+  const value=result.pass_mark??coursePassMark??null;
+  return {value:value!=null&&Number.isFinite(value)&&value>=0&&value<=100?value:null,source:result.pass_mark!=null?"RESULT":coursePassMark!=null?"COURSE":null};
+}
+export function ihascoQualificationIssue(result:IhResult,codes:IhCode[],approved:IhCode[],coursePassMark?:number|null):string|null {
+  const passMark=ihascoPassMark(result,coursePassMark).value;
   const status=codes.find(c=>c.code===result.status_code);
   if(!status)return "Status code is not in the provider metadata. Refresh the preview.";
   if(/fail|in.?progress|not.?started|viewed/i.test(status.description))return `Provider reports ${status.description}; this is not a successful completion.`;
   if(!approved.some(c=>c.code===status.code&&c.description===status.description))return `“${status.description}” has not been confirmed as a successful status. Review Successful completion statuses above, confirm it if appropriate, then refresh the preview.`;
-  if(/^(test complete|expired|expiring soon)$/i.test(status.description)&&result.pass_mark==null)return "The provider did not supply a result pass mark. A score alone cannot verify a pass for this status; ask iHasco to confirm the result/pass threshold.";
-  if(result.pass_mark!=null&&result.test_score==null)return "The provider supplied a pass mark but no test score. Review the provider result.";
-  if(result.pass_mark!=null&&result.test_score!=null&&result.test_score<result.pass_mark)return `Score ${result.test_score} is below the supplied pass mark ${result.pass_mark}.`;
+  if(/^(test complete|expired|expiring soon)$/i.test(status.description)&&passMark==null)return "The provider did not supply a usable result or course pass mark. A score alone cannot verify a pass for this status; ask iHasco to confirm the result/pass threshold.";
+  if(passMark!=null&&result.test_score==null)return "The provider supplied a pass mark but no test score. Review the provider result.";
+  if(passMark!=null&&result.test_score!=null&&result.test_score<passMark)return `Score ${result.test_score} is below the supplied pass mark ${passMark}.`;
   return null;
 }
-export function qualifiesIhasco(result:IhResult,codes:IhCode[],approved:IhCode[]) {
-  return ihascoQualificationIssue(result,codes,approved)===null;
+export function qualifiesIhasco(result:IhResult,codes:IhCode[],approved:IhCode[],coursePassMark?:number|null) {
+  return ihascoQualificationIssue(result,codes,approved,coursePassMark)===null;
 }
 export function providerDate(value:string|null|undefined) {
   if(!value)return null;

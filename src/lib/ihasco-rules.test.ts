@@ -46,7 +46,7 @@ it("explains why a matched Test complete result is not credited",()=>{
  const codes=[{code:140,description:"Test complete"}],result={status_code:140,completed_at:"2026-10-09 17:15:17",test_score:100,pass_mark:80} as IhResult;
  expect(ihascoQualificationIssue(result,codes,[])).toContain("has not been confirmed");
  expect(ihascoQualificationIssue(result,codes,codes)).toBeNull();
- expect(ihascoQualificationIssue({...result,pass_mark:null},codes,codes)).toContain("did not supply a result pass mark");
+ expect(ihascoQualificationIssue({...result,pass_mark:null},codes,codes)).toContain("did not supply a usable result or course pass mark");
  expect(ihascoQualificationIssue({...result,test_score:70},codes,codes)).toContain("below the supplied pass mark");
  expect(ihascoQualificationIssue({...result,test_score:null},codes,codes)).toContain("no test score");
 });

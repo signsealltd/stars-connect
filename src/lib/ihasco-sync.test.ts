@@ -151,3 +151,20 @@ it("restores credit on existing results after status confirmation without duplic
   await ihSync(integration,{actorId:"manager"});
   expect(external.get("101")?.qualifies).toBe(true);expect(records.size).toBe(2);expect(external.size).toBe(1);
 });
+
+it("uses exact course thresholds for historic completions while preserving raw result thresholds",async()=>{
+  const codes=[{code:140,description:"Test complete"}];integration.successCodes=codes;state.codes.mockResolvedValue(codes);
+  results=[{...fixture("101"),status_code:140,pass_mark:null,test_score:80},{...fixture("102"),status_code:140,pass_mark:95,test_score:90},{...fixture("103"),status_code:140,pass_mark:null,test_score:50}];
+  state.list.mockImplementation(async(path:string)=>path.startsWith("/results")?results:path==="/users"?[{id:"11",email:"person@example.test",first_name:"Test",last_name:"Person"}]:[{course_id:"22",title:"Fire Safety",pass_mark:60}]);
+  await ihSync(integration,{actorId:"manager",previewToken:"preview"});
+  expect(external.get("101")).toMatchObject({qualifies:true,passMark:null,appliedPassMark:60,passMarkSource:"COURSE"});
+  expect(external.get("102")).toMatchObject({qualifies:false,passMark:95,appliedPassMark:95,passMarkSource:"RESULT"});
+  expect(external.get("103")?.qualifies).toBe(false);
+  await ihSync(integration,{actorId:"manager"});expect(records.size).toBe(2);
+});
+it("does not invent a threshold when neither result nor course supplies one",async()=>{
+  const codes=[{code:140,description:"Test complete"}];integration.successCodes=codes;state.codes.mockResolvedValue(codes);
+  results=[{...fixture("101"),status_code:140,pass_mark:null,test_score:100}];
+  await ihSync(integration,{actorId:"manager",previewToken:"preview"});
+  expect(external.get("101")).toMatchObject({qualifies:false,passMark:null,appliedPassMark:null,passMarkSource:null});expect(records.size).toBe(1);
+});

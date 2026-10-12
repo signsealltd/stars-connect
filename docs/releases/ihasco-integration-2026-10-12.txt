@@ -44,9 +44,25 @@ Use Retry certificates to request fresh links and retry independently.
 
 Manager setup — first live import remains gated
 Training > iHasco integration requires training.manage for all integration actions.
-- Course mappings now hide unused courses by default. Courses with results,
-  existing mappings or unique exact-title proposals remain visible. Search and
-  Show all available courses expose the rest without deleting catalogue entries.
+- Course mappings show the full available catalogue by default. Untick Show all
+  to focus on results, existing mappings and unique exact-title proposals.
+- Add the full iHasco catalogue previews missing courses and existing exact
+  matches, then creates and links them in one reviewed transaction. New courses
+  are optional online theory with no assumed renewal period, and numbered levels
+  only when explicit in the title. Provider labels come from the title; where
+  absent, iHasco is recorded as the delivery platform. Ordinary import flags
+  similarly named or inactive entries for review rather than duplicating them.
+- Training catalogue settings includes Reset training catalogue from iHasco.
+  Review its separate preview and type RESET TRAINING to apply. It archives old
+  online subjects outside the provider catalogue, reuses/reactivates exact titles,
+  adds missing titles and rebuilds external course-ID mappings. Practical/local/
+  external/full-package requirements are retained. Existing exact courses keep
+  their configured role requirements; newly created courses start as optional.
+  Evidence is not deleted. Reset is blocked once qualifying provider results
+  have been imported; use Add missing courses thereafter. A reset never imports
+  staff results or modifies non-training data. Refresh the results preview next.
+- Courses now uses a searchable table. Catalogue setup / reset opens the iHasco
+  integration settings. These catalogue/UI changes need no additional migration.
 - Prepared course matches can be reviewed and confirmed together. Titles retain
   provider suffixes, numbered levels and variants; ambiguous or duplicate titles
   and practical/full-package requirements are excluded. Confirmation is atomic,

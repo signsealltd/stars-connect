@@ -7,8 +7,8 @@ vi.mock("./audit",()=>({audit:state.audit}));
 vi.mock("./ihasco-client",async original=>{const actual=await original<typeof import("./ihasco-client")>();return {...actual,IhascoClient:class {list=state.list;codes=state.codes;result=state.result;}};});
 vi.mock("./ihasco-certificates",()=>({downloadCertificate:state.download}));
 vi.mock("./staff-private-storage",()=>({writeStaffPrivateFile:async()=>"private-file",removeStaffPrivateFile:async()=>{},staffDocumentExpiry:()=>new Date("2030-01-01Z")}));
-import {ihSync,withIhascoLock,ihConfirmCourseProposal} from "./ihasco-service";
-import {courseMappingProposal} from "./ihasco-course-mapping";
+import {ihSync,withIhascoLock,ihConfirmCourseProposal,ihImportCatalogue} from "./ihasco-service";
+import {courseMappingProposal,catalogueImportProposal} from "./ihasco-course-mapping";
 import {IhascoError} from "./ihasco-client";
 let integration:TrainingIntegration;
 let external:Map<string,Record<string,unknown>>,records:Map<string,Record<string,unknown>>;
@@ -52,6 +52,36 @@ beforeEach(()=>{
 it("blocks initial import without a manager's current preview and confirmed statuses",async()=>{
   await expect(ihSync(integration,{actorId:"manager"})).rejects.toMatchObject({status:409});expect(external.size).toBe(0);
   integration.successCodes=[];await expect(ihSync(integration,{actorId:"manager",previewToken:"preview"})).rejects.toMatchObject({status:422});
+});
+function catalogueFixture(imported=0) {
+  const mappings=[{externalId:"22",title:"Fire Safety (Careskills)",courseId:null as string|null}];
+  const courses=[{id:"old",name:"Old online subject",evidenceKind:"THEORY",active:true}];
+  const create=vi.fn(async({data})=>({id:"new-course",...data})),archive=vi.fn(async()=>({count:1}));
+  state.db.trainingCourse={findMany:vi.fn(async()=>courses),create,updateMany:archive,update:vi.fn()};
+  state.db.trainingIntegrationCourse={findMany:vi.fn(async()=>mappings),count:vi.fn(async()=>0),updateMany:vi.fn(async()=>({count:1}))};
+  state.db.trainingExternalResult={count:vi.fn(async()=>imported)};
+  state.db.trainingProvider={upsert:vi.fn(async()=>({id:"provider"}))};
+  return {mappings,courses,create,archive};
+}
+it("creates and links a reviewed catalogue without importing staff results",async()=>{
+  const f=catalogueFixture(),proposal=catalogueImportProposal(f.mappings,f.courses,0);
+  await expect(ihImportCatalogue(integration,proposal.token,"manager")).resolves.toMatchObject({created:1,matched:0,catalogueChanged:true});
+  expect(f.create).toHaveBeenCalledWith({data:expect.objectContaining({name:"Fire Safety (Careskills)",evidenceKind:"THEORY",renewalMonths:null,requirementRules:expect.objectContaining({"Support Worker":"OPTIONAL"})})});
+  expect(f.archive).not.toHaveBeenCalled();expect(records.size).toBe(1);expect(external.size).toBe(0);expect(integration.previewToken).toBeNull();
+});
+it("requires the separate reset preview and blocks resets after results import",async()=>{
+  const f=catalogueFixture(),proposal=catalogueImportProposal(f.mappings,f.courses,0);
+  await expect(ihImportCatalogue(integration,proposal.token,"manager",true)).rejects.toMatchObject({status:409});
+  expect(f.create).not.toHaveBeenCalled();expect(f.archive).not.toHaveBeenCalled();
+  catalogueFixture(1);
+  await expect(ihImportCatalogue(integration,"any-token","manager",true)).rejects.toMatchObject({status:409});
+});
+it("resets only the reviewed online catalogue while retaining evidence",async()=>{
+  const f=catalogueFixture(),proposal=catalogueImportProposal(f.mappings,f.courses,0,true);
+  await expect(ihImportCatalogue(integration,proposal.token,"manager",true)).resolves.toMatchObject({created:1,archived:1});
+  expect(f.archive).toHaveBeenCalledWith({where:{id:{in:["old"]}},data:{active:false,updatedById:"manager"}});
+  expect(records.get("manual")).toEqual({id:"manual",notes:"Manual evidence stays untouched"});
+  expect(state.audit).toHaveBeenCalledWith("IHASCO_TRAINING_CATALOGUE_RESET",expect.anything());
 });
 it("confirms reviewed course matches without importing results and invalidates the first-import preview",async()=>{
   const mappings=[{externalId:"22",title:"Fire Safety (Careskills)",courseId:null}],courses=[{id:"course",name:"Fire Safety (Careskills)",evidenceKind:"THEORY",active:true}];

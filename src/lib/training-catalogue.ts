@@ -37,9 +37,10 @@ export function tier2EvidenceError(course: { name: string; evidenceKind?: string
 }
 
 export function trainingRecordMatchesCourse(
-  record: {courseId?:string|null;courseName:string;fullTier2Verified?:boolean;certificateReference?:string|null},
+  record: {courseId?:string|null;courseName:string;fullTier2Verified?:boolean;certificateReference?:string|null;externalResult?:{qualifies:boolean}|null},
   course: {id:string;name:string;catalogueKey?:string|null;evidenceKind?:string},
 ) {
+  if (record.externalResult && (!record.externalResult.qualifies || !["COURSE","THEORY"].includes(course.evidenceKind||"COURSE") || protectedTrainingEntries.some(c=>c.name===course.name) || /practical|competency|face.to.face|workplace assessment|local induction|administration & competency|first aid at work|site familiarisation|oliver.*(?:part\s*2|tier\s*2)/i.test(course.name))) return false;
   const fullPackage = needsFullTier2Verification(course);
   const linked = record.courseId === course.id;
   // Legacy unlinked records can still match legacy subjects. Imported provider courses

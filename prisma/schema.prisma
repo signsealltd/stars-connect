@@ -304,6 +304,7 @@ model StaffMember {
 }
 
 model StaffTrainingRecord {
+  externalResult       TrainingExternalResult?
   id                   String            @id @default(uuid()) @db.Char(36)
   staffId              String            @db.Char(36)
   staff                StaffMember       @relation(fields: [staffId], references: [id], onDelete: Cascade)
@@ -330,6 +331,89 @@ model StaffTrainingRecord {
   @@index([courseName])
   @@index([courseId, active])
   @@index([providerId, active])
+}
+
+model TrainingIntegration {
+  id               String   @id @default(uuid()) @db.Char(36)
+  accountKey       String   @unique @db.VarChar(100)
+  organisationId   String   @db.Char(36)
+  activatedAt      DateTime?
+  approvedById     String?  @db.Char(36)
+  checkpoint       DateTime?
+  lastFullSyncAt   DateTime?
+  lastSuccessAt    DateTime?
+  lastCounts       Json?
+  connectionStatus String   @default("UNTESTED") @db.VarChar(30)
+  lastError        String?  @db.VarChar(500)
+  successCodes     Json?
+  revision         Int      @default(0)
+  previewToken     String?  @db.Char(36)
+  preview          Json?
+  previewAt        DateTime?
+  lockToken        String?  @db.Char(36)
+  lockExpiresAt    DateTime?
+  users            TrainingIntegrationUser[]
+  courses          TrainingIntegrationCourse[]
+  results          TrainingExternalResult[]
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model TrainingIntegrationUser {
+  integrationId String @db.Char(36)
+  integration TrainingIntegration @relation(fields: [integrationId], references: [id], onDelete: Restrict)
+  externalId String @db.VarChar(100)
+  email String @db.VarChar(191)
+  name String @db.VarChar(191)
+  staffId String? @db.Char(36)
+  matchState String @db.VarChar(40)
+  @@id([integrationId, externalId])
+  @@unique([integrationId, staffId])
+}
+
+model TrainingIntegrationCourse {
+  integrationId String @db.Char(36)
+  integration TrainingIntegration @relation(fields: [integrationId], references: [id], onDelete: Restrict)
+  externalId String @db.VarChar(100)
+  title String @db.VarChar(191)
+  courseId String? @db.Char(36)
+  confirmedAt DateTime?
+  confirmedById String? @db.Char(36)
+  @@id([integrationId, externalId])
+}
+
+model TrainingExternalResult {
+  id String @id @default(uuid()) @db.Char(36)
+  integrationId String @db.Char(36)
+  integration TrainingIntegration @relation(fields: [integrationId], references: [id], onDelete: Restrict)
+  externalId String @db.VarChar(100)
+  externalUserId String @db.VarChar(100)
+  externalCourseId String @db.VarChar(100)
+  staffId String? @db.Char(36)
+  courseId String? @db.Char(36)
+  courseTitle String @db.VarChar(191)
+  completedAt DateTime?
+  providerExpiryDate DateTime? @db.Date
+  starsExpiryDate DateTime? @db.Date
+  score Float?
+  passMark Float?
+  attempts Int?
+  statusCode Int
+  statusLabel String @db.VarChar(191)
+  qualifies Boolean @default(false)
+  archivedAt DateTime?
+  providerUpdatedAt DateTime?
+  trainingRecordId String? @unique @db.Char(36)
+  trainingRecord StaffTrainingRecord? @relation(fields: [trainingRecordId], references: [id], onDelete: Restrict)
+  certificateDocumentId String? @db.Char(36)
+  certificateState String @default("PENDING") @db.VarChar(30)
+  certificateError String? @db.VarChar(500)
+  certificateAttemptedAt DateTime?
+  contentHash String @db.Char(64)
+  lastSeenAt DateTime @default(now())
+  @@unique([integrationId, externalId])
+  @@index([staffId, completedAt])
+  @@index([integrationId, certificateState])
 }
 
 model TrainingProvider {

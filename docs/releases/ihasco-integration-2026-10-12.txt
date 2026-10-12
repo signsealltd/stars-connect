@@ -1,0 +1,113 @@
+iHasco integration — deployment and operation
+
+Documentation reviewed: https://api.ihasco.co.uk/ (v2, read 12 October 2026).
+Only documented GET endpoints are used: /users, /courses, /meta/codes, /results,
+and individual user/course/result endpoints for historic entities/certificates.
+No remote users, enrolments or results are changed.
+
+Deploy
+1. Back up the database and private staff-document directory as normal.
+2. Run npx prisma migrate deploy, npx prisma generate, then build/restart.
+   Migration: 202610120001_ihasco_integration. It adds integration/mapping/result
+   tables and relations only. It does not import live data or alter manual evidence.
+3. Set the following server environment variables and restart with refreshed env:
+   IHASCO_API_KEY: provider token, used only in the server Authorization header.
+   IHASCO_ACCOUNT_KEY: stable, non-secret identifier chosen for this iHasco account.
+   IHASCO_ORGANISATION_ID: existing Stars organisation UUID.
+   Keep the account key during token rotation for the SAME account. If changing
+   provider accounts, use a NEW account key; IDs are scoped to this account binding.
+   The documented API has no account-identity endpoint, so this binding is an
+   administrator responsibility and must not be reused for a different account.
+4. Ensure STAFF_DOCUMENT_STORAGE_PATH is a persistent, backed-up directory outside
+   the web root, writable by the app. Files use random paths and mode 0600.
+   Preserve the existing configured location; changing it requires a controlled
+   migration of existing documents and their stored paths.
+   STAFF_DOCUMENT_RETENTION_DAYS applies as it does to existing staff documents.
+   Existing purge maintenance may delete certificates after this retention period;
+   provider result metadata and training evidence records remain.
+
+Certificate configuration — verification REQUIRED
+The documentation shows a relative certificate_link.url such as
+/training/certificate/download/:time-limited-code, but does not specify its base
+origin. Do not assume api.ihasco.co.uk or app.ihasco.co.uk is the correct base.
+Obtain account-specific confirmation from iHasco or a real absolute response.
+Then set IHASCO_CERTIFICATE_BASE_URL and IHASCO_CERTIFICATE_ALLOWED_HOSTS (exact,
+comma-separated verified hostnames, including any verified redirect destination).
+For absolute links only the verified hostname allowlist is needed.
+Relative links without a configured base fail safely with an actionable error.
+Downloads never include the API bearer token, even on the API host. HTTPS, host
+allowlists, public DNS addresses pinned to the request, redirect validation,
+timeouts, 10 MB size limits, PDF MIME type and PDF magic bytes are checked.
+Temporary links are requested afresh using fields=certificate_link and are never
+persisted, logged or sent to browsers. Download failures do not roll back results.
+Use Retry certificates to request fresh links and retry independently.
+
+Manager setup — first live import remains gated
+Training > iHasco integration requires training.manage for all integration actions.
+- Test connection checks /meta/codes and reports safe status only.
+- Generate preview fetches all pages, including include_archived=1. It stages
+  directory/mapping data, but creates no staff, catalogue or compliance records.
+- Unique exact email matches (trimmed/case-normalised) are persisted. Missing or
+  duplicate emails require review. Names never establish an automatic identity.
+  Only staff linked to users in the configured organisation can be selected.
+- Historic users/courses omitted from lists are looked up individually. A 404 is
+  displayed as an unresolved historical identity/title, never treated as a match.
+- Confirm each external course's existing STARS requirement. Suggestions never
+  count as confirmation. Practical/external/local/full-package requirements are
+  excluded, including the protected STARS entries and Oliver McGowan Part 2.
+- Confirm which returned status descriptions mean successful completion for the
+  account. No numeric status code is hard-coded. A completed date and a score
+  meeting any supplied pass mark are also required. Metadata meaning changes
+  block sync until a fresh preview and manager confirmation.
+- Mapping/status edits invalidate the preview token. Refresh and review it again,
+  then tick the review acknowledgement and choose Import reviewed results.
+- Preview tokens expire after 24 hours. Sync and scheduler operations cannot
+  bypass this first-import gate. The reviewed action enables subsequent daily sync.
+- Existing imported ownership/mapping cannot be silently reassigned. Any incorrect
+  historic binding needs an administrator's controlled evidence review.
+
+Daily scheduler
+Use the existing authenticated scheduler pattern and ScheduledJobRun history.
+Configure a separate daily POST to /api/cron/ihasco, e.g. at 04:15 Europe/London,
+using Authorization: Bearer <REPORT_JOB_SECRET> (NOT the iHasco key).
+Use the deployment's existing secret-injection mechanism; do not embed the secret
+in a public URL, tracked crontab or command log. Allow sufficient request/runtime
+timeout for paginated full reconciliation. The initial import is manager-controlled.
+The endpoint returns NOT_CONFIGURED or AWAITING_MANAGER_PREVIEW until setup is ready.
+Daily results use completion_date_from/to with a seven-day overlap; every 30 days,
+or after mapping/status changes, a full historic reconciliation runs. Account
+leases with transaction fencing prevent concurrent manager/scheduled writes.
+Expired leases can be reclaimed; idempotent result IDs allow interrupted runs to
+be retried. A daily success is suppressed for 20 hours; manual Sync now is available.
+Checkpoints advance only when all result rows were processed and matched. Partial
+results remain saved, unmatched/failed rows stay visible, and the checkpoint is
+retained for replay. Certificate retries have a separate queue and do not hold back
+an otherwise successful results checkpoint. Up to 500 certificates are attempted
+per operation, least-recently attempted first; further retries drain the queue.
+
+Evidence and compliance
+Each external result is keyed by integration + external result ID. Repeat/historic
+IDs produce separate completions. Corrections update only the linked imported
+record; manual records, certificates and historic course-title snapshots remain.
+Failed/unmatched results remain reviewable but do not satisfy matrix requirements.
+Missing provider records and API errors never delete or invalidate local evidence.
+Only an explicit provider correction to a result can change its qualification.
+Provider calendar dates are retained without guessing a timezone for timestamps.
+Provider expiry and STARS calendar-month renewal are displayed separately; the
+earlier date is the applicable renewal, recomputed against current course settings.
+The existing matrix and both staff portal variants show imported result metadata.
+Certificates are served through /api/staff-area/documents with private/no-store
+headers. Staff need staff-training.view and can access only their own evidence.
+Managers need the existing staff-hr.documents and staff-training.view permissions
+and an in-organisation staff record. Public download URLs are never exposed.
+
+Validation and account limits
+Automated tests use synthetic provider responses, including unusual status numbers,
+historic results, duplicates, failed results, ambiguous emails, expired-link retries,
+partial failures, concurrency locks, permissions and certificate URL/type validation.
+No live account import or certificate-base assumption was made during development.
+If the account returns different field types, the error names schema paths/error
+categories only; response bodies, credentials and signed download links are omitted.
+The API lists 100 rows per page; the client follows pagination with loop detection,
+caps listings at 1,000 pages and paces requests below 200/minute. HTTP 429/5xx/network
+retries are bounded; long Retry-After delays stop the run for a later safe retry.

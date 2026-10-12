@@ -1,3 +1,4 @@
+import {staffTrainingData} from "./staff-training-data";
 import {staffAbsenceTypes,staffAbsenceLabel} from "./staff-absence-types";
 import {resourceCategories} from "./staff-resources";
 import {prisma} from "./prisma";
@@ -23,7 +24,7 @@ export async function personalData(i:StaffIdentity,month:string){
  const [schedule,requests,training,notifications,passkeys,policies,receipts,directory,documents]=await Promise.all([
   canCalendar?personalSchedule(i.staff.id,i.user.organisationId!,month):Promise.resolve([]),
   prisma.staffRequest.findMany({where:{staffId:i.staff.id,organisationId:i.user.organisationId!},include:{events:{where:{staffVisible:true},select:{id:true,action:true,message:true,createdAt:true},orderBy:{createdAt:"asc"}},documents:{where:{expiresAt:{gt:new Date()}},select:{id:true,filename:true}}},orderBy:{createdAt:"desc"},take:100}),
-  canTraining?prisma.staffTrainingRecord.findMany({where:{staffId:i.staff.id,active:true},select:{id:true,courseName:true,provider:true,completedDate:true,expiryDate:true,mandatory:true,certificateReference:true}}):Promise.resolve([]),
+  canTraining?staffTrainingData(i.staff.id,i.user.organisationId!):Promise.resolve([]),
   prisma.staffPortalNotification.findMany({where:{staffId:i.staff.id},orderBy:{createdAt:"desc"},take:30}),
   prisma.staffPasskey.findMany({where:{accountId:i.staff.id},select:{id:true,name:true,createdAt:true}}),
   prisma.staffResource.findMany({where:{status:"PUBLISHED",category:{in:Object.entries(resourceCategories).filter(([,cap])=>hasCapability(i.user.role,cap,i.user.permissionOverrides)).map(([category])=>category)},studentId:null},select:{id:true,title:true,version:true,content:true,documentId:true,category:true}}),

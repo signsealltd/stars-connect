@@ -1,0 +1,39 @@
+STARS Connect Asset Management — 13 October 2026
+
+Implementation
+- Extends PremisesAsset, PremisesInspection, PremisesDocument and existing corrective actions/Tasks. Existing records, relationships, references and UUID QR tokens are retained.
+- Database-allocated unique STR numbers are independent of editable legacy references. The MySQL auto-increment unique index allocates numbers under concurrent inserts; retired records are retained and numbers are never reassigned by the application.
+- Configurable categories and suggested test names; no automatic statutory intervals. Multiple per-asset schedules, checklists, measurement notes, corrections and audit history. Legacy configured due dates/recurrences are migrated into explicit schedules without creating inspection history.
+- Operational state is separate from due status. Failed inspections create linked evidence/verification actions and stop use. A pass does not resolve existing faults or return an asset to service. Historical evidence does not move the current schedule backward.
+- Register with real figures, selection, category/location/status filters, selected detail panel, full asset record, photographs/private documents, purchase/warranty details and system grouping.
+- QR codes point to /assets/<existing random UUID token> on the configured HTTPS domain. Moving/renaming/retiring does not change the token or number. Existing older authenticated QR URLs redirect signed-out visitors to the same public/private asset page; staff sign-in returns to the authorised record.
+
+Public access
+- Existing and new assets start private. Premises managers deliberately publish each asset and approve its public location/photo; documents are published individually.
+- Public fields: number/name/category, approved location/photo, operational status, structured test date/type/result, separate approved public summary, next active scheduled test and explicitly published documents. No staff names, internal notes, costs, serial numbers, signatures, internal details or raw audit data.
+- Uploaded PDF/image publication pins a particular stored version; a later upload cannot silently replace the approved public version. Downloads check current asset publication and active document publication on every request. Disabling publication keeps the QR intact but returns a neutral page and denies public files.
+- Public content has noindex metadata/global X-Robots-Tag, is not added to any sitemap, and file responses are private/no-store. The public page is dynamic. Existing service worker does not cache these pages/files. Anyone holding an enabled link can view its approved content; noindex is not access control.
+- Only validated internal /dashboard/premises/assets/<token> return paths are accepted by sign-in.
+
+Existing permission mapping (enforced server-side)
+- premises.view: internal register/detail/downloads, label preview/PDF, queue and explicit print confirmation.
+- asset.manage OR premises.manage: create/edit/retire assets, private uploads, schedules, categories and label profiles.
+- inspection.complete OR premises.manage: tests, corrections, linked private inspection evidence uploads and fault reporting. Corrective action resolution remains in the existing Tasks workflow.
+- premises.manage: public records, approved summaries/photos and document publication. Asset edit permission alone does not grant publication.
+- Existing STARS session and deployment-wide premises scope is reused; no roles are automatically expanded.
+
+Printing
+- Saved printer-independent profiles for roll labels and A4 sheets. Set dimensions, orientation, padding, offsets, rows/columns, gaps, margins, QR/text size and optional name/location/branding.
+- A4 starting position is one-based, across rows. Roll offsets must remain inside padding. Layout validation rejects off-page labels and text/QR combinations which cannot fit. Small QR sizes warn; actual module density is also checked during PDF generation.
+- Single or up to 200 selected/queued labels per batch. Full-sheet live preview (first three pages), vector QR PDFs, downloadable PDFs and calibration outlines. Open PDF to print through the browser/system dialog at 100% / actual size.
+- PDF generation, download and print cancellation do not remove labels from the persistent queue. Only the explicit "Mark as printed" confirmation does. Reprints reuse the same identifiers.
+- No automatic printer detection, direct DYMO integration or claim of physical print success. Stock dimensions must be entered from the actual office labels; the unsaved A4 example is illustrative, not a configured stock.
+
+Deployment
+Use the existing reviewed deployment process (README and scripts/deploy-vps.sh). Back up first, then apply migration 20261013010000_asset_management with npx prisma migrate deploy before starting this release; regenerate Prisma, build, and restart normally. Do not run a production reset or db push to skip the migration data backfill. The baseline/alpha migration procedure still applies to servers without established migration history.
+APP_URL (or existing NEXT_PUBLIC_APP_URL fallback) must be the stable public HTTPS origin before QR printing or publication. Never use localhost or an incoming request host for printed URLs. Existing DOCUMENT_STORAGE_PATH private storage and its backup/permissions remain in use. TRUSTED_PROXY_HOPS should match the established reverse proxy setup for rate limiting. No new package, API key or scheduled job is needed.
+
+Acceptance / limitations
+Focused automated checks cover API permission denials, publisher separation, server-assigned identifiers, public projection, disabled-publication downloads, pinned file versions, schedule recurrence/earliest date, historical corrections, failed-test actions, unchanged fault status on passes, strict return paths and physical label positions/sizes. 49 focused tests passed. TypeScript, changed-file ESLint, Prisma schema validation and production build passed; existing unrelated build warnings remain. The final public-summary permission regression was rechecked with 24 targeted tests and TypeScript.
+Desktop, tablet and phone layouts were inspected using the real components rendered with explicit local fixture data; no production database or records were used. Roll and two-page partially used A4 PDFs were rendered with Poppler and inspected; media boxes were verified as 80 x 40 mm and A4 respectively. Physical label feeding, printer offsets and camera scans require an acceptance check on the actual equipment.
+The migration has not been executed against a live or staging MySQL server in this checkout. Before production acceptance, deploy to the usual staging/backup workflow and verify concurrent creation, public publication/revocation, sign-in return, upload/download permissions and one actual printer test. No live records have been published by this development work.

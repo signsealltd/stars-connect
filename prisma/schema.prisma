@@ -1348,6 +1348,16 @@ model ScheduledJobRun {
 }
 
 model PremisesAsset {
+  assetSequence Int @unique @default(autoincrement())
+  description String? @db.Text
+  systemName String? @db.VarChar(191)
+  publicEnabled Boolean @default(false)
+  publicLocation String? @db.VarChar(191)
+  photoDocumentId String? @db.Char(36)
+  publicPhotoFileId String? @db.Char(36)
+  labelQueued Boolean @default(true)
+  labelPrintedAt DateTime?
+  schedules AssetTestSchedule[]
   qrToken String @unique @default(uuid()) @db.Char(36)
   reference String? @unique @db.VarChar(80)
   status String @default("OPERATIONAL") @db.VarChar(30)
@@ -1379,6 +1389,9 @@ model PremisesAsset {
 }
 
 model PremisesInspection {
+  scheduleId String? @db.Char(36)
+  schedule AssetTestSchedule? @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
+  publicSummary String? @db.VarChar(1000)
   evidence Json?
   id                   String                     @id @default(uuid()) @db.Char(36)
   assetId              String                     @db.Char(36)
@@ -1429,6 +1442,7 @@ model PremisesCorrectiveAction {
 }
 
 model PremisesDocument {
+  publishedFileId String? @db.Char(36)
   responsibleName String? @db.VarChar(120)
   id           String         @id @default(uuid()) @db.Char(36)
   assetId      String?        @db.Char(36)
@@ -2452,4 +2466,34 @@ model StaffHrEvent {
  afterValue Json
  createdAt DateTime @default(now())
  @@index([staffId,createdAt])
+}
+
+model AssetTestSchedule {
+ id String @id @default(uuid()) @db.Char(36)
+ assetId String @db.Char(36)
+ asset PremisesAsset @relation(fields: [assetId], references: [id], onDelete: Restrict)
+ testType String @db.VarChar(191)
+ recurrenceDays Int?
+ nextDueDate DateTime? @db.Date
+ responsibleName String? @db.VarChar(191)
+ checklist String? @db.Text
+ active Boolean @default(true)
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ inspections PremisesInspection[]
+ @@index([assetId, active, nextDueDate])
+}
+model AssetCategory {
+ key String @id @db.VarChar(60)
+ name String @db.VarChar(191)
+ suggestedTests String? @db.Text
+ active Boolean @default(true)
+}
+model AssetLabelProfile {
+ id String @id @default(uuid()) @db.Char(36)
+ name String @db.VarChar(120)
+ configuration Json
+ isDefault Boolean @default(false)
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
 }

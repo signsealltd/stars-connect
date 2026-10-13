@@ -1,0 +1,6 @@
+import type {PremisesAsset,PremisesInspection,PremisesDocument,AssetTestSchedule} from "@prisma/client";
+import {assetNumber,operationalLabel} from "./asset-domain";
+export type PublicAssetInput=PremisesAsset&{inspections:PremisesInspection[];documents:PremisesDocument[];schedules:AssetTestSchedule[]};
+// Deliberate projection. Never spread an internal record into this response.
+export function publicAssetRecord(a:PublicAssetInput,categoryName:string){if(!a.publicEnabled)return null;const timeline=a.inspections.map(i=>({date:i.completedDate.toISOString().slice(0,10),type:i.testType,result:i.result,summary:i.publicSummary||null}));const due=a.schedules.filter(s=>s.active&&s.nextDueDate).sort((x,y)=>+x.nextDueDate!- +y.nextDueDate!)[0];return {number:assetNumber(a.assetSequence),name:a.name,category:categoryName,location:a.publicLocation,status:operationalLabel(a.status),photo:a.publicPhotoFileId?`/api/public/assets/${a.qrToken}/files/${a.publicPhotoFileId}`:null,lastTest:timeline[0]||null,nextTest:due?{type:due.testType,date:due.nextDueDate!.toISOString().slice(0,10)}:null,timeline,documents:a.documents.filter(d=>d.active&&d.publishedFileId).map(d=>({title:d.title,url:`/api/public/assets/${a.qrToken}/files/${d.publishedFileId}`}))};}
+export type PublicAssetRecord=NonNullable<ReturnType<typeof publicAssetRecord>>;

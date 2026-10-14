@@ -1,3 +1,4 @@
+import {RequestError} from "./request-error";
 import {publishAssignments,copyVersionAttachments} from "./controlled-documents";
 import { Prisma, type ComplianceWorkflowStatus, type User } from "@prisma/client";
 import { prisma } from "./prisma";
@@ -21,12 +22,12 @@ export async function createRiskAssessment(user:User,input:Record<string,unknown
   },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
 }
 
-export async function transitionVersion(input:{user:User;recordId:string;to:ComplianceWorkflowStatus;comments?:string}){
+export async function transitionVersion(input:{user:User;recordId:string;to:ComplianceWorkflowStatus;comments?:string;expectedVersionId?:string;expectedUpdatedAt?:string}){
   const organisationId=requireOrganisation(input.user);
   return prisma.$transaction(async tx=>{
     const record=await tx.complianceRecord.findFirst({where:{id:input.recordId,organisationId,archivedAt:null},include:{versions:{orderBy:{version:"desc"},take:1}}}),version=record?.versions[0];
     if(!record||!version)throw Object.assign(new Error("NOT_FOUND"),{status:404});
-    assertTransition(version.status,input.to);const now=new Date(),data:Prisma.ComplianceRecordVersionUpdateInput={status:input.to};
+    if(input.expectedVersionId&&input.expectedVersionId!==version.id||input.expectedUpdatedAt&&input.expectedUpdatedAt!==version.updatedAt.toISOString())throw new RequestError("The document changed. Reload and review the exact version before continuing.",409);assertTransition(version.status,input.to);const now=new Date(),data:Prisma.ComplianceRecordVersionUpdateInput={status:input.to};
     if(input.to==="UNDER_REVIEW")data.submittedAt=now;
     if(input.to==="APPROVED"){data.approvedAt=now;data.approvedById=input.user.id;}
     if(input.to==="PUBLISHED"){data.publishedAt=now;data.publishedById=input.user.id;}
@@ -44,8 +45,8 @@ export async function acknowledgeVersion(user:User,versionId:string,context:{ipA
   return prisma.$transaction(async tx=>{
     const version=await tx.complianceRecordVersion.findFirst({where:{id:versionId,organisationId,status:"PUBLISHED"}});
     if(!version)throw Object.assign(new Error("PUBLISHED_VERSION_NOT_FOUND"),{status:404});
-    const acknowledgement=await tx.complianceAcknowledgement.create({data:{organisationId,versionId,userId:user.id,...context}});
-    await tx.auditLog.create({data:{action:"COMPLIANCE_VERSION_ACKNOWLEDGED",actorType:"USER",actorId:user.id,entityType:"ComplianceRecordVersion",entityId:versionId,afterValue:{organisationId,version:version.version}}});
+    const acknowledgement=await tx.complianceAcknowledgement.upsert({where:{organisationId_versionId_userId:{organisationId,versionId,userId:user.id}},create:{organisationId,versionId,userId:user.id,...context},update:{}});
+    await tx.auditLog.create({data:{action:"COMPLIANCE_VERSION_ACKNOWLEDGED",actorType:"USER",actorId:user.id,entityType:"ComplianceRecordVersion",entityId:versionId,afterValue:{organisationId,version:version.version,statement:"I confirm that I have read and understood this version and will ask my manager about anything unclear."}}});
     return acknowledgement;
   },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
 }

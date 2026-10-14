@@ -1,0 +1,2 @@
+import {SafetyNavigation} from "@/components/safety-navigation";
+import '@/app/safety.css';import {Header} from '@/components/header';import {PrintableLibrary} from '@/components/printable-library';import {requirePageCapability,CAPABILITIES as C} from '@/lib/permissions';export default async function Page(){await requirePageCapability(C.COMPLIANCE_VIEW);return <main className="shell"><Header manager/><div className="content"><SafetyNavigation/><a href="/dashboard/premises">← Safety & Compliance</a><PrintableLibrary/></div></main>}

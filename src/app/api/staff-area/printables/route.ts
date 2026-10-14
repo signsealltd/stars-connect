@@ -1,0 +1,1 @@
+import {NextRequest} from 'next/server';import {withStaff,staffJson} from '@/lib/staff-area-auth';import {printableRows} from '@/lib/printable-library';export async function GET(req:NextRequest){return withStaff(req,async i=>staffJson({rows:(await printableRows(i.user,true)).map(r=>({...r,versions:r.versions.filter(v=>v.version===r.currentVersion)})),canManage:false}))}

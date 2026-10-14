@@ -1,0 +1,3 @@
+import Link from "next/link";
+import {SafetyNavigation} from "@/components/safety-navigation";
+import '@/app/rams-pilot.css';import '@/app/safety.css';import {Header} from '@/components/header';import {RamsManager} from '@/components/rams-manager';import {requirePageCapability,CAPABILITIES as C} from '@/lib/permissions';export default async function Page({params}:{params:Promise<{id:string}>}){const{id}=await params;await requirePageCapability(id==='new'?C.RAMS_CREATE:C.RAMS_VIEW);return <main className="shell"><Header manager/><div className="content"><SafetyNavigation/><Link href="/dashboard/premises/rams">← RAMS Studio</Link><RamsManager recordId={id}/></div></main>}

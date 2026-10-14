@@ -1,0 +1,2 @@
+import {SafetyNavigation} from "@/components/safety-navigation";
+import '@/app/safety.css';import {Header} from '@/components/header';import {PolicyWorkspace} from '@/components/policy-workspace';import {requirePageCapability,CAPABILITIES as C} from '@/lib/permissions';export default async function Page({params}:{params:Promise<{id:string}>}){const {id}=await params;await requirePageCapability(id==='new'?C.POLICY_MANAGE:C.POLICY_VIEW);return <main className="shell"><Header manager/><div className="content"><SafetyNavigation/><PolicyWorkspace id={id}/></div></main>}

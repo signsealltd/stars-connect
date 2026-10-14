@@ -1351,6 +1351,8 @@ model PremisesAsset {
   assetSequence Int @unique @default(autoincrement())
   description String? @db.Text
   systemName String? @db.VarChar(191)
+  publishedAt        DateTime?
+  publicChoiceAt     DateTime?
   publicEnabled Boolean @default(false)
   publicLocation String? @db.VarChar(191)
   photoDocumentId String? @db.Char(36)
@@ -2496,4 +2498,32 @@ model AssetLabelProfile {
  isDefault Boolean @default(false)
  createdAt DateTime @default(now())
  updatedAt DateTime @updatedAt
+}
+
+model PrintableDocument {
+ id String @id @default(uuid()) @db.Char(36)
+ organisationId String @db.Char(36)
+ title String @db.VarChar(191)
+ description String? @db.Text
+ category String @db.VarChar(100)
+ staffVisible Boolean @default(false)
+ archivedAt DateTime?
+ currentVersion Int @default(1)
+ versions PrintableDocumentVersion[]
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ @@index([organisationId, archivedAt, staffVisible])
+}
+model PrintableDocumentVersion {
+ id String @id @default(uuid()) @db.Char(36)
+ documentId String @db.Char(36)
+ document PrintableDocument @relation(fields:[documentId],references:[id],onDelete:Restrict)
+ version Int
+ storagePath String @db.Text
+ originalName String @db.VarChar(191)
+ sha256Hash String @db.VarChar(64)
+ fileSize Int
+ createdById String @db.Char(36)
+ createdAt DateTime @default(now())
+ @@unique([documentId,version])
 }

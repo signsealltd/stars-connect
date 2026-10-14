@@ -1,0 +1,1 @@
+import '@/app/safety.css';import {StaffPolicyReader} from '@/components/staff-policy-reader';export default async function Page({params}:{params:Promise<{id:string}>}){return <StaffPolicyReader id={(await params).id}/>}

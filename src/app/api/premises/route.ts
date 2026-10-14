@@ -13,7 +13,7 @@ const actionData=(p:ReturnType<typeof actionSchema.parse>,userId:string)=>({asse
 const documentData=(p:ReturnType<typeof premisesDocumentSchema.parse>,userId:string)=>({responsibleName:p.responsibleName||null,assetId:p.assetId||null,title:p.title,documentType:p.documentType,reference:p.reference||null,provider:p.provider||null,issuedDate:date(p.issuedDate),expiryDate:date(p.expiryDate),documentUrl:p.documentUrl||null,notes:p.notes||null,updatedById:userId});
 
 export async function GET(req:NextRequest){return withRole(req,"DIRECTOR",async()=>{const[assets,inspections,actions,documents]=await Promise.all([
-  prisma.premisesAsset.findMany({where:{active:true},include:{_count:{select:{inspections:true,actions:true,documents:true}}},orderBy:[{nextDueDate:"asc"},{name:"asc"}]}),
+  prisma.premisesAsset.findMany({where:{active:true},include:{schedules:{where:{active:true}},_count:{select:{inspections:true,actions:true,documents:true}}},orderBy:[{nextDueDate:"asc"},{name:"asc"}]}),
   prisma.premisesInspection.findMany({include:{asset:{select:{name:true,category:true}}},orderBy:{completedDate:"desc"},take:250}),
   prisma.premisesCorrectiveAction.findMany({where:{status:{not:"ARCHIVED"}},include:{asset:{select:{name:true}}},orderBy:[{status:"asc"},{dueDate:"asc"}]}),
   prisma.premisesDocument.findMany({where:{active:true},include:{asset:{select:{name:true}}},orderBy:[{expiryDate:"asc"},{title:"asc"}]})]);

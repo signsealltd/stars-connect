@@ -33,11 +33,12 @@ export async function POST(
   return withCapability(req, config.capability, async (user) => {
 
     try {
+      const body = await req.json().catch(() => ({}));
       if (action === "revision") return NextResponse.json(await createRamsRevision(user, id), { status: 201 });
       if (action === "acknowledge") {
         const organisationId = requireOrganisation(user);
         const published = await prisma.complianceRecordVersion.findFirst({
-          where: { recordId: id, organisationId, status: "PUBLISHED" },
+          where: { id: typeof body.expectedVersionId === "string" ? body.expectedVersionId : "", recordId: id, organisationId, status: "PUBLISHED" },
           orderBy: { version: "desc" },
           select: { id: true },
         });
@@ -72,12 +73,14 @@ export async function POST(
       }
 
       const assignedVersion=await prisma.complianceRecordVersion.findFirst({where:{recordId:id,organisationId:user.organisationId!},orderBy:{version:"desc"}});const assignment=(assignedVersion?.structuredContent||{}) as Record<string,unknown>;const assigned=action==="review"?assignment.reviewerId:action==="approve"?assignment.approverId:null;if(assigned&&assigned!==user.id&&user.role!=="ADMINISTRATOR")return NextResponse.json({error:"This decision is assigned to another authorised person."},{status:403});
-      const body = await req.json().catch(() => ({}));
+
       return NextResponse.json(await transitionVersion({
         user,
         recordId: id,
         to: config.to!,
         comments: String(body.comments ?? "").slice(0, 10000),
+        expectedVersionId: typeof body.expectedVersionId === "string" ? body.expectedVersionId : undefined,
+        expectedUpdatedAt: typeof body.expectedUpdatedAt === "string" ? body.expectedUpdatedAt : undefined,
       }));
     } catch (error) {
       const message = (error as Error).message;

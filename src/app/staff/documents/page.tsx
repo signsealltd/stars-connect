@@ -1,0 +1,2 @@
+import Link from "next/link";
+import '@/app/safety.css';import {PrintableLibrary} from '@/components/printable-library';export default function Page(){return <main className="staff-main"><nav><Link href="/staff">STARS Staff</Link> · <Link href="/staff/policies">My policies</Link></nav><PrintableLibrary staff/></main>}

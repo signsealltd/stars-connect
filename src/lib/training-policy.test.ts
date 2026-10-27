@@ -50,3 +50,29 @@ it("keeps practical competency and formal refresher dates separate and actions t
  const cell=policyTrainingCell(c,"REQUIRED",[r],[],undefined,now);
  expect(cell.policyRenewalDate?.toISOString().slice(0,10)).toBe("2027-01-01");expect(cell.formalReviewDate?.toISOString().slice(0,10)).toBe("2025-01-01");expect(cell.state).toBe("EXPIRED");
 });
+
+it("explains why a signed practical assessment still needs an applicability decision and resolves it explicitly",()=>{
+ const c=canonicalTrainingCourses.find(c=>c.evidenceKind==="PRACTICAL"&&!c.policy.component&&!c.policy.formalRefresherMonths)!;
+ const selected={...c,id:"practical"};
+ const r={...record(selected,"2026-10-01"),evidenceDetails:{assessor:"Assessor",outcome:"PASSED",scope:"Observed assessment"}};
+ const unresolved=policyTrainingCell(selected,"CONDITIONAL",[r],[],undefined,now);
+ expect(unresolved.state).toBe("REQUIRES_REVIEW");
+ expect(unresolved.recordId).toBe(r.id);
+ expect(unresolved.reviewReasons.join(" ")).toContain("Confirm Required or Not required");
+ const resolved=policyTrainingCell(selected,"CONDITIONAL",[r],[],{required:true,reason:"Administers medication"},now);
+ expect(resolved.state).toBe("CURRENT");
+ expect(resolved.reviewReasons).toEqual([]);
+ expect(policyTrainingCell(selected,"CONDITIONAL",[{...r,evidenceDetails:{...r.evidenceDetails,outcome:"FAILED"}}],[],{required:true,reason:null},now).state).toBe("MISSING");
+});
+it("explains plan and reassessment blockers without letting matching old plans clear reassessment",()=>{
+ const c=course("Client-Specific Care and Emergency Plan Briefing");
+ const r={...record(c,"2026-01-01"),evidenceDetails:{clientId:"a",planId:"plan",planVersion:"1"}};
+ expect(policyTrainingCell(c,"REQUIRED",[r],[],undefined,now).reviewReasons.join(" ")).toContain("No required client plans");
+ const assignment={required:true,reason:"Plan review",policy:{reassessmentAfter:"2026-09-01",clientPlans:[{clientId:"a",planId:"plan",version:"1"}]}};
+ const blocked=policyTrainingCell(c,"REQUIRED",[r],[],assignment,now);
+ expect(blocked.state).toBe("REQUIRES_REVIEW");
+ expect(blocked.reviewReasons.join(" ")).toContain("2026-09-01");
+ const completed=policyTrainingCell(c,"REQUIRED",[{...r,completedDate:new Date("2026-10-01Z")}],[],assignment,now);
+ expect(completed.state).toBe("CURRENT");
+ expect(completed.reviewReasons).toEqual([]);
+});

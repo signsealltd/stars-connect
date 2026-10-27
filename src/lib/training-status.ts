@@ -20,23 +20,26 @@ export function policyTrainingCell(course:Course,roleRequirement:TrainingRequire
  const formalReviewDate=evidence.formalTrainingDate?renewalDates(new Date(evidence.formalTrainingDate),null,evidence.formalRefresherMonths||policy.formalRefresherMonths||null).stars:null;
  if(formalReviewDate)expiryDate=expiryDate?new Date(Math.min(+expiryDate,+formalReviewDate)):formalReviewDate;
  let state:string="MISSING";
+ const reviewReasons:string[]=[];
  if(requirement==="NOT_REQUIRED")state="NOT_REQUIRED";
- else if(requirement==="CONDITIONAL"||requirement==="INDUCTION")state="REQUIRES_REVIEW";
+ else if(requirement==="CONDITIONAL"||requirement==="INDUCTION"){state="REQUIRES_REVIEW";reviewReasons.push("The staff requirement is still " + requirement.toLowerCase() + ". Confirm Required or Not required for this staff member under Individual requirement. Saving assessment evidence does not make that decision.");}
  else if(record){
   const days=expiryDate?(Date.parse(londonDay(expiryDate))-Date.parse(londonDay(now)))/86400000:Infinity;
   state=days<0?(policy.renewalKind==="REVIEW"?"REVIEW_DUE":"EXPIRED"):days<=60?"DUE_SOON":"CURRENT";
-  if(override.reassessmentAfter&&londonDay(record.completedDate)<override.reassessmentAfter)state="REQUIRES_REVIEW";
+  if(override.reassessmentAfter&&londonDay(record.completedDate)<override.reassessmentAfter){state="REQUIRES_REVIEW";reviewReasons.push(`A new assessment is required on or after ${override.reassessmentAfter}; the recorded completion predates it.`);}
   if(policy.renewalKind==="ON_PLAN_CHANGE"){
    const plans=override.clientPlans||[];
-   state=!plans.length?"REQUIRES_REVIEW":plans.every(plan=>candidates.some(r=>{const e=objectValue<EvidenceDetails>(r.evidenceDetails);return e.clientId===plan.clientId&&e.planId===plan.planId&&e.planVersion===plan.version;}))?"CURRENT":"REQUIRES_REVIEW";
+   if(!plans.length)reviewReasons.push("No required client plans have been assigned. Add the client reference, plan reference and current version under Individual requirement.");
+   else if(!plans.every(plan=>candidates.some(r=>{const e=objectValue<EvidenceDetails>(r.evidenceDetails);return (!override.reassessmentAfter||londonDay(r.completedDate)>=override.reassessmentAfter)&&e.clientId===plan.clientId&&e.planId===plan.planId&&e.planVersion===plan.version;})))reviewReasons.push("Briefing evidence does not cover every assigned client and current plan version. Record the missing briefings or review the assigned plans.");
+   if(reviewReasons.length)state="REQUIRES_REVIEW";
   }
  }else{
   const relevant=results.filter(r=>r.courseId===course.id);
-  if(relevant.some(r=>r.qualifies&&!r.completedAt))state="REQUIRES_REVIEW";
+  if(relevant.some(r=>r.qualifies&&!r.completedAt)){state="REQUIRES_REVIEW";reviewReasons.push("The provider reports a successful result without a completion date. Correct the provider record and sync again.");}
   else if(relevant.some(r=>/in.?progress|content viewed/i.test(r.statusLabel)))state="IN_PROGRESS";
   else if(override.bookedFor)state="BOOKED";
  }
- return {courseId:course.id,requirement,state,assignment:assignment?.required??null,assignmentReason:assignment?.reason||"",assignmentPolicy:override,recordId:record?.id||null,completedDate:record?.completedDate||null,expiryDate,policyRenewalDate:renewal.stars,providerExpiryDate:record?.externalResult?.providerExpiryDate||null,evidenceKind:course.evidenceKind,renewalKind:policy.renewalKind||"RENEWAL",bookedFor:override.bookedFor||null,formalReviewDate:evidence.formalTrainingDate?renewalDates(new Date(evidence.formalTrainingDate),null,evidence.formalRefresherMonths||policy.formalRefresherMonths||null).stars:null,annualReminderDate:record&&policy.annualReminderMonths?renewalDates(new Date(evidence.refresherDate||record.completedDate),null,policy.annualReminderMonths).stars:null};
+ return {courseId:course.id,requirement,state,reviewReasons,assignment:assignment?.required??null,assignmentReason:assignment?.reason||"",assignmentPolicy:override,recordId:record?.id||null,completedDate:record?.completedDate||null,expiryDate,policyRenewalDate:renewal.stars,providerExpiryDate:record?.externalResult?.providerExpiryDate||null,evidenceKind:course.evidenceKind,renewalKind:policy.renewalKind||"RENEWAL",bookedFor:override.bookedFor||null,formalReviewDate:evidence.formalTrainingDate?renewalDates(new Date(evidence.formalTrainingDate),null,evidence.formalRefresherMonths||policy.formalRefresherMonths||null).stars:null,annualReminderDate:record&&policy.annualReminderMonths?renewalDates(new Date(evidence.refresherDate||record.completedDate),null,policy.annualReminderMonths).stars:null};
 }
 export function compositeTrainingStatus(cells:{courseId:string;state:string}[],courses:Course[]){
  const inDate=(state?:string)=>state==="CURRENT"||state==="DUE_SOON";

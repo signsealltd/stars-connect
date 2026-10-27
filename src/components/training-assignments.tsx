@@ -8,15 +8,18 @@ type Props = {
   courses: { id: string; name: string }[];
   matrix: { rows: { id: string; cells: { courseId: string; assignment?: boolean|null; assignmentPolicy?:AssignmentPolicy; assignmentReason?: string }[] }[] } | null;
   reload: () => Promise<void>;
+  initialStaffId?:string;
+  initialCourseId?:string;
 };
 
-export default function StaffAssignments({staff,courses,matrix,reload}:Props) {
-  const [staffId,setStaffId]=useState("");
-  const [courseId,setCourseId]=useState("");
-  const [required,setRequired]=useState("default");
-  const [reason,setReason]=useState("");
-  const [policy,setPolicy]=useState<AssignmentPolicy>({});
-  const [plans,setPlans]=useState("");
+export default function StaffAssignments({staff,courses,matrix,reload,initialStaffId="",initialCourseId=""}:Props) {
+  const initialCell=matrix?.rows.find(row=>row.id===initialStaffId)?.cells.find(cell=>cell.courseId===initialCourseId);
+  const [staffId,setStaffId]=useState(initialStaffId);
+  const [courseId,setCourseId]=useState(initialCourseId);
+  const [required,setRequired]=useState(initialCell?.assignment==null?"default":initialCell.assignment?"required":"exempt");
+  const [reason,setReason]=useState(initialCell?.assignmentReason||"");
+  const [policy,setPolicy]=useState<AssignmentPolicy>(initialCell?.assignmentPolicy||{});
+  const [plans,setPlans]=useState((initialCell?.assignmentPolicy?.clientPlans||[]).map(p=>[p.clientId,p.planId,p.version].join(" | ")).join("\n"));
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState("");
   function select(personId:string,selectedCourseId:string) {
@@ -25,7 +28,7 @@ export default function StaffAssignments({staff,courses,matrix,reload}:Props) {
     setRequired(cell?.assignment==null?"default":cell.assignment?"required":"exempt");
     setReason(cell?.assignmentReason||"");setPolicy(cell?.assignmentPolicy||{});setPlans((cell?.assignmentPolicy?.clientPlans||[]).map(p=>[p.clientId,p.planId,p.version].join(" | ")).join("\n"));
   }
-  return <details className="card" style={{marginBottom:20,padding:20}}><summary>Assign training to a staff member</summary><p className="muted">Use this for responsibilities, client needs, relevant new starters or an individual exemption. Existing completion evidence is unchanged.</p><form className="form-grid" onSubmit={async event=>{
+  return <details open={initialStaffId?true:undefined} className="card" style={{marginBottom:20,padding:20}}><summary>Assign training to a staff member</summary><p className="muted">Use this for responsibilities, client needs, relevant new starters or an individual exemption. Existing completion evidence is unchanged.</p><form className="form-grid" onSubmit={async event=>{
     event.preventDefault();setBusy(true);setError("");
     try {
       const response=await fetch("/api/training/assignments",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({staffId,courseId,required:required==="default"?null:required==="required",reason,policy:{...policy,clientPlans:plans.trim()?plans.split(/\n/).filter(Boolean).map(line=>{const [clientId,planId,version]=line.split("|").map(s=>s.trim());return {clientId,planId,version};}):[]}})});

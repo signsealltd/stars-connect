@@ -1,5 +1,5 @@
 import {describe,it,expect} from 'vitest';
-import {assetNumber,assetPublicUrl,assetReturnPath,labelGeometry,labelProfileSchema,draftLabelProfile,testingState,operationalLabel} from './asset-domain';
+import {assetNumber,assetPublicUrl,assetReturnPath,labelGeometry,labelProfileSchema,draftLabelProfile,l6009LabelProfile,testingState,operationalLabel} from './asset-domain';
 import {publicAssetRecord,type PublicAssetInput} from './asset-public';
 import {labelPdf} from './asset-label-pdf';
 const asset={assetSequence:142,name:'Main light',qrToken:'38752b42-3775-4c99-8b9b-f140038f8e9c',category:'LIGHT',publicEnabled:true,publishedAt:new Date("2026-10-01"),publicLocation:'Reception',status:'OUT_OF_SERVICE',publicPhotoFileId:null,serialNumber:'SECRET',responsibleName:'Private person',notes:'Private narrative',details:{cost:99},inspections:[{completedDate:new Date('2026-10-12'),testType:'Function test',result:'FAIL',publicSummary:'Awaiting repair',notes:'Private fault',completedBy:'Private name'}],schedules:[{active:true,testType:'Function',nextDueDate:new Date('2026-11-12')}],documents:[{id:'private',active:true,title:'Private manual',publishedFileId:null},{id:'approved',active:true,title:'Public manual',publishedFileId:'approved-file'}]} as unknown as PublicAssetInput;
@@ -16,4 +16,30 @@ describe('Physical label layouts',()=>{
  it('rejects off-page, tiny, oversized, and invalid starting layouts',()=>{expect(()=>labelGeometry({...draftLabelProfile,left:30},1)).toThrow(/beyond/);expect(()=>labelGeometry({...draftLabelProfile,width:30},1)).toThrow(/fit/);expect(()=>labelGeometry(draftLabelProfile,1,21)).toThrow();expect(labelProfileSchema.safeParse({...draftLabelProfile,qrSize:5}).success).toBe(false);});
  it('supports custom roll sizes and orientation without assuming stock',()=>{const p={...draftLabelProfile,kind:'ROLL' as const,width:80,height:40,left:0,top:0,offsetX:1,offsetY:0};const g=labelGeometry(p,2);expect(g.pageWidth).toBe(80);expect(g.positions[1].page).toBe(1);expect(()=>labelGeometry({...p,offsetX:10},1)).toThrow(/offset/);});
  it('produces exact PDF media boxes with stable QR, independent of queue state',()=>{process.env.APP_URL='https://stars.example';const one={assetSequence:142,qrToken:asset.qrToken,name:'Main light',location:'Reception'};const pdf=labelPdf([one],draftLabelProfile,20).toString();expect(pdf).toContain('/MediaBox [0 0 595.2755905511812 841.8897637795276]');expect(pdf).toContain('(STR-000142)');expect(labelPdf([one],draftLabelProfile,20).toString()).toBe(pdf);});
+});
+
+describe('Avery L6009 stock',()=>{
+ it('fits 48 labels at the official template spacing and continues a partial sheet',()=>{
+  expect(labelProfileSchema.safeParse(l6009LabelProfile).success).toBe(true);
+  const g=labelGeometry(l6009LabelProfile,49);
+  expect(g.capacity).toBe(48);
+  expect(g.width).toBeCloseTo(45.72,4);
+  expect(g.height).toBeCloseTo(21.166667,4);
+  expect(g.positions[0].x).toBeCloseTo(9.913056,4);
+  expect(g.positions[0].y).toBeCloseTo(21.466528,4);
+  expect(g.positions[47].x+g.width).toBeLessThan(210);
+  expect(g.positions[47].y+g.height).toBeLessThan(297);
+  expect(g.positions[48]).toEqual({...g.positions[0],page:1});
+  expect(labelGeometry(l6009LabelProfile,2,47).positions).toEqual([g.positions[47],g.positions[48]]);
+  expect(()=>labelGeometry(l6009LabelProfile,1,48)).toThrow();
+ });
+ it('prints full asset numbers on two A4 pages with the compact QR',()=>{
+  process.env.APP_URL='https://stars.example';
+  const rows=Array.from({length:49},(_,i)=>({assetSequence:i+142,qrToken:asset.qrToken,name:'Emergency light — main entrance',location:'Reception'}));
+  const pdf=labelPdf(rows,l6009LabelProfile).toString();
+  expect(pdf).toContain('/Count 2');
+  expect(pdf).toContain('(STR-000142)');
+  expect(pdf).toContain('(STR-000190)');
+  expect(pdf.match(/\/Type \/Page\b/g)).toHaveLength(2);
+ });
 });

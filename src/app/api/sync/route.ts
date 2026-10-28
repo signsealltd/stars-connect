@@ -122,6 +122,7 @@ export async function POST(req: NextRequest) {
         } else if (item.operation === "ATTENDANCE") {
           const date = new Date(`${String(p.date).slice(0, 10)}T00:00:00.000Z`);
           const status = attendanceStatusSchema.parse(p.status);
+          const extraDay = z.boolean().optional().parse(p.extraDay);
           const current = await tx.studentAttendance.findUnique({ where: { studentId_date: { studentId: String(p.studentId), date } } });
           if (current && Number(p.version) <= current.version && current.deviceTimestamp > new Date(String(p.deviceTimestamp))) {
             await tx.syncConflict.create({
@@ -135,14 +136,14 @@ export async function POST(req: NextRequest) {
               where: { studentId_date: { studentId: String(p.studentId), date } },
               create: {
                 id: item.id, studentId: String(p.studentId), deviceId: device.id, date,
-                status: status as AttendanceStatus,
+                status: status as AttendanceStatus, extraDay,
                 arrivalTime: p.arrivalTime ? new Date(String(p.arrivalTime)) : null,
                 departureTime: p.departureTime ? new Date(String(p.departureTime)) : null,
                 note: p.note ? String(p.note) : null, deviceTimestamp: new Date(String(p.deviceTimestamp)),
                 version: Number(p.version),
               },
               update: {
-                deviceId: device.id, status: status as AttendanceStatus,
+                deviceId: device.id, status: status as AttendanceStatus, extraDay,
                 arrivalTime: p.arrivalTime ? new Date(String(p.arrivalTime)) : null,
                 departureTime: p.departureTime ? new Date(String(p.departureTime)) : null,
                 note: p.note ? String(p.note) : null, deviceTimestamp: new Date(String(p.deviceTimestamp)),

@@ -1,3 +1,4 @@
+import {extraDayAmounts,extraDayWhere} from "./extra-day-billing";
 import { prisma } from "./prisma";
 import { createHash } from "crypto";
 import { fundedRuleForDate, needsPurchaseOrder, fundedCountAmounts } from "./funded-days";
@@ -11,6 +12,7 @@ export async function calculateFundedRun(id:string,options?:{manualPeriodValidat
   const selected=Array.isArray(run.selectedStudentIds)?run.selectedStudentIds.filter((v):v is string=>typeof v==="string"):[];
   const students=await tx.student.findMany({where:{...(selected.length?{id:{in:selected}}:{}),...(run.historicalMode?{}:{startDate:{lte:run.periodEnd},OR:[{endDate:null},{endDate:{gte:run.periodStart}}]})}});
   const profiles=await tx.billingProfile.findMany({where:{activeFrom:{lte:run.periodEnd},OR:[{activeTo:null},{activeTo:{gte:run.periodStart}}]},include:{chargeRules:true}});
+  const extras=await tx.studentAttendance.findMany({where:{...extraDayWhere(run.periodStart,run.periodEnd),studentId:{in:students.map(s=>s.id)}}});
   const previous=run.supersedesRunId?await tx.billingCharge.findMany({where:{billingRunId:run.supersedesRunId,manuallyAdjusted:true}}):[];
   const existing=await tx.billingCharge.findMany({where:{billingRunId:id,manuallyAdjusted:true}});
   const retained=new Map([...previous,...existing].filter(c=>c.chargeRuleId&&c.fundedDays!=null).map(c=>[`${c.studentId}:${c.billingProfileId}`,c]));
@@ -28,6 +30,14 @@ export async function calculateFundedRun(id:string,options?:{manualPeriodValidat
    const exceptionCode=!profile?"MISSING_BILLING_PROFILE":matching.length>1?"OVERLAPPING_FUNDING_PROFILES":!rule?"UNCONFIRMED_FUNDED_DAYS":lbe&&!run.billingPeriodId&&!options?.manualPeriodValidated?"LBE_PERIOD_REQUIRED":count==null?"FUNDED_COUNT_REQUIRED":legacyRemoval&&!adjustment?"CONFIRM_PREVIOUS_REMOVALS":null;
    const amounts=rule&&count!=null?fundedCountAmounts(Number(count),bankHolidayDays,removedDays,Number(rule.rate),Number(rule.vatRate)):{quantity:0,unitRate:rule?Number(rule.rate):0,netAmount:0,vatRate:rule?Number(rule.vatRate):0,vatAmount:0,grossAmount:0};
    await tx.billingCharge.create({data:{billingRunId:id,billingProfileId:profile?.id||"MISSING",studentId:student.id,studentName:student.displayName,payerName:profile?.payerName||"Missing payer",sourceDate:run.periodStart,chargeRuleId:rule?.id,fundedDays:count==null?null:Number(count),bankHolidayDays,removedDays,...amounts,description:exceptionCode?`Confirm billing setup: ${exceptionCode.toLowerCase().replaceAll("_"," ")}`:`Agreed funded days: ${Number(count)} less ${bankHolidayDays} bank holidays and ${removedDays} management removals`,exceptionCode,excluded:adjustment?.excluded||false,manuallyAdjusted:!!adjustment,adjustmentReason:adjustment?.adjustmentReason}});
+  }
+  for(const attendance of extras){
+   const student=students.find(s=>s.id===attendance.studentId)!;
+   const matches=profiles.filter(p=>p.studentId===student.id&&p.activeFrom<=attendance.date&&(!p.activeTo||p.activeTo>=attendance.date));
+   if(matches.length!==1)throw Error(`${student.displayName}: confirm one payer for extra day ${attendance.date.toISOString().slice(0,10)}.`);
+   const profile=matches[0],{rule,amounts}=extraDayAmounts(profile.chargeRules,attendance.date);
+   const retainedExtra=[...existing,...previous].find(c=>c.sourceAttendanceId===attendance.id&&c.manuallyAdjusted);
+   await tx.billingCharge.create({data:{billingRunId:id,billingProfileId:profile.id,studentId:student.id,studentName:student.displayName,payerName:profile.payerName,sourceAttendanceId:attendance.id,sourceDate:attendance.date,chargeRuleId:rule.id,description:"Extra day attendance",...amounts,excluded:retainedExtra?.excluded||false,manuallyAdjusted:!!retainedExtra,adjustmentReason:retainedExtra?.adjustmentReason}});
   }
   await tx.billingRun.update({where:{id},data:{status:"REQUIRES_REVIEW"}});
   return {ok:true};

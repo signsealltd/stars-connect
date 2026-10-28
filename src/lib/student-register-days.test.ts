@@ -11,6 +11,6 @@ describe("client register expected-day filtering", () => {
   it("keeps an already-recorded client visible for correction", () => {
     const source = readFileSync("src/app/register/page.tsx", "utf8");
     expect(source).toContain("isExpectedDay(student.expectedDays, date) || Boolean(records[student.id])");
-    expect(source).toContain("Attendance already recorded");
+    expect(source).toContain("Extra day - Attendance already recorded");
   });
 });

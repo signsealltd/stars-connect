@@ -873,6 +873,7 @@ model AttendancePhoto {
 }
 
 model StudentAttendance {
+  extraDay         Boolean          @default(false)
   id               String           @id @db.Char(36)
   studentId        String           @db.Char(36)
   student          Student          @relation(fields: [studentId], references: [id])

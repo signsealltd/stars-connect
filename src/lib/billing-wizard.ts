@@ -1,3 +1,4 @@
+import {extraDayAmounts,extraDayWhere} from "./extra-day-billing";
 import {prisma} from "./prisma";
 import {fundedRuleForDate,fundedCountAmounts,needsPurchaseOrder} from "./funded-days";
 import {createHash} from "crypto";
@@ -23,6 +24,7 @@ export async function billingChoices(selection:string|ManualBillingPeriod,exclud
   prisma.billingProfile.findMany({where:{activeFrom:{lte:period.periodEnd},OR:[{activeTo:null},{activeTo:{gte:period.periodStart}}]},include:{chargeRules:true}}),
   prisma.invoice.findMany({where:{status:"ISSUED",grossTotal:{gte:0},billingRun:{OR:[{requestKey:null},{requestKey:{not:{startsWith:"manual:"}}}],periodStart:{lte:period.periodEnd},periodEnd:{gte:period.periodStart}}},orderBy:{createdAt:"desc"},select:{id:true,studentId:true,billingProfileId:true,invoiceNumber:true,billingRun:{select:{periodStart:true,periodEnd:true}}}})
  ]);
+ const extras=await prisma.studentAttendance.findMany({where:extraDayWhere(period.periodStart,period.periodEnd)});
  const rows=students.flatMap(student=>{
   const matching=profiles.filter(p=>p.studentId===student.id),profile=matching[0];
   if(!input&&profile&&needsPurchaseOrder(`${profile.payerName} ${profile.fundingOrganisation||""}`)!==(period.cycle==="LBE"))return [];
@@ -30,10 +32,15 @@ export async function billingChoices(selection:string|ManualBillingPeriod,exclud
   const rule=profile?fundedRuleForDate(profile.chargeRules,effective):undefined;
   const holidays=Array.isArray(period.bankHolidayDates)?period.bankHolidayDates.length:0;
   const amounts=rule&&rule.fundedDayCount!=null?fundedCountAmounts(Number(rule.fundedDayCount),holidays,0,Number(rule.rate),Number(rule.vatRate)):null;
+  let extraTotal=0,extraDays=0,extraError:string|null=null;
+  const extraDates:string[]=[];
+  for(const attendance of extras.filter(a=>a.studentId===student.id)){
+   try{if(!profile||attendance.date<profile.activeFrom||(profile.activeTo&&attendance.date>profile.activeTo))throw Error("Confirm the payer for extra attendance.");const {amounts:extra}=extraDayAmounts(profile.chargeRules,attendance.date);extraTotal+=extra.grossAmount;extraDays++;extraDates.push(attendance.date.toISOString().slice(0,10));}catch(e){extraError=e instanceof Error?e.message:"Check extra day billing.";}
+  }
   const overlap=invoices.find(i=>i.studentId===student.id&&(i.billingRun.periodStart.getTime()!==period.periodStart.getTime()||i.billingRun.periodEnd.getTime()!==period.periodEnd.getTime()));
   const outsideDates=student.startDate>period.periodEnd||(student.endDate&&student.endDate<period.periodStart);
-  const error=outsideDates?"The billing dates fall outside this client's service dates. Check the dates or client profile.":!profile?"Add a payer and billing details.":matching.length>1?"More than one funding arrangement applies. Check Billing settings.":!profile.billingAddress.trim()?"Add the payer's billing address.":null;
-  return [{id:student.id,name:student.displayName,payer:profile?.payerName||"Not set",profileId:profile?.id||null,quantity:amounts?.quantity??null,rate:rule?Number(rule.rate):null,total:amounts?.grossAmount??null,vatRate:rule?Number(rule.vatRate):Number(profile?.vatRate||0),error,warning:profile&&needsPurchaseOrder(`${profile.payerName} ${profile.fundingOrganisation||""}`)&&!profile.purchaseOrderNumber?.trim()?"No PO reference supplied. You can still issue this invoice.":null,overlap:overlap||null,existing:invoices.find(i=>i.studentId===student.id&&i.billingProfileId===profile?.id&&i.billingRun.periodStart.getTime()===period.periodStart.getTime()&&i.billingRun.periodEnd.getTime()===period.periodEnd.getTime())||null}];
+  const error=extraError|| (outsideDates?"The billing dates fall outside this client's service dates. Check the dates or client profile.":!profile?"Add a payer and billing details.":matching.length>1?"More than one funding arrangement applies. Check Billing settings.":!profile.billingAddress.trim()?"Add the payer's billing address.":null);
+  return [{id:student.id,name:student.displayName,payer:profile?.payerName||"Not set",profileId:profile?.id||null,extraDays,extraTotal,extraDates,quantity:amounts?amounts.quantity+extraDays:null,rate:rule?Number(rule.rate):null,total:amounts?Math.round((amounts.grossAmount+extraTotal)*100)/100:null,vatRate:rule?Number(rule.vatRate):Number(profile?.vatRate||0),error,warning:profile&&needsPurchaseOrder(`${profile.payerName} ${profile.fundingOrganisation||""}`)&&!profile.purchaseOrderNumber?.trim()?"No PO reference supplied. You can still issue this invoice.":null,overlap:overlap||null,existing:invoices.find(i=>i.studentId===student.id&&i.billingProfileId===profile?.id&&i.billingRun.periodStart.getTime()===period.periodStart.getTime()&&i.billingRun.periodEnd.getTime()===period.periodEnd.getTime())||null}];
  });
  const token=createHash("sha256").update(JSON.stringify({period,rows})).digest("hex");
  return {period,rows,token};

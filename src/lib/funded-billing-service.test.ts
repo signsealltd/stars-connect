@@ -1,12 +1,26 @@
 import {beforeEach,describe,expect,it,vi} from "vitest";
-const state=vi.hoisted(()=>({created:[] as Record<string,unknown>[],claim:true,previous:[] as Record<string,unknown>[],dependency:"FUNDED",selected:[] as string[],studentQuery:vi.fn(),attendance:vi.fn(()=>{throw Error("Register must not be used for billing")})}));
+const state=vi.hoisted(()=>({created:[] as Record<string,unknown>[],claim:true,previous:[] as Record<string,unknown>[],dependency:"FUNDED",selected:[] as string[],studentQuery:vi.fn(),attendance:vi.fn(async()=>[] as {id:string;studentId:string;date:Date}[])}));
 vi.mock("./prisma",()=>{const tx={billingRun:{updateMany:async()=>({count:state.claim?1:0}),findUniqueOrThrow:async()=>({id:"run",periodStart:new Date("2026-09-01"),periodEnd:new Date("2026-09-30"),billingPeriodId:"period",bankHolidayDates:["2026-09-01"],supersedesRunId:"previous",selectedStudentIds:state.selected}),update:vi.fn()},student:{findMany:async(query:unknown)=>{state.studentQuery(query);return [{id:"student",displayName:"Alex",startDate:new Date("2026-01-01"),endDate:null}]}},studentAttendance:{findMany:state.attendance},billingProfile:{findMany:async()=>[{id:"profile",studentId:"student",payerName:"Enfield",activeFrom:new Date("2026-01-01"),activeTo:null,chargeRules:[{id:"rule",active:true,attendanceDependency:state.dependency,activeFrom:new Date("2026-01-01"),activeTo:null,applicableWeekdays:[1,3,5],fundedDayCount:20,unitType:"DAY",rate:100,vatRate:0}]}]},billingCharge:{findMany:async({where}:{where:{billingRunId:string}})=>where.billingRunId==="previous"?state.previous:[],deleteMany:vi.fn(),create:async({data}:{data:Record<string,unknown>})=>{state.created.push(data);return data}}};return {prisma:{$transaction:async(fn:(t:typeof tx)=>unknown)=>fn(tx)}}});
 import {calculateFundedRun} from "./funded-billing-service";
 beforeEach(()=>{state.created=[];state.previous=[];state.claim=true;state.dependency="FUNDED";state.selected=[];state.studentQuery.mockClear();state.attendance.mockClear()});
 describe("funded calculation integration",()=>{
  it("limits a selected-client run to its saved scope",async()=>{state.selected=["student"];await calculateFundedRun("run");expect(state.studentQuery).toHaveBeenCalledWith(expect.objectContaining({where:expect.objectContaining({id:{in:["student"]}})}))});
- it("generates future dates for the month without reading attendance",async()=>{await calculateFundedRun("run");expect(state.created).toHaveLength(1);expect(state.created[0]).toMatchObject({fundedDays:20,bankHolidayDays:1,quantity:19,grossAmount:1900});expect(state.attendance).not.toHaveBeenCalled();expect(state.created.every(c=>!c.sourceAttendanceId)).toBe(true)});
+ it("generates future dates for the month without deriving funded days from attendance",async()=>{await calculateFundedRun("run");expect(state.created).toHaveLength(1);expect(state.created[0]).toMatchObject({fundedDays:20,bankHolidayDays:1,quantity:19,grossAmount:1900});expect(state.attendance).toHaveBeenCalledWith(expect.objectContaining({where:expect.objectContaining({extraDay:true,status:{in:["PRESENT","LATE","OFFSITE"]}})}));expect(state.created.every(c=>!c.sourceAttendanceId)).toBe(true)});
  it("carries an approved holiday removal into a new run",async()=>{state.previous=[{studentId:"student",billingProfileId:"profile",fundedDays:20,removedDays:2,sourceDate:new Date("2026-09-01"),chargeRuleId:"old-rule",excluded:false,manuallyAdjusted:true,adjustmentReason:"Agreed holiday"}];await calculateFundedRun("run");expect(state.created[0]).toMatchObject({fundedDays:20,removedDays:2,bankHolidayDays:1,quantity:17,adjustmentReason:"Agreed holiday"})});
  it("blocks unconfirmed historical funding instead of guessing",async()=>{state.dependency="ATTENDED";await calculateFundedRun("run");expect(state.created).toHaveLength(1);expect(state.created[0]).toMatchObject({exceptionCode:"UNCONFIRMED_FUNDED_DAYS",grossAmount:0})});
  it("cannot recalculate a run claimed by approval",async()=>{state.claim=false;await expect(calculateFundedRun("run")).rejects.toThrow("new revision");expect(state.created).toHaveLength(0)});
+});
+
+it("adds a separately linked extra day without changing the funded count",async()=>{
+ state.attendance.mockResolvedValueOnce([{id:"extra",studentId:"student",date:new Date("2026-09-05")}]);
+ await calculateFundedRun("run");
+ expect(state.created).toHaveLength(2);
+ expect(state.created[0]).toMatchObject({fundedDays:20,quantity:19,grossAmount:1900});
+ expect(state.created[1]).toMatchObject({sourceAttendanceId:"extra",billingProfileId:"profile",quantity:1,grossAmount:100,description:"Extra day attendance"});
+});
+it("retains a reviewed exclusion of an extra day on recalculation",async()=>{
+ state.attendance.mockResolvedValueOnce([{id:"extra",studentId:"student",date:new Date("2026-09-05")}]);
+ state.previous=[{sourceAttendanceId:"extra",manuallyAdjusted:true,excluded:true,adjustmentReason:"Already paid"}];
+ await calculateFundedRun("run");
+ expect(state.created[1]).toMatchObject({excluded:true,manuallyAdjusted:true,adjustmentReason:"Already paid"});
 });

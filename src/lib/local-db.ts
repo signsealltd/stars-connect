@@ -154,6 +154,7 @@ export async function applyPulledEvent(database: IDBPDatabase<StarsConnectDB>, e
       const attendance: LocalAttendance = {
         id: matching?.id || event.eventId, studentId, date,
         status: payload.status as LocalAttendance["status"],
+        extraDay: typeof payload.extraDay === "boolean" ? payload.extraDay : matching?.extraDay,
         arrivalTime: payload.arrivalTime ? String(payload.arrivalTime) : undefined,
         departureTime: payload.departureTime ? String(payload.departureTime) : undefined,
         note: payload.note ? String(payload.note) : undefined,

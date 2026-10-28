@@ -1,3 +1,4 @@
+import {staffGrade} from "./staff-grades";
 import {readPolicy} from "./training-policy";
 import type {EvidenceDetails} from "./training-status";
 import {prisma} from "./prisma";
@@ -14,7 +15,8 @@ export async function trainingStatusData(organisationId:string,staffId?:string){
  ]);
  const planIds=assignments.flatMap(a=>objectValue<AssignmentPolicy>(a.policy).clientPlans?.map(p=>p.planId)||[]);
  const published=planIds.length?await prisma.complianceRecord.findMany({where:{id:{in:planIds},organisationId,archivedAt:null},select:{id:true,publishedVersionNumber:true}}):[];
- const rows=staff.map(person=>{
+ // Volunteers keep their personal training history, but are excluded from the team matrix and totals.
+ const rows=staff.filter(person=>staffId||staffGrade(person.jobRole)!=="Volunteer").map(person=>{
   const role=[...trainingRoles].sort((a,b)=>b.length-a.length).find(r=>person.jobRole.toLowerCase().includes(r.toLowerCase()))||"Unrecognised role";
   const cells=courses.map(course=>{
    const assignment=assignments.find(a=>a.staffId===person.id&&a.courseId===course.id),policy=objectValue<AssignmentPolicy>(assignment?.policy);

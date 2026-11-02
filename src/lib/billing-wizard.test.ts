@@ -1,9 +1,11 @@
+import {invoiceDayAmounts} from "./billing-total-rules";
+import {invoiceBaseAmounts} from "./extra-day-billing";
 import {beforeEach,describe,expect,it,vi} from "vitest";
-const state=vi.hoisted(()=>({po:"PO-TEST",cycle:"MONTHLY",extras:[] as {id:string;studentId:string;date:Date}[],invoices:[] as unknown[],holidayFetch:vi.fn(async()=>[{date:"2026-12-25"},{date:"2026-12-28"}])}));
+const state=vi.hoisted(()=>({po:"PO-TEST",cycle:"MONTHLY",dependency:"FUNDED",rate:40,ruleStart:"2026-01-01",extras:[] as {id:string;studentId:string;date:Date}[],invoices:[] as unknown[],holidayFetch:vi.fn(async()=>[{date:"2026-12-25"},{date:"2026-12-28"}])}));
 vi.mock("./billing-periods",async original=>({...await original<typeof import("./billing-periods")>(),englandBankHolidays:state.holidayFetch}));
-vi.mock("./prisma",()=>({prisma:{studentAttendance:{findMany:async()=>state.extras},billingPeriod:{findUnique:async()=>({id:"period",label:"December",cycle:state.cycle,periodStart:new Date("2026-12-01"),periodEnd:new Date("2026-12-31"),bankHolidayDates:["2026-12-25","2026-12-28"]})},student:{findMany:async()=>[{id:"client",displayName:"Example Client",startDate:new Date("2026-01-01")}]},billingProfile:{findMany:async()=>[{id:"profile",studentId:"client",payerName:state.cycle==="LBE"?"London Borough of Enfield":"Private payer",purchaseOrderNumber:state.po,billingAddress:"Example address",activeFrom:new Date("2026-01-01"),vatRate:0,chargeRules:[{id:"rule",activeFrom:new Date("2026-01-01"),activeTo:null,chargeType:"FULL_DAY",active:true,attendanceDependency:"FUNDED",unitType:"DAY",applicableWeekdays:[],fundedDayCount:12,rate:40,vatRate:0}]}]},invoice:{findMany:async()=>state.invoices}}}));
+vi.mock("./prisma",()=>({prisma:{studentAttendance:{findMany:async()=>state.extras},billingPeriod:{findUnique:async()=>({id:"period",label:"December",cycle:state.cycle,periodStart:new Date("2026-12-01"),periodEnd:new Date("2026-12-31"),bankHolidayDates:["2026-12-25","2026-12-28"]})},student:{findMany:async()=>[{id:"client",displayName:"Example Client",startDate:new Date("2026-01-01")}]},billingProfile:{findMany:async()=>[{id:"profile",studentId:"client",payerName:state.cycle==="LBE"?"London Borough of Enfield":"Private payer",purchaseOrderNumber:state.po,billingAddress:"Example address",activeFrom:new Date("2026-01-01"),vatRate:0,chargeRules:[{id:"rule",activeFrom:new Date(state.ruleStart),activeTo:null,chargeType:"FULL_DAY",active:true,attendanceDependency:state.dependency,unitType:"DAY",applicableWeekdays:[],fundedDayCount:12,rate:state.rate,vatRate:0}]}]},invoice:{findMany:async()=>state.invoices}}}));
 import {billingClientRoster,billingChoices} from "./billing-wizard";
-beforeEach(()=>{state.po="PO-TEST";state.cycle="MONTHLY";state.invoices=[];state.extras=[];state.holidayFetch.mockClear()});
+beforeEach(()=>{state.po="PO-TEST";state.cycle="MONTHLY";state.dependency="FUNDED";state.rate=40;state.ruleStart="2026-01-01";state.invoices=[];state.extras=[];state.holidayFetch.mockClear()});
 describe("billing date and holiday previews",()=>{
  it("lets the user opt into holiday deductions for other clients",async()=>{const off=await billingChoices("period",false),on=await billingChoices("period",true);expect(off.rows[0].total).toBe(480);expect(on.rows[0].total).toBe(400);expect(on.rows[0].quantity).toBe(10);expect(state.holidayFetch).toHaveBeenCalledTimes(1)});
  it("defaults LBE to saved holiday deductions but allows an explicit override",async()=>{state.cycle="LBE";expect((await billingChoices("period")).rows[0].total).toBe(400);expect((await billingChoices("period",false)).rows[0].total).toBe(480);expect(state.holidayFetch).not.toHaveBeenCalled()});
@@ -24,4 +26,23 @@ it("includes explicit extra-day attendance in the amount reviewed before invoici
  state.extras=[{id:"extra",studentId:"client",date:new Date("2026-12-06")}];
  const row=(await billingChoices("period")).rows[0];
  expect(row).toMatchObject({extraDays:1,extraTotal:40,quantity:13,total:520,extraDates:["2026-12-06"]});
+});
+
+describe("saved day rates during invoice review",()=>{
+ it("uses the saved attendance day rate for entered days without assuming funded days",async()=>{
+  state.dependency="ATTENDED";
+  const row=(await billingChoices("period",false)).rows[0];
+  expect(row).toMatchObject({rate:40,quantity:null,total:null,error:null});
+  const total=invoiceDayAmounts(10,row.rate!,row.vatRate).grossAmount;
+  expect(total).toBe(400);
+  expect(invoiceBaseAmounts(total,10,row.extraTotal,row.extraDays,row.rate!,row.vatRate).grossAmount).toBe(total);
+ });
+ it("explains when no rate covers historical dates",async()=>{
+  state.ruleStart="2027-01-01";
+  expect((await billingChoices("period",false)).rows[0].error).toContain("day rate covering these billing dates");
+ });
+ it("explains a missing positive rate",async()=>{
+  state.rate=0;
+  expect((await billingChoices("period",false)).rows[0].error).toContain("valid day rate");
+ });
 });

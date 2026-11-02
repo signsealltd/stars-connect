@@ -29,9 +29,12 @@ export async function billingChoices(selection:string|ManualBillingPeriod,exclud
   const matching=profiles.filter(p=>p.studentId===student.id),profile=matching[0];
   if(!input&&profile&&needsPurchaseOrder(`${profile.payerName} ${profile.fundingOrganisation||""}`)!==(period.cycle==="LBE"))return [];
   const effective=new Date(Math.max(period.periodStart.getTime(),student.startDate.getTime(),profile?.activeFrom.getTime()||0));
-  const rule=profile?fundedRuleForDate(profile.chargeRules,effective):undefined;
+  const fundedRule=profile?fundedRuleForDate(profile.chargeRules,effective):undefined;
+  // Older profiles store the agreed day rate against attendance. Reuse that
+  // rate for explicitly entered days, without assuming a funded allocation.
+  const rule=fundedRule||profile?.chargeRules.filter(r=>r.active&&r.attendanceDependency==="ATTENDED"&&r.unitType==="DAY"&&r.activeFrom<=effective&&(!r.activeTo||r.activeTo>=effective)).sort((a,b)=>b.activeFrom.getTime()-a.activeFrom.getTime())[0];
   const holidays=Array.isArray(period.bankHolidayDates)?period.bankHolidayDates.length:0;
-  const amounts=rule&&rule.fundedDayCount!=null?fundedCountAmounts(Number(rule.fundedDayCount),holidays,0,Number(rule.rate),Number(rule.vatRate)):null;
+  const amounts=fundedRule&&fundedRule.fundedDayCount!=null?fundedCountAmounts(Number(fundedRule.fundedDayCount),holidays,0,Number(fundedRule.rate),Number(fundedRule.vatRate)):null;
   let extraTotal=0,extraDays=0,extraError:string|null=null;
   const extraDates:string[]=[];
   for(const attendance of extras.filter(a=>a.studentId===student.id)){
@@ -39,7 +42,7 @@ export async function billingChoices(selection:string|ManualBillingPeriod,exclud
   }
   const overlap=invoices.find(i=>i.studentId===student.id&&(i.billingRun.periodStart.getTime()!==period.periodStart.getTime()||i.billingRun.periodEnd.getTime()!==period.periodEnd.getTime()));
   const outsideDates=student.startDate>period.periodEnd||(student.endDate&&student.endDate<period.periodStart);
-  const error=extraError|| (outsideDates?"The billing dates fall outside this client's service dates. Check the dates or client profile.":!profile?"Add a payer and billing details.":matching.length>1?"More than one funding arrangement applies. Check Billing settings.":!profile.billingAddress.trim()?"Add the payer's billing address.":null);
+  const error=extraError|| (outsideDates?"The billing dates fall outside this client's service dates. Check the dates or client profile.":!profile?"Add a payer and billing details.":matching.length>1?"More than one funding arrangement applies. Check Billing settings.":!profile.billingAddress.trim()?"Add the payer's billing address.":!rule||!Number.isFinite(Number(rule.rate))||Number(rule.rate)<=0?"Add a valid day rate covering these billing dates in Billing settings.":null);
   return [{id:student.id,name:student.displayName,payer:profile?.payerName||"Not set",profileId:profile?.id||null,extraDays,extraTotal,extraDates,quantity:amounts?amounts.quantity+extraDays:null,rate:rule?Number(rule.rate):null,total:amounts?Math.round((amounts.grossAmount+extraTotal)*100)/100:null,vatRate:rule?Number(rule.vatRate):Number(profile?.vatRate||0),error,warning:profile&&needsPurchaseOrder(`${profile.payerName} ${profile.fundingOrganisation||""}`)&&!profile.purchaseOrderNumber?.trim()?"No PO reference supplied. You can still issue this invoice.":null,overlap:overlap||null,existing:invoices.find(i=>i.studentId===student.id&&i.billingProfileId===profile?.id&&i.billingRun.periodStart.getTime()===period.periodStart.getTime()&&i.billingRun.periodEnd.getTime()===period.periodEnd.getTime())||null}];
  });
  const token=createHash("sha256").update(JSON.stringify({period,rows})).digest("hex");

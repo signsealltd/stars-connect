@@ -1,0 +1,27 @@
+import type {MyDayReportContent} from "./myday-rules";
+export class MyDayPdfOverflow extends Error {}
+const widths:Record<string,number>={" ":278,"!":278,'"':355,"#":556,"$":556,"%":889,"&":667,"'":191,"(":333,")":333,"*":389,"+":584,",":278,"-":333,".":278,"/":278,":":278,";":278,"<":584,"=":584,">":584,"?":556,"@":1015,A:667,B:667,C:722,D:722,E:667,F:611,G:778,H:722,I:278,J:500,K:667,L:556,M:833,N:722,O:778,P:667,Q:778,R:722,S:667,T:611,U:722,V:667,W:944,X:667,Y:667,Z:611,"[":278,"\\":278,"]":278,"^":469,_:556,"`":333,a:556,b:556,c:500,d:556,e:556,f:278,g:556,h:556,i:222,j:222,k:500,l:222,m:833,n:556,o:556,p:556,q:556,r:333,s:500,t:278,u:556,v:500,w:722,x:500,y:500,z:500,"{":334,"|":260,"}":334,"~":584};
+export function pdfNormalise(s:string){return s.replace(/[‘’]/g,"'").replace(/[“”]/g,'"').replace(/[–—]/g,"-").replace(/\u00a0/g," ").replace(/…/g,"...").replace(/\r\n/g,"\n");}
+function encoded(s:string){const v=pdfNormalise(s);if(/[^\x20-\x7e\xa0-\xff]/.test(v))throw Error("The PDF contains an unsupported symbol. Replace decorative symbols or emoji with words before saving.");return Buffer.from(v,"latin1").toString("hex");}
+function text(s:string,x:number,y:number,size=11,bold=false,colour="0.13 0.10 0.15"){return `BT /${bold?"F2":"F1"} ${size} Tf ${colour} rg ${x} ${y} Td <${encoded(s)}> Tj ET`;}
+function width(s:string,size:number){return [...pdfNormalise(s)].reduce((sum,c)=>sum+(widths[c]??(/\d/.test(c)?556:widths[c.normalize("NFD")[0]]||600)),0)*size/1000;}
+export function mydayWrap(s:string,max=499,size=11){
+ const lines:string[]=[];
+ for(const para of pdfNormalise(s).split("\n")){let line="";for(const word of para.split(/\s+/).filter(Boolean)){if(line&&width(line+" "+word,size)>max){lines.push(line);line="";}let remaining=word;while(width(remaining,size)>max){let cut=1;while(cut<remaining.length&&width(remaining.slice(0,cut+1),size)<=max)cut++;lines.push(remaining.slice(0,cut));remaining=remaining.slice(cut);}line+=(line?" ":"")+remaining;}lines.push(line);}
+ return lines;
+}
+function circle(x:number,y:number,r:number){const k=r*0.55228475;return `${x+r} ${y} m ${x+r} ${y+k} ${x+k} ${y+r} ${x} ${y+r} c ${x-k} ${y+r} ${x-r} ${y+k} ${x-r} ${y} c ${x-r} ${y-k} ${x-k} ${y-r} ${x} ${y-r} c ${x+k} ${y-r} ${x+r} ${y-k} ${x+r} ${y} c h`;}
+export function mydayPdf({name,month,content,logo,photo}:{name:string;month:string;content:MyDayReportContent;logo:Buffer;photo?:Buffer}){
+ const commands=["1 1 1 rg 0 0 595 842 re f","0.33 0.12 0.37 rg 0 735 595 107 re f","q 73 0 0 53 42 765 cm /Logo Do Q",text("My Month at STARS",132,785,23,true,"1 1 1"),text(month,133,761,12,false,"1 1 1")];
+ if(photo){const x=489,y=662,r=30,k=r*0.55228475;commands.push(`q ${x+r} ${y} m ${x+r} ${y+k} ${x+k} ${y+r} ${x} ${y+r} c ${x-k} ${y+r} ${x-r} ${y+k} ${x-r} ${y} c ${x-r} ${y-k} ${x-k} ${y-r} ${x} ${y-r} c ${x+k} ${y-r} ${x+r} ${y-k} ${x+r} ${y} c W n 60 0 0 60 ${x-r} ${y-r} cm /Photo Do Q`);}else commands.push(`0.94 0.90 0.96 rg ${circle(489,662,30)} f`,text(name.split(/\s+/).map(s=>s[0]).slice(0,2).join(""),471,654,18,true,"0.33 0.12 0.37"));
+ const nameLines=mydayWrap(name,390,21);if(nameLines.length>2)throw new MyDayPdfOverflow("The preferred name is too long for the report header.");nameLines.forEach((line,i)=>commands.push(text(line,48,680-i*25,21,true)));
+ let y=606;
+ const sections:[[string,string],[string,string],[string,string],[string,string]]=[["",content.opening],["Activities and choices",content.activities],["What the client enjoyed",content.enjoyment],["Support given",content.support]];
+ for(const [heading,body] of sections){if(heading){y-=15;commands.push(text(heading,48,y,13,true,"0.33 0.12 0.37"));y-=24;}for(const line of mydayWrap(body)){if(y<65)throw new MyDayPdfOverflow("This report exceeds one A4 page. Shorten the wording before saving or downloading.");commands.push(text(line,48,y));y-=16;}y-=10;}
+ commands.push("0.86 0.81 0.88 RG 0.6 w 48 46 m 547 46 l S",text("STARS Day Service",48,30,9,false,"0.40 0.35 0.43"));
+ const stream=(data:Buffer,attrs="")=>Buffer.concat([Buffer.from(`<< ${attrs} /Length ${data.length} >>\nstream\n`),data,Buffer.from("\nendstream")]);
+ const image=(bytes:Buffer)=>stream(bytes,"/Type /XObject /Subtype /Image /Width 640 /Height 640 /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode");
+ // Caller supplies a normalised square JPEG logo and photo.
+ const objects:Buffer[]=[Buffer.from("<< /Type /Catalog /Pages 2 0 R >>"),Buffer.from("<< /Type /Pages /Kids [3 0 R] /Count 1 >>"),Buffer.from(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 5 0 R /F2 6 0 R >> /XObject << /Logo 7 0 R ${photo?"/Photo 8 0 R":""} >> >> /Contents 4 0 R >>`),stream(Buffer.from(commands.join("\n"))),Buffer.from("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>"),Buffer.from("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>"),image(logo),...(photo?[image(photo)]:[])];
+ const parts=[Buffer.from("%PDF-1.4\n")],offsets=[0];let offset=parts[0].length;objects.forEach((o,i)=>{offsets.push(offset);const part=Buffer.concat([Buffer.from(`${i+1} 0 obj\n`),o,Buffer.from("\nendobj\n")]);parts.push(part);offset+=part.length;});parts.push(Buffer.from(`xref\n0 ${objects.length+1}\n0000000000 65535 f \n${offsets.slice(1).map(n=>String(n).padStart(10,"0")+" 00000 n ").join("\n")}\ntrailer << /Size ${objects.length+1} /Root 1 0 R >>\nstartxref\n${offset}\n%%EOF`));return Buffer.concat(parts);
+}

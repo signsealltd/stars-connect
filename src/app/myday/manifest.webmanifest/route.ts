@@ -1,0 +1,1 @@
+export function GET(){return Response.json({id:"/myday",name:"STARS My Day",short_name:"My Day",start_url:"/myday",scope:"/myday",display:"standalone",orientation:"portrait-primary",background_color:"#f7f4f8",theme_color:"#54205d",icons:[{src:"/icon.svg",sizes:"any",type:"image/svg+xml",purpose:"any"}]},{headers:{"cache-control":"no-cache"}});}

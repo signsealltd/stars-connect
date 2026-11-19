@@ -1,3 +1,4 @@
+import {planSections} from "@/lib/myday-rules";
 import {hasCapability,CAPABILITIES} from "@/lib/permissions";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
@@ -9,6 +10,7 @@ import { createInlineBillingProfile, updateInlineBillingProfile } from "@/lib/bi
 import { nullableProfileText, studentProfileFields } from "@/lib/student-profile";
 
 const schema = z.object({
+  expectedUpdatedAt: z.string().datetime().optional(),
   firstName: z.string().trim().min(1).max(80).optional(),
   lastName: z.string().trim().min(1).max(80).optional(),
   displayName: z.string().trim().min(1).max(120).optional(),
@@ -32,10 +34,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (!before) return jsonError("Client not found.", 404);
     const parsed = schema.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return jsonError(studentValidationMessage(parsed.error), 422);
-    const { billing, ...input } = parsed.data;
+    const { billing, expectedUpdatedAt, ...input } = parsed.data;
+    if(expectedUpdatedAt&&before.updatedAt.toISOString()!==expectedUpdatedAt)return jsonError("This client profile changed. Reopen it to review the latest plan and notes before saving.",409);
     if (billing?.enabled && !hasCapability(user.role,CAPABILITIES.BILLING_EDIT,user.permissionOverrides)) return jsonError("Billing management permission is required.", 403);
     try {
       const result = await prisma.$transaction(async tx => {
+        if(expectedUpdatedAt&&!(await tx.student.updateMany({where:{id,updatedAt:new Date(expectedUpdatedAt)},data:{updatedAt:new Date()}})).count)throw Error("PROFILE_CHANGED");
         const data = nullableProfileText(nullableEmergencyContacts(input));
         const student = await tx.student.update({ where: { id }, data: {
           ...data,
@@ -48,6 +52,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           ...(input.notes !== undefined ? { notes: input.notes || null } : {}),
           ...(input.active === false ? { archivedAt: new Date() } : input.active === true ? { archivedAt: null } : {}),
         } });
+        if(input.personCentredProfile&&user.organisationId){const oldPlan=(before.personCentredProfile||{}) as Record<string,unknown>;for(const section of Object.keys(planSections)){const previous=String(oldPlan[section]||""),next=String((input.personCentredProfile as Record<string,unknown>)[section]||"");if(previous!==next)await tx.myDayPlanHistory.create({data:{studentId:id,organisationId:user.organisationId,section,beforeText:previous,afterText:next,actorId:user.id,actorName:user.name}});}}
         let profile = null;
         if (billing?.enabled) {
           profile = billing.profileId
@@ -61,6 +66,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       if (result.billingProfile) await audit("BILLING_PROFILE_CHANGED", { actorType: "USER", actorId: user.id, entityType: "BillingProfile", entityId: result.billingProfile.id, afterValue: { studentId: id, source: "STUDENT_FORM" }, ...requestContext(req) });
       return NextResponse.json({ ...result.student, careInformation:undefined, billingProfile: result.billingProfile });
     } catch (error) {
+      if(error instanceof Error&&error.message==="PROFILE_CHANGED")return jsonError("This client profile changed. Reopen it before saving.",409);
       if (error instanceof Error && error.message === "ACTIVE_BILLING_PROFILE_EXISTS") return jsonError("This client already has an active billing profile. Edit that profile instead.", 409);
       if (error instanceof Error && error.message === "BILLING_PROFILE_NOT_FOUND") return jsonError("The billing profile could not be found.", 404);
       throw error;

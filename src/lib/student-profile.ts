@@ -11,6 +11,9 @@ export const secondaryEmergencyContactSchema = z.object({
 
 export const medicalProfileSchema = z.object({
   conditions: z.union([optionalText(), z.array(z.string().trim().max(1000)).max(30)]),
+  dietaryRequirements: optionalText(),
+  dietaryPreferences: optionalText(),
+  halal: z.boolean().optional(),
   allergies: z.union([optionalText(), z.array(z.string().trim().max(1000)).max(30)]),
   emergencyMedication: z.union([optionalText(), z.array(z.object({ name: z.string().trim().max(191), frequency: optionalText(191), dosage: optionalText(191) })).max(30)]),
   currentMedication: z.union([optionalText(), z.array(z.object({ name: z.string().trim().max(191), frequency: optionalText(191), dosage: optionalText(191) })).max(30)]),
@@ -25,6 +28,8 @@ export const personCentredProfileSchema = z.object({
   triggers: optionalText(),
   calmingStrategies: optionalText(),
   goals: optionalText(),
+  additionalNotes: z.union([z.string().max(12000),z.array(z.object({id:z.string().uuid(),text:z.string().max(12000),author:z.string().max(191),createdAt:z.string().datetime()}))]).optional(),
+  mydayAdditionalNotes: z.array(z.object({id:z.string().uuid(),text:z.string().max(12000),author:z.string().max(191),createdAt:z.string().datetime()})).optional(),
 });
 
 export const studentProfileFields = {

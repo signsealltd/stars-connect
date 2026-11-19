@@ -2528,3 +2528,106 @@ model PrintableDocumentVersion {
  createdAt DateTime @default(now())
  @@unique([documentId,version])
 }
+
+// My Day is additive: canonical client, plan and attendance records stay in place.
+model MyDaySession {
+ id String @id @default(uuid()) @db.Char(36)
+ tokenHash String @unique @db.Char(64)
+ staffId String @db.Char(36)
+ credentialId String @db.Char(36)
+ credentialHash String @db.VarChar(255)
+ organisationId String @db.Char(36)
+ expiresAt DateTime
+ lastSeenAt DateTime @default(now())
+ createdAt DateTime @default(now())
+}
+model MyDayGrant {
+ id String @id @default(uuid()) @db.Char(36)
+ secretHash String @db.Char(64)
+ staffId String @db.Char(36)
+ credentialId String @db.Char(36)
+ credentialHash String @db.VarChar(255)
+ organisationId String @db.Char(36)
+ expiresAt DateTime
+ createdAt DateTime @default(now())
+}
+model MyDayClient {
+ studentId String @id @db.Char(36)
+ hidden Boolean @default(false)
+ updatedAt DateTime @updatedAt
+}
+model MyDayActivity {
+ id String @id @default(uuid()) @db.Char(36)
+ organisationId String @db.Char(36)
+ label String @db.VarChar(191)
+ position Int @default(0)
+ archived Boolean @default(false)
+ version Int @default(1)
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ @@index([organisationId,archived,position])
+}
+model MyDayEntry {
+ id String @id @db.Char(36)
+ studentId String @db.Char(36)
+ organisationId String @db.Char(36)
+ authorId String @db.Char(36)
+ authorName String @db.VarChar(191)
+ occurredAt DateTime
+ day String @db.Char(10)
+ content Json
+ handover Boolean @default(false)
+ version Int @default(1)
+ editedBy String? @db.VarChar(191)
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ @@index([organisationId,studentId,day])
+ @@index([organisationId,day,handover])
+}
+model MyDayRevision {
+ id String @id @default(uuid()) @db.Char(36)
+ requestKey String @unique @db.Char(36)
+ entryId String @db.Char(36)
+ version Int
+ content Json
+ actorId String @db.Char(36)
+ actorName String @db.VarChar(191)
+ createdAt DateTime @default(now())
+ @@index([entryId,version])
+}
+model MyDayReview {
+ id String @id @db.Char(36)
+ organisationId String @db.Char(36)
+ staffId String @db.Char(36)
+ reason String @db.VarChar(191)
+ payload Json
+ status String @default("OPEN") @db.VarChar(20)
+ decidedBy String? @db.Char(36)
+ decidedAt DateTime?
+ createdAt DateTime @default(now())
+ @@index([organisationId,status])
+}
+model MyDayPlanHistory {
+ id String @id @default(uuid()) @db.Char(36)
+ studentId String @db.Char(36)
+ organisationId String @db.Char(36)
+ section String @db.VarChar(80)
+ beforeText String @db.Text
+ afterText String @db.Text
+ actorName String @db.VarChar(191)
+ actorId String @db.Char(36)
+ createdAt DateTime @default(now())
+ @@index([organisationId,studentId,createdAt])
+}
+model MyDayReport {
+ studentId String @id @db.Char(36)
+ organisationId String @db.Char(36)
+ month String @db.Char(7)
+ content Json
+ pdf Bytes @db.LongBlob
+ sourceHash String @db.Char(64)
+ version Int @default(1)
+ edited Boolean @default(false)
+ updatedBy String @db.Char(36)
+ updatedAt DateTime @updatedAt
+}

@@ -33,7 +33,6 @@ export default function Register() {
   const [saved, setSaved] = useState(false);
   const date = localDateKey();
   const mydayNotes=useMyDayRegisterNotes(unlocked);
-  useEffect(()=>{fetch("/api/myday/auth",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(d=>{if(d?.actor)setUnlocked(true)}).catch(()=>{});},[]);
   useEffect(()=>{if(!unlocked||!students.length)return;const position=sessionStorage.getItem("myday-register-scroll");if(position){window.scrollTo(0,Number(position));sessionStorage.removeItem("myday-register-scroll");}},[unlocked,students.length]);
 
   useEffect(() => {
